@@ -26,9 +26,16 @@ New-Item -ItemType Directory -Force -Path $work | Out-Null
 try {
     $archive = Join-Path $work $Asset
     Write-Host "Downloading $Url"
-    Invoke-WebRequest -Uri $Url -OutFile $archive -UseBasicParsing
+    # Plain .NET instead of Invoke-WebRequest/Get-FileHash: when Windows PowerShell is launched from
+    # PowerShell 7 (e.g. GitHub Actions), an inherited PSModulePath can make those cmdlets unavailable.
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+    $client = New-Object System.Net.WebClient
+    try { $client.DownloadFile($Url, $archive) } finally { $client.Dispose() }
 
-    $actual = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $stream = [System.IO.File]::OpenRead($archive)
+    try { $hashBytes = $sha.ComputeHash($stream) } finally { $stream.Dispose(); $sha.Dispose() }
+    $actual = -join ($hashBytes | ForEach-Object { $_.ToString('x2') })
     if ($actual -ne $Sha256) {
         throw "SHA256 mismatch for $Asset. Expected $Sha256, got $actual."
     }
