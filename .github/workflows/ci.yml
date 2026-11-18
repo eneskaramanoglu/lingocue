@@ -33,6 +33,19 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Install FFmpeg (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { choco install ffmpeg -y --no-progress }
+          ffmpeg -hide_banner -version | Select-Object -First 1
+
+      - name: Install FFmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          command -v ffmpeg >/dev/null || brew install ffmpeg
+          ffmpeg -hide_banner -version | head -1
+
       - name: Restore
         run: dotnet restore LingoCue.slnx
 
@@ -40,4 +53,6 @@ jobs:
         run: dotnet build LingoCue.slnx --configuration Release --no-restore
 
       - name: Test
+        env:
+          LINGOCUE_REQUIRE_FFMPEG: '1'
         run: dotnet test --solution LingoCue.slnx --configuration Release --no-build
