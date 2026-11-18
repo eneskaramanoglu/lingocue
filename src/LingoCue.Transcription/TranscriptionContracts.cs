@@ -86,24 +86,53 @@ public sealed class TranscriptionException : Exception
     public string? Remedy { get; init; }
 }
 
-public static class WordTimeline
+public static partial class WordTimeline
 {
     /// <summary>Shifts chunk-relative word times by the chunk start.</summary>
     public static IEnumerable<Word> Offset(IEnumerable<Word> words, TimeSpan offset)
         => words.Select(w => w with { Start = w.Start + offset, End = w.End + offset });
 
     /// <summary>
-    /// Cleans engine output: trims, drops empty tokens, attaches stand-alone punctuation to the previous
-    /// word, fixes inverted or overlapping times and sorts by start.
+    /// Cleans engine output: trims, drops empty tokens and non-speech annotations (<c>*gülüşmeler*</c>,
+    /// <c>[Müzik çalıyor]</c>, <c>(alkış)</c>, ♪, laughter such as "Eheheh"), attaches stand-alone
+    /// punctuation to the previous word, fixes inverted or overlapping times and sorts by start.
     /// </summary>
     public static List<Word> Normalize(IEnumerable<Word> words)
     {
         ArgumentNullException.ThrowIfNull(words);
         var result = new List<Word>();
+        char? openAnnotation = null;
         foreach (var raw in words.OrderBy(w => w.Start))
         {
             var text = raw.Text.Trim();
             if (text.Length == 0)
+            {
+                continue;
+            }
+
+            // Annotations may span several words: "[Müzik" "çalıyor]".
+            if (openAnnotation is { } close)
+            {
+                if (text.TrimEnd('.', ',', '!', '?').EndsWith(close))
+                {
+                    openAnnotation = null;
+                }
+
+                continue;
+            }
+
+            if (AnnotationClose(text) is { } closing)
+            {
+                // A lone ♪ or * is a marker, not the start of a multi-word annotation.
+                if (text.Length > 1 && !text.TrimEnd('.', ',', '!', '?').EndsWith(closing))
+                {
+                    openAnnotation = closing;
+                }
+
+                continue;
+            }
+
+            if (IsLaughter(text) || text.All(c => c is '♪' or '♫' or '…' or '.' || char.IsWhiteSpace(c)))
             {
                 continue;
             }
@@ -134,4 +163,21 @@ public static class WordTimeline
     }
 
     private static bool IsPunctuationOnly(string text) => text.All(c => char.IsPunctuation(c) || char.IsSymbol(c));
+
+    /// <summary>The closing character when the word opens a bracketed/starred annotation.</summary>
+    private static char? AnnotationClose(string text) => text[0] switch
+    {
+        '[' => ']',
+        '(' => ')',
+        '*' => '*',
+        '♪' => '♪',
+        _ => null,
+    };
+
+    // "Eheheh", "hahaha", "hehe", "Hıhıhı": at least two h+vowel pairs, nothing else.
+    internal static bool IsLaughter(string text)
+        => LaughterPattern().IsMatch(text.Trim('.', ',', '!', '?', '…'));
+
+    [System.Text.RegularExpressions.GeneratedRegex("^[aeıiAEIİ]?(?:[hH][aeıiAEIİ]){2,}[hH]?$")]
+    private static partial System.Text.RegularExpressions.Regex LaughterPattern();
 }

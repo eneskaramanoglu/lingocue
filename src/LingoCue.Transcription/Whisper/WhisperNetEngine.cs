@@ -82,12 +82,17 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
             var language = ToWhisperLanguage(request.Language);
             LogStarting(request.ModelId, device, language);
 
-            await using var processor = factory.CreateBuilder()
+            var builder = factory.CreateBuilder()
                 .WithLanguage(language)
                 .WithTokenTimestamps()
                 .WithProbabilities()
-                .WithProgressHandler(p => progress?.Report(new(TranscriptionStage.Recognizing, 0.32 + (p / 100.0 * 0.66), device)))
-                .Build();
+                .WithProgressHandler(p => progress?.Report(new(TranscriptionStage.Recognizing, 0.32 + (p / 100.0 * 0.66), device)));
+            if (PromptFor(language) is { } prompt)
+            {
+                builder = builder.WithPrompt(prompt);
+            }
+
+            await using var processor = builder.Build();
 
             var words = new List<Word>();
             string? detected = null;
@@ -103,7 +108,7 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
                         continue;
                     }
 
-                    var tokens = segment.Tokens.Select(t => new RawToken(t.Text ?? string.Empty, t.Start, t.End, t.Probability));
+                    var tokens = segment.Tokens.Select(t => new RawToken(t.Text ?? string.Empty, t.Start, t.End, t.Probability, t.DtwTimestamp));
                     words.AddRange(WhisperTokenWords.ToWords(tokens));
                 }
             }
@@ -133,6 +138,17 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
         _gate.Dispose();
     }
 
+    /// <summary>
+    /// Whisper continues the style of its prompt. A short, punctuated Turkish sentence nudges it toward
+    /// punctuated output with Turkish characters instead of a bare word stream.
+    /// </summary>
+    internal static string? PromptFor(string whisperLanguage) => whisperLanguage switch
+    {
+        "tr" => "Merhaba, hoş geldiniz. Bugün neler yapacağız? Evet, başlayalım.",
+        "en" => "Hello, welcome. What are we doing today? Yes, let's begin.",
+        _ => null,
+    };
+
     internal static string ToWhisperLanguage(string? language)
         => string.IsNullOrWhiteSpace(language) || language.Equals("auto", StringComparison.OrdinalIgnoreCase)
             ? "auto"
@@ -155,7 +171,13 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
         }
 
         _factory?.Dispose();
-        _factory = WhisperFactory.FromPath(modelPath);
+        // DTW aligns every token against the audio; whisper's default token times collapse to
+        // segment edges in fast, overlapping speech (docs/reports/asr-comparison.md).
+        _factory = WhisperFactory.FromPath(modelPath, new WhisperFactoryOptions
+        {
+            UseDtwTimeStamps = true,
+            HeadsPreset = modelId == WhisperModels.LargeV3TurboQ5 ? WhisperAlignmentHeadsPreset.LargeV3Turbo : WhisperAlignmentHeadsPreset.LargeV3,
+        });
         _factoryModel = modelId;
         return _factory;
     }

@@ -28,6 +28,31 @@ public class WhisperTokenWordsTests
     }
 
     [Fact]
+    public void Dtw_onsets_define_word_starts_and_ends_without_spanning_silence()
+    {
+        // Token t0/t1 collapsed to the segment edge (0..600 cs) as observed in real footage;
+        // DTW onsets carry the real timing.
+        RawToken[] tokens =
+        [
+            new(" Ben", 0, 600, 0.9f, 120),
+            new(" size", 0, 600, 0.9f, 150),
+            new(" imza", 0, 600, 0.9f, 182),
+            new(" at", 0, 600, 0.9f, 220),
+            new("ayım", 0, 600, 0.9f, 236),
+            new(" Tamam", 0, 600, 0.9f, 480), // 2.4 s later: after a pause
+        ];
+
+        var words = WhisperTokenWords.ToWords(tokens);
+
+        words.Select(w => w.Text).ShouldBe(["Ben", "size", "imza", "atayım", "Tamam"]);
+        words[0].Start.ShouldBe(TimeSpan.FromMilliseconds(1200));
+        words[0].End.ShouldBe(TimeSpan.FromMilliseconds(1500));   // up to the next word
+        words[3].Start.ShouldBe(TimeSpan.FromMilliseconds(2200));
+        words[3].End.ShouldBe(TimeSpan.FromMilliseconds(2760));   // last onset + 0.4 s, not across the pause
+        words[4].Start.ShouldBe(TimeSpan.FromMilliseconds(4800));
+    }
+
+    [Fact]
     public void First_token_without_leading_space_still_starts_a_word()
         => WhisperTokenWords.ToWords([new("Evet", 0, 20, 1f), new(".", 20, 22, 1f)]).ShouldHaveSingleItem().Text.ShouldBe("Evet.");
 
