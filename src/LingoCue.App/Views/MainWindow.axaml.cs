@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using LingoCue.App.ViewModels;
 
@@ -7,6 +8,8 @@ namespace LingoCue.App.Views;
 
 public partial class MainWindow : Window
 {
+    private bool _closeConfirmed;
+
     // Used by the XAML previewer.
     public MainWindow()
     {
@@ -16,7 +19,15 @@ public partial class MainWindow : Window
 
         // Tunnel so playback shortcuts work regardless of which control has focus
         // (text inputs keep their own arrow/space handling).
-        AddHandler(KeyDownEvent, OnPreviewKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+
+        CueGrid.SelectionChanged += (_, _) =>
+        {
+            if (CueGrid.SelectedItem is { } item)
+            {
+                CueGrid.ScrollIntoView(item, null);
+            }
+        };
     }
 
     public MainWindow(MainViewModel viewModel)
@@ -26,6 +37,23 @@ public partial class MainWindow : Window
     }
 
     private MainViewModel? ViewModel => DataContext as MainViewModel;
+
+    protected override async void OnClosing(WindowClosingEventArgs e)
+    {
+        base.OnClosing(e);
+        if (_closeConfirmed || ViewModel is not { IsDirty: true } vm)
+        {
+            return;
+        }
+
+        // Ask asynchronously, then close again if the user did not cancel.
+        e.Cancel = true;
+        if (await vm.ConfirmDiscardChangesAsync())
+        {
+            _closeConfirmed = true;
+            Close();
+        }
+    }
 
     private static void OnDragOver(object? sender, DragEventArgs e)
         => e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None;
@@ -42,6 +70,14 @@ public partial class MainWindow : Window
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
+        // Enter in a single-line box (start/end time) commits it by moving focus to the list.
+        if (e.Key == Key.Enter && e.Source is TextBox { AcceptsReturn: false })
+        {
+            CueGrid.Focus();
+            e.Handled = true;
+            return;
+        }
+
         if (ViewModel?.Player is not { IsLoaded: true } player || e.Source is TextBox)
         {
             return;
