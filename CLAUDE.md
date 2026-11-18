@@ -61,8 +61,14 @@ dotnet publish src/LingoCue.App -c Release -r win-x64 --self-contained -o publis
   Model names are never hard-coded; they come from the provider's model list and settings.
 - **Tests:** xUnit v3 + Shouldly. Tests calling real APIs read keys from environment variables
   and are skipped when missing. Media tests generate sample media with FFmpeg at test time.
-- **Video:** the UI talks to `IVideoPlayer` only (mpv implementation in `App/Playback`, see ADR 0001).
-  On Windows the video surface is a native child window: never place Avalonia overlays on top of it.
+- **Video:** the UI talks to `IVideoPlayer` only (mpv implementation in `App/Playback`, ADR 0001).
+  The mpv view renders through OpenGL on all platforms (ADR 0002); keep `Renderer="OpenGl"`.
+- **Preview = output:** the preview ASS comes from `AssScriptBuilder` (Core); burn-in must use the
+  same builder. Never render subtitles with Avalonia text for preview.
+- **Subtitle text model:** line breaks are `\n`; inline formatting is kept as written (HTML tags from
+  SRT/VTT or ASS overrides) and converted by `TagConverter` when writing another format.
+- **Turkish typing in UI tests:** this machine has Caps Lock on and a Turkish layout; `SendKeys`
+  flips case and turns `i` into `İ`. Paste text via the clipboard instead of typing it.
 - **MVVM:** CommunityToolkit.Mvvm with `[ObservableProperty] public partial ...` properties and
   `[RelayCommand]`. Views are resolved from DI; compiled bindings (`x:DataType`) everywhere.
 - **Milestone close:** update CHANGELOG, add the version's steps to `docs/TESTING-macos.md`, open a

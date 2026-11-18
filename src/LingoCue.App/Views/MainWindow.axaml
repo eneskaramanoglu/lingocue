@@ -9,20 +9,44 @@
         x:DataType="vm:MainViewModel"
         Icon="/Assets/lingocue.ico"
         Title="{Binding Title}"
-        Width="1200" Height="720"
-        MinWidth="900" MinHeight="560"
+        Width="1200" Height="720" WindowState="Maximized"
+        MinWidth="980" MinHeight="600"
         WindowStartupLocation="CenterScreen"
         DragDrop.AllowDrop="True">
 
   <Window.KeyBindings>
     <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenVideoCommand}" />
     <KeyBinding Gesture="Meta+O" Command="{Binding OpenVideoCommand}" />
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveProjectCommand}" />
+    <KeyBinding Gesture="Meta+S" Command="{Binding SaveProjectCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveProjectAsCommand}" />
+    <KeyBinding Gesture="Meta+Shift+S" Command="{Binding SaveProjectAsCommand}" />
+    <KeyBinding Gesture="Ctrl+I" Command="{Binding ImportSubtitleCommand}" />
+    <KeyBinding Gesture="Meta+I" Command="{Binding ImportSubtitleCommand}" />
   </Window.KeyBindings>
 
   <DockPanel>
 
+    <!-- Menu -->
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="_Dosya">
+        <MenuItem Header="_Video Aç…" InputGesture="Ctrl+O" Command="{Binding OpenVideoCommand}" />
+        <MenuItem Header="_Proje Aç…" Command="{Binding OpenProjectCommand}" />
+        <Separator />
+        <MenuItem Header="_Kaydet" InputGesture="Ctrl+S" Command="{Binding SaveProjectCommand}" />
+        <MenuItem Header="_Farklı Kaydet…" InputGesture="Ctrl+Shift+S" Command="{Binding SaveProjectAsCommand}" />
+        <Separator />
+        <MenuItem Header="Altyazı _İçe Aktar…" InputGesture="Ctrl+I" Command="{Binding ImportSubtitleCommand}" />
+        <MenuItem Header="Altyazı _Dışa Aktar">
+          <MenuItem Header="SRT (Premiere Pro)…" Command="{Binding ExportSubtitleCommand}" CommandParameter="srt" />
+          <MenuItem Header="WebVTT…" Command="{Binding ExportSubtitleCommand}" CommandParameter="vtt" />
+          <MenuItem Header="ASS (stilli)…" Command="{Binding ExportSubtitleCommand}" CommandParameter="ass" />
+        </MenuItem>
+      </MenuItem>
+    </Menu>
+
     <!-- Toolbar: actions are enabled milestone by milestone. -->
-    <Border DockPanel.Dock="Top" Padding="8,6" BorderThickness="0,0,0,1"
+    <Border DockPanel.Dock="Top" Padding="8,6" BorderThickness="0,1,0,1"
             BorderBrush="{DynamicResource PanelBorderBrush}">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
@@ -32,12 +56,14 @@
         <StackPanel Orientation="Horizontal" Spacing="6">
           <Button Content="Video Aç" Command="{Binding OpenVideoCommand}" Focusable="False"
                   ToolTip.Tip="Video aç (Ctrl+O / ⌘O)" />
+          <Button Content="Kaydet" Command="{Binding SaveProjectCommand}" Focusable="False"
+                  ToolTip.Tip="Projeyi kaydet (Ctrl+S / ⌘S)" />
           <Separator Width="1" Margin="4,2" />
           <Button Content="Transkribe Et" IsEnabled="False" ToolTip.Tip="M3" />
           <Button Content="Düzelt" IsEnabled="False" ToolTip.Tip="M4" />
           <Button Content="Çevir" IsEnabled="False" ToolTip.Tip="M7" />
           <Button Content="Stil" IsEnabled="False" ToolTip.Tip="M5" />
-          <Button Content="Dışa Aktar" IsEnabled="False" ToolTip.Tip="M6" />
+          <Button Content="Dışa Aktar" IsEnabled="False" ToolTip.Tip="M6 (şimdilik Dosya → Altyazı Dışa Aktar)" />
         </StackPanel>
       </DockPanel>
     </Border>
@@ -64,14 +90,14 @@
       </DockPanel>
     </Border>
 
-    <!-- Main area: video + transport + timeline on the left, cue table on the right. -->
-    <Grid Margin="8" ColumnDefinitions="3*,Auto,2*">
-      <Grid Grid.Column="0" RowDefinitions="*,Auto,Auto,140">
+    <!-- Main area: video + transport + timeline on the left, cue table + editor on the right. -->
+    <Grid Margin="8" ColumnDefinitions="5*,Auto,4*">
+      <Grid Grid.Column="0" RowDefinitions="*,Auto,Auto,110">
         <Border Grid.Row="0" Classes="panel video" ClipToBounds="True">
           <Panel>
-            <mpv:MpvView MpvContext="{Binding Player.Mpv}" IsVisible="{Binding HasMedia}" />
+            <mpv:MpvView MpvContext="{Binding Player.Mpv}" Renderer="OpenGl" IsVisible="{Binding HasMedia}" />
             <TextBlock Classes="placeholder" IsVisible="{Binding !HasMedia}"
-                       Text="Video açmak için Video Aç'a tıklayın&#x0a;ya da dosyayı buraya sürükleyin (MP4, MOV, MKV)" />
+                       Text="Video Aç ile bir video seçin ya da buraya sürükleyin (MP4, MOV, MKV).&#x0a;Altyazı (SRT, VTT, ASS) ve .lingocue projeleri de sürüklenebilir." />
           </Panel>
         </Border>
 
@@ -115,8 +141,91 @@
 
       <GridSplitter Grid.Column="1" Width="6" Background="Transparent" ResizeDirection="Columns" />
 
-      <Border Grid.Column="2" Classes="panel">
-        <TextBlock Classes="placeholder" Text="Altyazı satırları (M2)" />
+      <!-- Cue list + editor -->
+      <Border Grid.Column="2" Classes="panel" Padding="0">
+        <DockPanel DataContext="{Binding Editor}" x:DataType="vm:SubtitleEditorViewModel">
+
+          <!-- Header: summary + list actions -->
+          <DockPanel DockPanel.Dock="Top" Margin="8,6">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+              <CheckBox Content="Oynatmayı takip et" IsChecked="{Binding FollowPlayback}" Focusable="False" />
+              <Button Content="+ Satır" Command="{Binding AddCueCommand}" Focusable="False"
+                      ToolTip.Tip="Oynatma konumuna yeni satır ekle" />
+              <Button Content="Sil" Command="{Binding DeleteCueCommand}" Focusable="False"
+                      ToolTip.Tip="Seçili satırı sil" />
+            </StackPanel>
+            <TextBlock Text="{Binding Summary}" VerticalAlignment="Center" Classes="muted" />
+          </DockPanel>
+
+          <!-- Editor for the selected cue -->
+          <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource PanelBorderBrush}"
+                  Padding="8" IsEnabled="{Binding HasSelection}">
+            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto,*" >
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Başlangıç" VerticalAlignment="Center" Margin="0,0,6,0" />
+              <DockPanel Grid.Row="0" Grid.Column="1" Margin="0,0,12,0">
+                <Button DockPanel.Dock="Right" Content="⏱" Command="{Binding SetStartToPlayheadCommand}" Focusable="False"
+                        ToolTip.Tip="Başlangıcı oynatma konumuna ayarla" Margin="4,0,0,0" />
+                <TextBox Text="{Binding SelectedCue.StartInput, UpdateSourceTrigger=LostFocus, FallbackValue=''}"
+                         FontFamily="{DynamicResource MonoFont}" x:Name="StartBox" />
+              </DockPanel>
+              <TextBlock Grid.Row="0" Grid.Column="2" Text="Bitiş" VerticalAlignment="Center" Margin="0,0,6,0" />
+              <DockPanel Grid.Row="0" Grid.Column="3">
+                <Button DockPanel.Dock="Right" Content="⏱" Command="{Binding SetEndToPlayheadCommand}" Focusable="False"
+                        ToolTip.Tip="Bitişi oynatma konumuna ayarla" Margin="4,0,0,0" />
+                <TextBox Text="{Binding SelectedCue.EndInput, UpdateSourceTrigger=LostFocus, FallbackValue=''}"
+                         FontFamily="{DynamicResource MonoFont}" />
+              </DockPanel>
+
+              <TextBox Grid.Row="1" Grid.ColumnSpan="4" Margin="0,8,0,0" MinHeight="64"
+                       Text="{Binding SelectedCue.Text, FallbackValue=''}"
+                       AcceptsReturn="True" TextWrapping="Wrap" x:Name="CueTextBox"
+                       PlaceholderText="Altyazı metni (Enter ile yeni satır)" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Konuşmacı" VerticalAlignment="Center" Margin="0,8,6,0" />
+              <TextBox Grid.Row="2" Grid.Column="1" Margin="0,8,12,0" Text="{Binding SelectedCue.Speaker, FallbackValue=''}" />
+              <TextBlock Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" Margin="0,8,0,0" VerticalAlignment="Center"
+                         Text="{Binding SelectedCue.IssuesText, FallbackValue=''}" Classes="issues" TextWrapping="Wrap" />
+            </Grid>
+          </Border>
+
+          <DataGrid x:Name="CueGrid" ItemsSource="{Binding Cues}" SelectedItem="{Binding SelectedCue}"
+                    IsReadOnly="True" SelectionMode="Single" CanUserSortColumns="False" CanUserReorderColumns="False"
+                    GridLinesVisibility="Horizontal" HeadersVisibility="Column" RowHeight="28" FontSize="13">
+            <DataGrid.Columns>
+              <DataGridTemplateColumn Header="#" Width="44">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate x:DataType="vm:CueViewModel">
+                    <Panel>
+                      <Border Classes="current" IsVisible="{Binding IsCurrent}" />
+                      <TextBlock Text="{Binding Number}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,6,0" />
+                    </Panel>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTextColumn Header="Başlangıç" Binding="{Binding StartText}" Width="136" FontFamily="{DynamicResource MonoFont}" />
+              <DataGridTextColumn Header="Bitiş" Binding="{Binding EndText}" Width="136" FontFamily="{DynamicResource MonoFont}" />
+              <DataGridTextColumn Header="Süre" Binding="{Binding DurationText}" Width="62" />
+              <DataGridTemplateColumn Header="CPS" Width="62">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate x:DataType="vm:CueViewModel">
+                    <Border Classes.cpsHigh="{Binding CpsHigh}" Classes.cpsTooHigh="{Binding CpsTooHigh}" Padding="6,0">
+                      <TextBlock Text="{Binding CpsText}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                    </Border>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="Metin" Width="*">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate x:DataType="vm:CueViewModel">
+                    <TextBlock Text="{Binding OneLineText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="6,0"
+                               Classes.hasError="{Binding HasError}" ToolTip.Tip="{Binding IssuesText}" />
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTextColumn Header="Konuşmacı" Binding="{Binding Speaker}" Width="104" />
+            </DataGrid.Columns>
+          </DataGrid>
+        </DockPanel>
       </Border>
     </Grid>
   </DockPanel>

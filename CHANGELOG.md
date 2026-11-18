@@ -6,6 +6,36 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-18
+
+### Added
+- Subtitle domain model: project, tracks (source/corrected/translation), cues with stable ids,
+  speakers, review marks, ASR words; ASS style and script info.
+- SRT, WebVTT and ASS readers/writers with round-trip tests. SRT reading is lenient (BOM, CRLF,
+  missing indexes, `.` separators, blank lines in text); VTT keeps identifiers, settings, STYLE/REGION
+  blocks and voice tags; ASS keeps styles, layers, margins, effects and reads legacy SSA styles.
+- Inline formatting conversion between SRT/VTT tags and ASS overrides (libass would print `<i>` literally).
+- Encoding detection on import (BOM, UTF-8, Windows-1254 for legacy Turkish files); UTF-8 export
+  with optional BOM and CRLF/LF; atomic writes.
+- `.lingocue` project files: readable JSON, schema version, relative video path, millisecond times.
+- Cue table with start/end/duration/CPS/text/speaker, CPS warning/error colors and issue tooltips,
+  current-cue marker, follow playback, click to seek.
+- Cue editor: start/end time entry, multi-line text, speaker, set start/end to playhead, add/delete.
+- Live subtitle preview on the video (debounced ASS regeneration + mpv `sub-reload`), sized to a
+  1080 reference that follows the video aspect (Shorts stay 1080 wide).
+- File menu: open video/project, save/save as, import and export SRT/VTT/ASS; shortcuts Ctrl/⌘+O, S,
+  Shift+S, I; drag-and-drop and command line accept videos, subtitles and projects.
+- Unsaved-changes prompt on close and before replacing the project; "•" in the title when dirty.
+- Readability rules (42 chars/line, 2 lines, 0.8–7 s, 17/21 CPS) shared with the upcoming segmentation.
+
+### Changed
+- The mpv video view renders through OpenGL on Windows as well (ADR 0002); fixes a black video area
+  after the layout changed.
+- The main window opens maximized.
+
+### Removed
+- The developer-only `--subtitle` command-line flag (subtitles are imported from the UI now).
+
 ## [0.2.0] - 2026-11-18
 
 ### Added
@@ -43,6 +73,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   unsigned osx-arm64 `.app` zip.
 - Docs: plan, research notes, architecture overview, macOS test checklist, `CLAUDE.md`.
 
-[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/eneskaramanoglu/lingocue/releases/tag/v0.1.0

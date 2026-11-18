@@ -19,6 +19,7 @@ internal static class ServiceCollectionExtensions
         services.AddSingleton(platform);
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IFilePickerService, FilePickerService>();
+        services.AddSingleton<IDialogService, DialogService>();
 
         // Media
         var mediaOptions = new MediaToolOptions();
@@ -32,7 +33,10 @@ internal static class ServiceCollectionExtensions
         services.AddSingleton<MpvVideoPlayer>();
         services.AddSingleton<IVideoPlayer>(sp => sp.GetRequiredService<MpvVideoPlayer>());
 
+        services.AddSingleton<SubtitlePreviewService>();
+
         services.AddSingleton<PlayerViewModel>();
+        services.AddSingleton<SubtitleEditorViewModel>();
         services.AddTransient<MainViewModel>();
         services.AddTransient<MainWindow>();
 

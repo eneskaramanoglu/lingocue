@@ -19,3 +19,4 @@ Template:
 | ADR | Title | Status |
 | --- | --- | --- |
 | [0001](0001-video-player.md) | Video player: libmpv via HanumanInstitute.LibMpv | accepted |
+| [0002](0002-opengl-video-view-on-windows.md) | OpenGL video view on Windows too | accepted |

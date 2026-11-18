@@ -10,6 +10,8 @@
           <SolidColorBrush x:Key="VideoBackgroundBrush" Color="#101114" />
           <SolidColorBrush x:Key="MutedTextBrush" Color="#6B7280" />
           <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#FDE8E8" />
+          <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#FEF3C7" />
+          <SolidColorBrush x:Key="WarningForegroundBrush" Color="#B45309" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
           <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#1E1F23" />
@@ -17,6 +19,8 @@
           <SolidColorBrush x:Key="VideoBackgroundBrush" Color="#000000" />
           <SolidColorBrush x:Key="MutedTextBrush" Color="#9CA3AF" />
           <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#4A1D1D" />
+          <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#4A3B12" />
+          <SolidColorBrush x:Key="WarningForegroundBrush" Color="#FBBF24" />
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
       <FontFamily x:Key="MonoFont">Cascadia Mono, Menlo, Consolas, monospace</FontFamily>
@@ -53,6 +57,30 @@
 
   <Style Selector="Button.play">
     <Setter Property="Padding" Value="12,6" />
+  </Style>
+
+  <!-- Cue table -->
+  <Style Selector="Border.current">
+    <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+    <Setter Property="Width" Value="4" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+  </Style>
+
+  <Style Selector="Border.cpsHigh">
+    <Setter Property="Background" Value="{DynamicResource WarningBackgroundBrush}" />
+  </Style>
+
+  <Style Selector="Border.cpsTooHigh">
+    <Setter Property="Background" Value="{DynamicResource ErrorBackgroundBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.hasError">
+    <Setter Property="TextDecorations" Value="Underline" />
+  </Style>
+
+  <Style Selector="TextBlock.issues">
+    <Setter Property="Foreground" Value="{DynamicResource WarningForegroundBrush}" />
+    <Setter Property="FontSize" Value="12" />
   </Style>
 
   <Style Selector="TextBlock.placeholder">

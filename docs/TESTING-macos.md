@@ -23,6 +23,45 @@ dotnet run --project src/LingoCue.App
 
 Logs are written to `~/Library/Logs/LingoCue/`.
 
+## v0.3.0 — Subtitle core
+
+Sample SRT (save as `test.srt`, UTF-8):
+
+```
+1
+00:00:00,500 --> 00:00:02,500
+Merhaba! Bugün İstanbul'dayız.
+
+2
+00:00:02,800 --> 00:00:04,000
+<i>Çok kısa ama çok uzun bir satır, okuma hızı kesinlikle aşılıyor burada</i>
+
+3
+00:00:04,500 --> 00:00:07,000
+Ilık bir rüzgâr esiyor,
+şırıl şırıl akan suyun sesi.
+```
+
+- [ ] The window opens maximized; menu **Dosya** is inside the window (not the macOS menu bar yet).
+- [ ] Open a video, then **Dosya → Altyazı İçe Aktar…** (⌘I) `test.srt`: the table shows 3 rows,
+      status bar says "SubRip, utf-8"; row 2 has a red CPS cell and an underlined text with a tooltip.
+- [ ] Press Space: the subtitle appears on the video **in italics for row 2** (not with literal `<i>`),
+      Turkish letters (İ ı ğ ş ç ü ö â) correct; the current row is marked and selected while playing.
+- [ ] Click row 3: the video jumps to 00:00:04.500 and shows the two-line subtitle.
+- [ ] Edit row 3's text in the editor: the table, CPS and the video subtitle update within ~0.5 s;
+      the title shows "•".
+- [ ] Type `00:00:05.000` into Başlangıç and press Enter: the row moves/updates; typing garbage reverts.
+- [ ] ⏱ buttons set start/end to the playhead; **+ Satır** adds a row at the playhead without
+      overlapping the cue already shown there; **Sil** deletes the selected row.
+- [ ] ⌘S asks for a location the first time and saves `*.lingocue`; the "•" disappears.
+      ⌘Q / closing the window with unsaved changes shows Kaydet / Kaydetme / Vazgeç and each works.
+- [ ] Reopen the project (Dosya → Proje Aç…, or drag the `.lingocue` file): video, rows and edits return.
+- [ ] Move the project file and video together to another folder (or copy them from Windows): it still opens.
+- [ ] Export SRT/VTT/ASS from **Dosya → Altyazı Dışa Aktar**; open the SRT in TextEdit (UTF-8, CRLF)
+      and the ASS in another player (IINA/VLC): styling and Turkish text look like the preview.
+- [ ] Dragging an `.srt` onto the window imports it (asks before replacing existing rows).
+- [ ] A Windows-1254 (ANSI Turkish) SRT imports with correct letters.
+
 ## v0.2.0 — Video
 
 Prerequisite: `brew install ffmpeg` (the app does not bundle FFmpeg yet). From source also
@@ -43,7 +82,7 @@ Test video: any MP4 from your phone (portrait) and one landscape MP4/MOV/MKV. To
 - [ ] At the end the video stays on the last frame; Play restarts from the beginning.
 - [ ] A portrait phone video is shown upright (not rotated) and pillarboxed.
 - [ ] Resizing the window and switching Tema Dark/Light keeps the video rendering (no black/frozen view).
-- [ ] Subtitle preview: from the source checkout run
+- [ ] (Replaced in v0.3.0 by importing subtitles from the menu.) Subtitle preview: from the source checkout run
       `dotnet run --project src/LingoCue.App -- test.mp4 --subtitle sample.ass` with any ASS file containing
       Turkish text (ğ ş ı İ); the subtitle renders with its style.
 - [ ] With FFmpeg uninstalled or unlinked (`brew unlink ffmpeg`), opening a video shows the banner

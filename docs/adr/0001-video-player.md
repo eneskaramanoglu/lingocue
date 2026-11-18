@@ -1,6 +1,6 @@
 # 0001. Video player: libmpv via HanumanInstitute.LibMpv
 
-- Status: accepted (Windows verified; macOS pending manual test of v0.2.0)
+- Status: accepted (Windows verified; macOS pending manual test). Renderer choice amended by [0002](0002-opengl-video-view-on-windows.md).
 - Date: 2026-11-18
 
 ## Context

@@ -36,9 +36,9 @@ public partial class App : Application
             {
                 var window = _services.GetRequiredService<MainWindow>();
                 var startup = StartupArguments.Parse(desktop.Args);
-                if (startup.VideoPath is not null && window.DataContext is MainViewModel vm)
+                if (startup.FilePath is not null && window.DataContext is MainViewModel vm)
                 {
-                    window.Opened += async (_, _) => await vm.OpenFileAsync(startup.VideoPath, startup.SubtitlePath);
+                    window.Opened += async (_, _) => await vm.OpenFileAsync(startup.FilePath);
                 }
 
                 desktop.MainWindow = window;

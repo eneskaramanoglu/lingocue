@@ -1,6 +1,6 @@
 # Architecture
 
-Status: v0.1.0 (skeleton). This document grows with each milestone.
+Status: v0.3.0 (subtitle core). This document grows with each milestone.
 
 ## Layers
 
@@ -55,13 +55,53 @@ events (`time-pos`, `duration`, `pause`) are marshalled to the UI thread. See
 Opening a video: picker / drag-drop / command line → `MainViewModel.OpenFileAsync` →
 `IMediaProbe` validation → `IVideoPlayer.OpenAsync` (paused on the first frame).
 
-## Data model (planned, M2)
+## Data model (M2)
 
-`Project` → `Track` (language, kind: Source / Corrected / Translation) → `Cue` (id, start, end, text,
-speaker, flags) → `Word` (ASR word with timing). Saved as JSON with the `.lingocue` extension, ASR
-words cached inside.
+`Project` → `SubtitleTrack` (language, kind: Source / Corrected / Translation, source track id) →
+`Cue` (stable id, start, end, text, speaker, `CueMarks`, source cue id, format data) → `Word`
+(ASR word with timing and confidence). `SubtitleStyle` is the ASS V4+ style record;
+`AssScriptInfo` holds the script resolution.
 
-## Preview equals output (planned, M1/M5/M6)
+- Times are millisecond `TimeSpan`s. ASS only stores centiseconds, so an ASS round-trip may move a
+  time by up to 5 ms; the project file keeps exact milliseconds.
+- Cue text uses `\n` line breaks and keeps inline formatting as written (`<i>` from SRT/VTT or
+  `{\i1}` from ASS). `TagConverter` translates between the two when writing another format.
+- `ReadingRules` (42 chars/line, 2 lines, 0.8–7 s, 17 CPS target / 21 max) evaluates each cue into
+  `CueIssues`; the UI colors CPS and lists problems. Segmentation (M3) will use the same rules.
 
-The ASS style model is the single source of truth. The preview loads a temporary ASS file into libmpv
-(libass); burn-in uses FFmpeg's `ass`/`subtitles` filter on the same file with `fontsdir`.
+### Formats (`LingoCue.Core.Formats`)
+
+`ISubtitleFormat` implementations: `SrtFormat` (lenient), `VttFormat`, `AssFormat` (also reads SSA
+v4 styles). `SubtitleFile` detects the format by content first, decodes BOM → strict UTF-8 →
+Windows-1254 (legacy Turkish), and writes UTF-8 (optional BOM, CRLF/LF) atomically.
+
+### Project file (`.lingocue`)
+
+Indented UTF-8 JSON via `ProjectSerializer`: `schemaVersion` (newer versions are refused), times
+as integer milliseconds, colors `#RRGGBB[AA]`, enums as strings, computed values not stored. The
+video path is relative to the project file with forward slashes so a project folder can move
+between Windows and macOS.
+
+## Editor (M2)
+
+```
+DataGrid (CueViewModel rows) ── SelectedCue ── edit panel (start/end/text/speaker)
+        ▲                            │
+        │ Position (follow)          │ Seek on user selection
+   IVideoPlayer ◄────────────────────┘
+        ▲
+        │ sub-add / sub-reload (debounced 300 ms)
+SubtitlePreviewService ── AssScriptBuilder(project, active track, video size) → %TEMP%/LingoCue/preview-<pid>.ass
+```
+
+`SubtitleEditorViewModel` owns the rows of the active track and keeps model and list sorted by
+start time; every edit raises `Edited`, which marks the project dirty and refreshes the preview.
+`MainViewModel` owns the project lifecycle (open video/project/subtitle, save, export, unsaved
+prompt) and `OpenFileAsync` routes picker, drag-drop and command-line paths by extension.
+
+## Preview equals output
+
+The ASS style model is the single source of truth. `AssScriptBuilder` produces the script for both
+the live preview (libmpv/libass) and, from M6, burn-in (FFmpeg `ass` filter with `fontsdir`).
+The script is sized to a 1080-pixel reference following the video aspect (1920×1080 landscape,
+1080×1920 Shorts), so style sizes mean the same thing on every video.
