@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.cs text eol=lf
+*.axaml text eol=lf
+*.sln text eol=crlf
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.ico binary
+*.png binary
+*.icns binary
