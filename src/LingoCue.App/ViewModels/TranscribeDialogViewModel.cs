@@ -43,10 +43,12 @@ public sealed partial class TranscribeDialogViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Gemini is the default: on real, noisy multi-speaker footage it gave the best text, punctuation,
-    /// speakers and timing (docs/reports/asr-comparison.md). Without a key the dialog falls back to Whisper.
+    /// Whisper (free, local) is the default while the app is being developed and tested, to avoid paid
+    /// API calls; after its DTW/punctuation fixes it is usable on real footage. Gemini gave the best
+    /// results on noisy multi-speaker video (docs/reports/asr-comparison.md) and stays one click away.
+    /// The fallback below only matters if the default is ever switched back to a key-based engine.
     /// </summary>
-    public const string DefaultEngineId = "gemini";
+    public const string DefaultEngineId = "whisper";
 
     private const string FallbackEngineId = "whisper";
     private bool _fallBackWhenUnavailable;

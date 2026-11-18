@@ -116,7 +116,9 @@ Whisper is now a usable free/offline alternative; turbo is both the fastest and,
 accurate Whisper variant. On the clean sample the fixes also merged "Merhaba, bugün İstanbul'dayız."
 into one cue, because DTW no longer reports a false pause after "bugün".
 
-**Decision (owner, 2026-11-18):** Gemini 3.5 Transcribe is the default engine; Whisper stays as the
+**Decision (owner, 2026-11-18, revised the same day):** Whisper is the default engine for now to keep
+development and testing free of API costs; Gemini 3.5 Transcribe (best on noisy multi-speaker video) is one
+click away in the dialog. Originally: Gemini default with Whisper as the
 free, offline option (the dialog falls back to it when no Gemini key is stored).
 
 ## Re-running on a real video

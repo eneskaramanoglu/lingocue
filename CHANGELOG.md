@@ -6,6 +6,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+- Whisper is the default transcription engine again (no API cost while developing and testing);
+  Gemini 3.5 Transcribe stays selectable in the dialog.
+
 ## [0.4.0] - 2026-11-18
 
 ### Added
