@@ -20,6 +20,12 @@ dotnet publish src/LingoCue.App -c Release -r win-x64 --self-contained -o publis
 - SDK is pinned by `global.json` (10.0.x). `dotnet test` uses the new MTP mode, so pass
   `--solution` / `--project` (not a positional path).
 - Logs: Windows `%APPDATA%\LingoCue\logs`, macOS `~/Library/Logs/LingoCue`.
+- Run with a file: `dotnet run --project src/LingoCue.App -- video.mp4 [--subtitle preview.ass]`.
+- **Native dependencies:** FFmpeg on PATH or a package-manager folder (`winget install Gyan.FFmpeg`,
+  `brew install ffmpeg`). libmpv: Windows builds download it automatically (`build/fetch-libmpv.ps1`,
+  pinned + SHA256, output in `build/native/`, git-ignored); macOS dev needs `brew install mpv`.
+- Media integration tests generate clips with FFmpeg and skip without it; CI sets
+  `LINGOCUE_REQUIRE_FFMPEG=1` so they fail instead.
 
 ## Layout
 
@@ -55,6 +61,8 @@ dotnet publish src/LingoCue.App -c Release -r win-x64 --self-contained -o publis
   Model names are never hard-coded; they come from the provider's model list and settings.
 - **Tests:** xUnit v3 + Shouldly. Tests calling real APIs read keys from environment variables
   and are skipped when missing. Media tests generate sample media with FFmpeg at test time.
+- **Video:** the UI talks to `IVideoPlayer` only (mpv implementation in `App/Playback`, see ADR 0001).
+  On Windows the video surface is a native child window: never place Avalonia overlays on top of it.
 - **MVVM:** CommunityToolkit.Mvvm with `[ObservableProperty] public partial ...` properties and
   `[RelayCommand]`. Views are resolved from DI; compiled bindings (`x:DataType`) everywhere.
 - **Milestone close:** update CHANGELOG, add the version's steps to `docs/TESTING-macos.md`, open a

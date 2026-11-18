@@ -13,6 +13,8 @@
     <PackageVersion Include="Avalonia.Fonts.Inter" Version="$(AvaloniaVersion)" />
     <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageVersion Include="HanumanInstitute.LibMpv" Version="0.10.1" />
+    <PackageVersion Include="HanumanInstitute.LibMpv.Avalonia" Version="0.10.1" />
   </ItemGroup>
 
   <ItemGroup Label="Hosting, DI, configuration, logging">

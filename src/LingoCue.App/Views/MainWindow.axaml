@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:LingoCue.App.ViewModels"
+        xmlns:mpv="using:HanumanInstitute.LibMpv.Avalonia"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
@@ -10,7 +11,13 @@
         Title="{Binding Title}"
         Width="1200" Height="720"
         MinWidth="900" MinHeight="560"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        DragDrop.AllowDrop="True">
+
+  <Window.KeyBindings>
+    <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenVideoCommand}" />
+    <KeyBinding Gesture="Meta+O" Command="{Binding OpenVideoCommand}" />
+  </Window.KeyBindings>
 
   <DockPanel>
 
@@ -20,10 +27,11 @@
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
           <TextBlock Text="Tema" VerticalAlignment="Center" Classes="muted" />
-          <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}" MinWidth="110" />
+          <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}" MinWidth="110" Focusable="False" />
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="6">
-          <Button Content="Video Aç" IsEnabled="False" ToolTip.Tip="M1" />
+          <Button Content="Video Aç" Command="{Binding OpenVideoCommand}" Focusable="False"
+                  ToolTip.Tip="Video aç (Ctrl+O / ⌘O)" />
           <Separator Width="1" Margin="4,2" />
           <Button Content="Transkribe Et" IsEnabled="False" ToolTip.Tip="M3" />
           <Button Content="Düzelt" IsEnabled="False" ToolTip.Tip="M4" />
@@ -40,24 +48,67 @@
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10">
           <ProgressBar Width="180" Minimum="0" Maximum="1" Value="{Binding Progress}"
-                       IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
-          <Button Content="İptal" Command="{Binding CancelJobCommand}"
-                  IsVisible="{Binding IsBusy}" Padding="10,2" />
+                       IsIndeterminate="True" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
           <TextBlock Text="{Binding PlatformText}" Classes="muted" VerticalAlignment="Center" />
           <TextBlock Text="{Binding VersionText}" Classes="muted" VerticalAlignment="Center" />
         </StackPanel>
-        <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" />
+        <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
       </DockPanel>
     </Border>
 
-    <!-- Main area: video + timeline on the left, cue table on the right. -->
+    <!-- Error banner (not an overlay: the native video surface would hide it on Windows). -->
+    <Border DockPanel.Dock="Top" Classes="error" IsVisible="{Binding ErrorText, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" Content="Kapat" Command="{Binding DismissErrorCommand}" Focusable="False" />
+        <SelectableTextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+      </DockPanel>
+    </Border>
+
+    <!-- Main area: video + transport + timeline on the left, cue table on the right. -->
     <Grid Margin="8" ColumnDefinitions="3*,Auto,2*">
-      <Grid Grid.Column="0" RowDefinitions="*,Auto,140">
-        <Border Grid.Row="0" Classes="panel" Background="{DynamicResource VideoBackgroundBrush}">
-          <TextBlock Classes="placeholder" Text="Video önizleme&#x0a;(M1: video aç ve oynat)" />
+      <Grid Grid.Column="0" RowDefinitions="*,Auto,Auto,140">
+        <Border Grid.Row="0" Classes="panel video" ClipToBounds="True">
+          <Panel>
+            <mpv:MpvView MpvContext="{Binding Player.Mpv}" IsVisible="{Binding HasMedia}" />
+            <TextBlock Classes="placeholder" IsVisible="{Binding !HasMedia}"
+                       Text="Video açmak için Video Aç'a tıklayın&#x0a;ya da dosyayı buraya sürükleyin (MP4, MOV, MKV)" />
+          </Panel>
         </Border>
-        <GridSplitter Grid.Row="1" Height="6" Background="Transparent" ResizeDirection="Rows" />
-        <Border Grid.Row="2" Classes="panel">
+
+        <!-- Transport -->
+        <DockPanel Grid.Row="1" Margin="0,6,0,0" DataContext="{Binding Player}" x:DataType="vm:PlayerViewModel"
+                   IsEnabled="{Binding IsLoaded}">
+          <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="4">
+            <Button Classes="transport" Command="{Binding JumpBackCommand}" ToolTip.Tip="5 sn geri (←)">
+              <PathIcon Data="M11,18V6L2.5,12L11,18M11.5,12L20,18V6L11.5,12Z" />
+            </Button>
+            <Button Classes="transport" Command="{Binding FrameBackCommand}" ToolTip.Tip="Önceki kare (Shift+←)">
+              <PathIcon Data="M6,18V6H8V18H6M9.5,12L18,6V18L9.5,12Z" />
+            </Button>
+            <Button Classes="transport play" Command="{Binding TogglePlayPauseCommand}" ToolTip.Tip="Oynat / Duraklat (Boşluk)">
+              <Panel>
+                <PathIcon Data="M8,5.14V19.14L19,12.14L8,5.14Z" IsVisible="{Binding !IsPlaying}" />
+                <PathIcon Data="M14,19H18V5H14M6,19H10V5H6V19Z" IsVisible="{Binding IsPlaying}" />
+              </Panel>
+            </Button>
+            <Button Classes="transport" Command="{Binding FrameForwardCommand}" ToolTip.Tip="Sonraki kare (Shift+→)">
+              <PathIcon Data="M16,18H18V6H16M6,18L14.5,12L6,6V18Z" />
+            </Button>
+            <Button Classes="transport" Command="{Binding JumpForwardCommand}" ToolTip.Tip="5 sn ileri (→)">
+              <PathIcon Data="M13,6V18L21.5,12M4,18L12.5,12L4,6V18Z" />
+            </Button>
+          </StackPanel>
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0,0,0">
+            <TextBlock Text="{Binding PositionText}" FontFamily="{DynamicResource MonoFont}" />
+            <TextBlock Text="/" Classes="muted" />
+            <TextBlock Text="{Binding DurationText}" FontFamily="{DynamicResource MonoFont}" Classes="muted" />
+          </StackPanel>
+          <Slider Minimum="0" Maximum="{Binding DurationSeconds}" Value="{Binding PositionSeconds}"
+                  Margin="8,0" VerticalAlignment="Center" Focusable="False" />
+        </DockPanel>
+
+        <GridSplitter Grid.Row="2" Height="6" Background="Transparent" ResizeDirection="Rows" />
+        <Border Grid.Row="3" Classes="panel">
           <TextBlock Classes="placeholder" Text="Zaman çizelgesi / dalga formu (M8)" />
         </Border>
       </Grid>

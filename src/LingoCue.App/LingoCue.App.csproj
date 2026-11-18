@@ -23,12 +23,28 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="HanumanInstitute.LibMpv" />
+    <PackageReference Include="HanumanInstitute.LibMpv.Avalonia" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Settings.Configuration" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="Serilog.Sinks.Console" />
+  </ItemGroup>
+
+  <!-- libmpv for Windows: fetched (pinned + SHA256) by build/fetch-libmpv.ps1, never committed. -->
+  <PropertyGroup>
+    <LibMpvWinDir>$(MSBuildThisFileDirectory)..\..\build\native\win-x64\</LibMpvWinDir>
+    <BundleLibMpvWin Condition="'$(RuntimeIdentifier)' == 'win-x64' Or ('$(RuntimeIdentifier)' == '' And '$(OS)' == 'Windows_NT')">true</BundleLibMpvWin>
+  </PropertyGroup>
+
+  <Target Name="FetchLibMpv" BeforeTargets="AssignTargetPaths" Condition="'$(BundleLibMpvWin)' == 'true' And !Exists('$(LibMpvWinDir)libmpv-2.dll')">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\build\fetch-libmpv.ps1&quot;" />
+  </Target>
+
+  <ItemGroup Condition="'$(BundleLibMpvWin)' == 'true'">
+    <None Include="$(LibMpvWinDir)libmpv-2.dll" Link="libmpv-2.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>

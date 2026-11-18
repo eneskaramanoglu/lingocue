@@ -1,4 +1,5 @@
 ﻿using Avalonia;
+using HanumanInstitute.LibMpv.Core;
 using LingoCue.Core;
 using LingoCue.Core.Platform;
 using LingoCue.Infrastructure.Platform;
@@ -22,7 +23,7 @@ internal static class Program
             Log.Information("{App} {Version} starting on {Rid}", AppInfo.Name, AppInfo.Version, platform.RuntimeIdentifier);
 
             using var host = CreateHost(args, platform);
-            return BuildAvaloniaApp(host.Services).StartWithClassicDesktopLifetime(args);
+            return BuildAvaloniaApp(host.Services, platform).StartWithClassicDesktopLifetime(args);
         }
         catch (Exception ex)
         {
@@ -46,20 +47,41 @@ internal static class Program
 
         builder.Services.AddSerilog((_, configuration) =>
             LoggingSetup.Configure(configuration, builder.Configuration, platform));
-        builder.Services.AddLingoCue(platform);
+        builder.Services.AddLingoCue(platform, builder.Configuration);
 
         return builder.Build();
     }
 
     // Avalonia configuration; also used by the visual designer (which runs without services).
-    public static AppBuilder BuildAvaloniaApp() => BuildAvaloniaApp(services: null);
+    public static AppBuilder BuildAvaloniaApp() => BuildAvaloniaApp(services: null, new PlatformInfo());
 
-    private static AppBuilder BuildAvaloniaApp(IServiceProvider? services)
-        => AppBuilder.Configure(() => new App(services))
+    private static AppBuilder BuildAvaloniaApp(IServiceProvider? services, PlatformInfo platform)
+    {
+        // libmpv is loaded from here (next to the exe on Windows, Contents/Frameworks in the .app);
+        // on macOS the library also searches /opt/homebrew/lib for development builds.
+        MpvApi.RootPath = platform.NativeLibraryDirectory;
+
+        var builder = AppBuilder.Configure(() => new App(services))
             .UsePlatformDetect()
 #if DEBUG
             .WithDeveloperTools()
 #endif
             .WithInterFont()
             .LogToTrace();
+
+        // The mpv video view renders through OpenGL: ANGLE/EGL on Windows, OpenGL (not Metal) on macOS.
+        // Software rendering is the fallback when the GPU path is unavailable (e.g. remote desktop).
+        return platform.Platform switch
+        {
+            OsPlatform.Windows => builder.With(new Win32PlatformOptions
+            {
+                RenderingMode = [Win32RenderingMode.AngleEgl, Win32RenderingMode.Software],
+            }),
+            OsPlatform.MacOS => builder.With(new AvaloniaNativePlatformOptions
+            {
+                RenderingMode = [AvaloniaNativeRenderingMode.OpenGl, AvaloniaNativeRenderingMode.Software],
+            }),
+            _ => builder,
+        };
+    }
 }

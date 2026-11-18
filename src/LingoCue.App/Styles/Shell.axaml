@@ -9,14 +9,17 @@
           <SolidColorBrush x:Key="PanelBorderBrush" Color="#DADDE3" />
           <SolidColorBrush x:Key="VideoBackgroundBrush" Color="#101114" />
           <SolidColorBrush x:Key="MutedTextBrush" Color="#6B7280" />
+          <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#FDE8E8" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
           <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#1E1F23" />
           <SolidColorBrush x:Key="PanelBorderBrush" Color="#33353B" />
           <SolidColorBrush x:Key="VideoBackgroundBrush" Color="#000000" />
           <SolidColorBrush x:Key="MutedTextBrush" Color="#9CA3AF" />
+          <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#4A1D1D" />
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
+      <FontFamily x:Key="MonoFont">Cascadia Mono, Menlo, Consolas, monospace</FontFamily>
     </ResourceDictionary>
   </Styles.Resources>
 
@@ -25,6 +28,31 @@
     <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="6" />
+  </Style>
+
+  <Style Selector="Border.video">
+    <Setter Property="Background" Value="{DynamicResource VideoBackgroundBrush}" />
+  </Style>
+
+  <Style Selector="Border.error">
+    <Setter Property="Background" Value="{DynamicResource ErrorBackgroundBrush}" />
+    <Setter Property="Padding" Value="12,8" />
+    <Setter Property="Margin" Value="8,8,8,0" />
+    <Setter Property="CornerRadius" Value="6" />
+  </Style>
+
+  <Style Selector="Button.transport">
+    <Setter Property="Padding" Value="8,6" />
+    <Setter Property="Focusable" Value="False" />
+  </Style>
+
+  <Style Selector="Button.transport PathIcon">
+    <Setter Property="Width" Value="16" />
+    <Setter Property="Height" Value="16" />
+  </Style>
+
+  <Style Selector="Button.play">
+    <Setter Property="Padding" Value="12,6" />
   </Style>
 
   <Style Selector="TextBlock.placeholder">

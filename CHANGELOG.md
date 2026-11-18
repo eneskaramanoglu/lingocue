@@ -6,6 +6,27 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-18
+
+### Added
+- Embedded video player based on libmpv (HanumanInstitute.LibMpv 0.10.1) behind an `IVideoPlayer`
+  abstraction; decision recorded in ADR 0001.
+- Open videos (MP4, MOV, MKV, M4V) with **Video Aç** / Ctrl+O / ⌘O, drag-and-drop, or as a command-line argument.
+- Transport controls: play/pause, 5 s jumps, frame stepping, seek slider, `hh:mm:ss.fff` timecode;
+  shortcuts Space, ←/→, Shift+←/→.
+- ffprobe-based media inspection (duration, resolution, frame rate, codec, audio tracks, phone rotation)
+  shown in the status bar; files are validated before playback.
+- FFmpeg/ffprobe discovery across settings, app folders, winget/Scoop/Chocolatey, Homebrew/MacPorts and PATH,
+  with per-OS install instructions when missing.
+- External ASS subtitle preview through libass (developer flag `--subtitle`, UI in v0.3.0).
+- Media integration tests that generate sample clips with FFmpeg at test time.
+
+### Changed
+- Avalonia renders with ANGLE/EGL on Windows and OpenGL on macOS (required by the video view).
+- Windows package bundles `libmpv-2.dll` (pinned shinchiro build, SHA256-verified, downloaded at build time);
+  the macOS `.app` bundles libmpv and its dependencies in `Contents/Frameworks`.
+- CI installs FFmpeg on both runners and fails (instead of skipping) when media tests cannot run.
+
 ## [0.1.0] - 2026-11-18
 
 ### Added
@@ -22,5 +43,6 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   unsigned osx-arm64 `.app` zip.
 - Docs: plan, research notes, architecture overview, macOS test checklist, `CLAUDE.md`.
 
-[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/eneskaramanoglu/lingocue/releases/tag/v0.1.0

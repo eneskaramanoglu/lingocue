@@ -16,4 +16,19 @@ public interface IPlatformInfo
 
     /// <summary>Directory for rolling log files.</summary>
     string LogDirectory { get; }
+
+    /// <summary>
+    /// Well-known directories where command-line tools (ffmpeg, ffprobe) are installed on this OS,
+    /// in priority order. Needed because GUI apps started from Finder do not inherit the shell PATH.
+    /// </summary>
+    IReadOnlyList<string> ToolSearchDirectories { get; }
+
+    /// <summary>
+    /// Directory that holds bundled native libraries (libmpv). Next to the executable on Windows;
+    /// <c>Contents/Frameworks</c> inside a macOS .app bundle when present.
+    /// </summary>
+    string NativeLibraryDirectory { get; }
+
+    /// <summary>Returns the platform file name of an executable, e.g. <c>ffmpeg</c> → <c>ffmpeg.exe</c> on Windows.</summary>
+    string GetExecutableFileName(string name);
 }
