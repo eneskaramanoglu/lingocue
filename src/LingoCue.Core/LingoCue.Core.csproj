@@ -4,4 +4,8 @@
     <RootNamespace>LingoCue.Core</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="LingoCue.Core.Tests" />
+  </ItemGroup>
+
 </Project>
