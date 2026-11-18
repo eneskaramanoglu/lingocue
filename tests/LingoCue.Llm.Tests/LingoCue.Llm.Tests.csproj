@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\LingoCue.Llm\LingoCue.Llm.csproj" />
+  </ItemGroup>
+
+</Project>
