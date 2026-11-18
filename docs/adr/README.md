@@ -18,4 +18,4 @@ Template:
 
 | ADR | Title | Status |
 | --- | --- | --- |
-| 0001 | Video player (libmpv vs LibVLCSharp) | planned for M1 |
+| [0001](0001-video-player.md) | Video player: libmpv via HanumanInstitute.LibMpv | accepted |

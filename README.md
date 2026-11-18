@@ -8,7 +8,7 @@ Drop in a video, get word-timed speech recognition (local Whisper or Gemini Tran
 readable subtitle lines, an LLM correction pass, live styled preview, translation to English,
 and export to SRT / VTT / ASS or a burned-in / soft-subbed MP4.
 
-> **Status:** early development (v0.1.0 = app skeleton). See the [roadmap](docs/PLAN.md#yol-haritası-her-biri-bir-github-milestone-ve-release).
+> **Status:** early development (v0.2.0 = video playback). See the [roadmap](docs/PLAN.md#yol-haritası-her-biri-bir-github-milestone-ve-release).
 
 ## Download
 
@@ -29,8 +29,11 @@ xattr -dr com.apple.quarantine /Applications/LingoCue.app
 
 ## Build from source
 
-Requirements: [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). FFmpeg will be
-needed from v0.2.0 on (`winget install Gyan.FFmpeg` / `brew install ffmpeg`).
+Requirements:
+
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- FFmpeg: `winget install Gyan.FFmpeg` (Windows) / `brew install ffmpeg` (macOS)
+- libmpv: downloaded automatically on Windows builds; on macOS `brew install mpv`
 
 ```bash
 dotnet build LingoCue.slnx
@@ -38,11 +41,17 @@ dotnet test --solution LingoCue.slnx
 dotnet run --project src/LingoCue.App
 ```
 
+## Requirements at runtime
+
+The release packages bundle libmpv. **FFmpeg must be installed separately** (until v1.0):
+`winget install Gyan.FFmpeg` on Windows, `brew install ffmpeg` on macOS. LingoCue finds it in the
+usual winget/Homebrew/Chocolatey/Scoop folders even when it is not on the PATH.
+
 ## Tech stack
 
 .NET 10 · Avalonia UI · CommunityToolkit.Mvvm · Microsoft.Extensions (DI, Configuration, Logging)
-· Serilog · xUnit v3 + Shouldly. Planned: libmpv (preview), FFmpeg, Whisper.net, Google Gemini via
-Microsoft.Extensions.AI.
+· Serilog · libmpv (HanumanInstitute.LibMpv) · FFmpeg/ffprobe · xUnit v3 + Shouldly.
+Planned: Whisper.net, Google Gemini via Microsoft.Extensions.AI.
 
 ## Documentation
 
