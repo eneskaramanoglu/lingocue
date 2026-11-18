@@ -87,6 +87,22 @@ public sealed class ProjectSerializerTests : IDisposable
     }
 
     [Fact]
+    public void Round_trips_glossary_and_context()
+    {
+        var project = CreateProject();
+        project.Glossary.Add(new GlossaryEntry { Term = "Boğaz", Kind = GlossaryKind.ProperNoun, Locked = true, Note = "İstanbul Boğazı" });
+        project.Glossary.Add(new GlossaryEntry { Term = "martı", Preferred = "seagull", TargetLanguage = "en", Suggested = true });
+        project.Context = new ProjectContext { Summary = "Gezi videosu", Tone = "samimi", Address = "siz", Speakers = ["Ayşe", "Mehmet"] };
+
+        var loaded = ProjectSerializer.Deserialize(ProjectSerializer.Serialize(project));
+
+        loaded.Glossary.ShouldBe(project.Glossary);
+        loaded.Context.Summary.ShouldBe("Gezi videosu");
+        loaded.Context.Address.ShouldBe("siz");
+        loaded.Context.Speakers.ShouldBe(["Ayşe", "Mehmet"]);
+    }
+
+    [Fact]
     public void Serializing_does_not_change_the_in_memory_path()
     {
         var project = CreateProject();

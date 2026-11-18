@@ -25,6 +25,12 @@ public sealed class Project
     /// <summary>Script resolution for ASS output; follows the video size when known.</summary>
     public AssScriptInfo ScriptInfo { get; set; } = new();
 
+    /// <summary>Names, terms and agreed spellings/translations used by the LLM passes.</summary>
+    public List<GlossaryEntry> Glossary { get; init; } = [];
+
+    /// <summary>Summary, tone, address and speakers from the LLM context pass (editable).</summary>
+    public ProjectContext Context { get; set; } = new();
+
     /// <summary>Speech-recognition results kept with the project (newest last).</summary>
     public List<AsrRun> AsrRuns { get; init; } = [];
 
