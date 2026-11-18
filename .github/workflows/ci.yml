@@ -33,6 +33,13 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Cache libmpv (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v6
+        with:
+          path: build/native/win-x64
+          key: libmpv-win-x64-${{ hashFiles('build/fetch-libmpv.ps1') }}
+
       - name: Install FFmpeg (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
