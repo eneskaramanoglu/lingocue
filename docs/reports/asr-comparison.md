@@ -98,6 +98,27 @@ only measurements and observed behaviour are recorded.
   and (b) filtering of non-speech annotations (`*…*`, `[…]`, `(…)`, laughter tokens) before segmentation.
 - The clean synthetic sample above hid all of this — real footage is the only meaningful test.
 
+### After the Whisper fixes (DTW timing, Turkish punctuation prompt, non-speech filter)
+
+Same video, same machine:
+
+| | Whisper large-v3 q5_0 | Whisper turbo q5_0 | Gemini (unchanged) |
+| --- | --- | --- | --- |
+| Wall time | 14.6 s | 6.8 s | 13.4 s |
+| Words / cues | 55 → 16 | 54 → 14 | 61 → 18 |
+| Punctuation | commas, questions, sentence ends | commas, questions, sentence ends | commas, sentence ends |
+| Non-speech in text | none | none | none |
+| Word timing | plausible; cue starts within ~0.1–0.2 s of Gemini's | plausible; within ~0.1–0.3 s of Gemini's | 100 ms grid |
+| Recognition | one phrase still misheard | close to Gemini | best |
+| Missed | the last ~4 s (laughter-heavy) | the last ~6 s (laughter-heavy) | nothing |
+
+Whisper is now a usable free/offline alternative; turbo is both the fastest and, on this clip, the more
+accurate Whisper variant. On the clean sample the fixes also merged "Merhaba, bugün İstanbul'dayız."
+into one cue, because DTW no longer reports a false pause after "bugün".
+
+**Decision (owner, 2026-11-18):** Gemini 3.5 Transcribe is the default engine; Whisper stays as the
+free, offline option (the dialog falls back to it when no Gemini key is stored).
+
 ## Re-running on a real video
 
 ```bash
