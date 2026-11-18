@@ -101,8 +101,8 @@ public sealed class SrtFormat : ISubtitleFormat
             sb.Append(index++.ToString(CultureInfo.InvariantCulture)).Append('\n');
             sb.Append(SubtitleTime.FormatSrt(cue.Start)).Append(" --> ").Append(SubtitleTime.FormatSrt(cue.End)).Append('\n');
 
-            // A blank line inside the text would end the cue for most readers.
-            var safeText = string.Join('\n', SubtitleText.NormalizeLines(cue.Text).Split('\n').Where(l => l.Length > 0));
+            // A blank line inside the text would end the cue for most readers; ASS overrides become HTML tags.
+            var safeText = string.Join('\n', SubtitleText.NormalizeLines(TagConverter.AssToHtml(cue.Text)).Split('\n').Where(l => l.Length > 0));
             sb.Append(safeText).Append('\n').Append('\n');
         }
 
