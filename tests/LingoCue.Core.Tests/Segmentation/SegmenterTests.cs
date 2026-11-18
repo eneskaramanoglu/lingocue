@@ -87,6 +87,8 @@ public class SegmenterTests
     [InlineData("bir", "ev")]
     [InlineData("3", "kişi")]
     [InlineData("çok", "güzel")]
+    [InlineData("güzel", "köşelerini")]
+    [InlineData("büyük", "şehir")]
     public void Never_breaks_lines_inside_turkish_noun_phrases(string left, string right)
     {
         // Padding so the natural balanced break would fall exactly between left and right.
@@ -131,6 +133,17 @@ public class SegmenterTests
 
         text.ShouldNotContain("the\n");
         text.ShouldNotContain("a\n");
+    }
+
+    [Fact]
+    public void Real_whisper_sentence_keeps_adjective_with_noun()
+    {
+        // From an actual Whisper run during development.
+        var text = Segmenter.WrapLines(Words("Bu videoda size şehrin en güzel köşelerini göstereceğim."));
+
+        text.ShouldNotContain("güzel\n");
+        text.ShouldNotContain("şehrin\n");
+        text.Split('\n').ShouldAllBe(l => l.Length <= 42);
     }
 
     [Fact]

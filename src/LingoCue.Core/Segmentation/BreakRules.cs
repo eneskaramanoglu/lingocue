@@ -18,11 +18,17 @@ internal sealed class BreakRules
         "hem", "ne", "yani", "oysa", "halbuki", "sonra", "eğer", "madem", "gibi", "kadar", "için",
     };
 
-    // Words that bind to the next word: determiners, quantifiers, intensifiers.
+    // Words that bind to the next word: determiners, quantifiers, intensifiers and the most frequent
+    // attributive adjectives (Turkish adjectives precede their noun: "güzel köşeler", "büyük şehir").
     private static readonly HashSet<string> s_turkishBindNext = new(StringComparer.Ordinal)
     {
         "bir", "bu", "şu", "o", "her", "hiçbir", "birkaç", "bazı", "tüm", "bütün", "çok", "en", "daha",
         "pek", "gayet", "oldukça", "biraz", "az", "kaç", "hangi", "ne", "aynı", "başka", "diğer",
+        "güzel", "büyük", "küçük", "yeni", "eski", "iyi", "kötü", "uzun", "kısa", "yüksek", "alçak", "geniş", "dar",
+        "sıcak", "soğuk", "ılık", "genç", "yaşlı", "önemli", "farklı", "özel", "ilk", "son", "tek", "ana", "temel",
+        "doğru", "yanlış", "zor", "kolay", "hızlı", "yavaş", "derin", "ağır", "hafif", "açık", "kapalı", "tatlı",
+        "acı", "kırmızı", "mavi", "yeşil", "sarı", "beyaz", "siyah", "kara", "koca", "minik", "harika", "muhteşem",
+        "yerel", "ulusal", "uluslararası", "tarihi", "kültürel", "sosyal", "ekonomik", "siyasi", "bilimsel",
     };
 
     private static readonly HashSet<string> s_englishConjunctions = new(StringComparer.Ordinal)
