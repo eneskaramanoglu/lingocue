@@ -1,6 +1,6 @@
 # Architecture
 
-Status: v0.3.0 (subtitle core). This document grows with each milestone.
+Status: v0.4.0 (transcription). This document grows with each milestone.
 
 ## Layers
 
@@ -98,6 +98,36 @@ SubtitlePreviewService ── AssScriptBuilder(project, active track, video size
 start time; every edit raises `Edited`, which marks the project dirty and refreshes the preview.
 `MainViewModel` owns the project lifecycle (open video/project/subtitle, save, export, unsaved
 prompt) and `OpenFileAsync` routes picker, drag-drop and command-line paths by extension.
+
+## Transcription (M3)
+
+```
+media ──ffmpeg──► 16 kHz mono WAV ──► Whisper.net (CUDA → Vulkan → CPU | CoreML → CPU)
+   │                                      │  Silero VAD drops segments outside speech
+   │                                      ▼
+   └──ffmpeg──► FLAC chunks ≤25 min ──► Gemini 3.5 Transcribe (Files API + Interactions API)
+                 (cut at silences)        │  verbatim, word timestamps, optional speakers
+                                          ▼
+                    words (text, start, end, confidence, speaker) ── cached in Project.AsrRuns
+                                          │
+                                   Segmenter (Core) ──► cues of a new Source track
+```
+
+- `ITranscriptionEngine` (Transcription) is the only contract the UI uses; engines report
+  `TranscriptionProgress` stages and honor cancellation. `TranscriptionException.Remedy` carries
+  a Turkish, user-facing fix.
+- Whisper models come from a pinned commit of `ggerganov/whisper.cpp` on Hugging Face
+  (`WhisperModels`), downloaded by `ModelDownloader` (resume via HTTP Range, SHA256 check) into
+  `<app data>/models`. Default `large-v3-q5_0` (1.1 GB) fits 4 GB GPUs; `large-v3-turbo-q5_0` is
+  the fast option.
+- Timing comes **only** from the ASR engine. LLM passes (M4) change text, never times.
+- `Segmenter` (Core) turns words into cues: hard breaks at speaker changes, pauses > 400 ms and
+  sentence ends; length/duration limits resolved at the best break (after punctuation, before
+  conjunctions); Turkish heuristics keep determiners, numbers, frequent adjectives and genitive
+  noun compounds with the next word; balanced two-line wrapping; durations extended toward the
+  reading-speed target without overlap.
+- API keys live in `ISecretStore` (Windows Credential Manager via advapi32, macOS Keychain via
+  Security.framework); `ApiKeyProvider` lets `GEMINI_API_KEY` override for tests/CI.
 
 ## Preview equals output
 

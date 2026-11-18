@@ -8,7 +8,7 @@ Drop in a video, get word-timed speech recognition (local Whisper or Gemini Tran
 readable subtitle lines, an LLM correction pass, live styled preview, translation to English,
 and export to SRT / VTT / ASS or a burned-in / soft-subbed MP4.
 
-> **Status:** early development (v0.3.0 = subtitle editing: import/export SRT, VTT, ASS, live preview, projects). See the [roadmap](docs/PLAN.md#yol-haritası-her-biri-bir-github-milestone-ve-release).
+> **Status:** early development (v0.4.0 = automatic Turkish transcription with local Whisper or Gemini, plus subtitle editing and export). See the [roadmap](docs/PLAN.md#yol-haritası-her-biri-bir-github-milestone-ve-release).
 
 ## Download
 
@@ -47,11 +47,20 @@ The release packages bundle libmpv. **FFmpeg must be installed separately** (unt
 `winget install Gyan.FFmpeg` on Windows, `brew install ffmpeg` on macOS. LingoCue finds it in the
 usual winget/Homebrew/Chocolatey/Scoop folders even when it is not on the PATH.
 
+### Transcription
+
+- **Local (Whisper):** free and offline after a one-time model download (large-v3 q5_0 ≈ 1.1 GB,
+  turbo ≈ 0.6 GB). Uses an NVIDIA GPU through CUDA when the CUDA Toolkit 13 is installed, otherwise
+  Vulkan (any modern GPU driver), otherwise the CPU. On Apple Silicon it uses CoreML.
+- **Cloud (Gemini 3.5 Transcribe):** needs a Gemini API key (Google AI Studio); about $0.005 per
+  minute of audio. Enter the key in **Ayarlar → API Anahtarları**; it is stored in Windows
+  Credential Manager / macOS Keychain, never in files.
+
 ## Tech stack
 
 .NET 10 · Avalonia UI · CommunityToolkit.Mvvm · Microsoft.Extensions (DI, Configuration, Logging)
 · Serilog · libmpv (HanumanInstitute.LibMpv) · FFmpeg/ffprobe · xUnit v3 + Shouldly.
-Planned: Whisper.net, Google Gemini via Microsoft.Extensions.AI.
+Whisper.net (local ASR) · Gemini 3.5 Transcribe (cloud ASR). Planned: LLM correction/translation via Microsoft.Extensions.AI.
 
 ## Documentation
 
