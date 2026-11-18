@@ -14,5 +14,7 @@ internal sealed class FakePlatform(OsPlatform platform, params string[] toolDire
 
     public IReadOnlyList<string> ToolSearchDirectories { get; } = toolDirectories;
 
+    public string NativeLibraryDirectory => AppContext.BaseDirectory;
+
     public string GetExecutableFileName(string name) => Platform == OsPlatform.Windows ? name + ".exe" : name;
 }

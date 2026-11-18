@@ -547,3 +547,6 @@ Thumbs.db
 # Publish output
 /artifacts/
 /publish/
+
+# Native libraries fetched at build time (build/fetch-libmpv.ps1)
+/build/native/

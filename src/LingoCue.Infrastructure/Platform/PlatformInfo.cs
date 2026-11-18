@@ -33,6 +33,23 @@ public sealed class PlatformInfo : IPlatformInfo
 
     public IReadOnlyList<string> ToolSearchDirectories { get; }
 
+    public string NativeLibraryDirectory
+    {
+        get
+        {
+            if (Platform == OsPlatform.MacOS)
+            {
+                var frameworks = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Frameworks"));
+                if (Directory.Exists(frameworks))
+                {
+                    return frameworks;
+                }
+            }
+
+            return AppContext.BaseDirectory;
+        }
+    }
+
     public string GetExecutableFileName(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);

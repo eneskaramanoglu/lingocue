@@ -23,6 +23,12 @@ public interface IPlatformInfo
     /// </summary>
     IReadOnlyList<string> ToolSearchDirectories { get; }
 
+    /// <summary>
+    /// Directory that holds bundled native libraries (libmpv). Next to the executable on Windows;
+    /// <c>Contents/Frameworks</c> inside a macOS .app bundle when present.
+    /// </summary>
+    string NativeLibraryDirectory { get; }
+
     /// <summary>Returns the platform file name of an executable, e.g. <c>ffmpeg</c> → <c>ffmpeg.exe</c> on Windows.</summary>
     string GetExecutableFileName(string name);
 }
