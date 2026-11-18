@@ -20,6 +20,7 @@ public sealed class PlatformInfo : IPlatformInfo
         Platform = platform;
         RuntimeIdentifier = RuntimeInformation.RuntimeIdentifier;
         (AppDataDirectory, LogDirectory) = ResolveDirectories(platform, userHome);
+        ToolSearchDirectories = ResolveToolDirectories(platform, userHome, AppDataDirectory);
     }
 
     public OsPlatform Platform { get; }
@@ -29,6 +30,57 @@ public sealed class PlatformInfo : IPlatformInfo
     public string AppDataDirectory { get; }
 
     public string LogDirectory { get; }
+
+    public IReadOnlyList<string> ToolSearchDirectories { get; }
+
+    public string GetExecutableFileName(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return Platform == OsPlatform.Windows && !name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? name + ".exe"
+            : name;
+    }
+
+    private static string[] ResolveToolDirectories(OsPlatform platform, string userHome, string appData)
+    {
+        // Tools shipped next to the app or downloaded by the app come first.
+        var dirs = new List<string>
+        {
+            AppContext.BaseDirectory,
+            Path.Combine(appData, "tools", "ffmpeg"),
+        };
+
+        switch (platform)
+        {
+            case OsPlatform.Windows:
+                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                if (string.IsNullOrEmpty(localAppData))
+                {
+                    localAppData = Path.Combine(userHome, "AppData", "Local");
+                }
+
+                dirs.Add(Path.Combine(localAppData, "Microsoft", "WinGet", "Links")); // winget
+                dirs.Add(Path.Combine(userHome, "scoop", "shims"));                   // scoop
+                dirs.Add(@"C:\ProgramData\chocolatey\bin");                           // chocolatey
+                dirs.Add(@"C:\ffmpeg\bin");
+                break;
+
+            case OsPlatform.MacOS:
+                // .app bundle: Contents/MacOS is the base directory; Contents/Resources may hold tools.
+                dirs.Add(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Resources")));
+                dirs.Add("/opt/homebrew/bin"); // Homebrew on Apple Silicon
+                dirs.Add("/usr/local/bin");
+                dirs.Add("/opt/local/bin");    // MacPorts
+                break;
+
+            default:
+                dirs.Add("/usr/bin");
+                dirs.Add("/usr/local/bin");
+                break;
+        }
+
+        return [.. dirs];
+    }
 
     private static OsPlatform DetectPlatform()
     {

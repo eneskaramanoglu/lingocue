@@ -36,3 +36,27 @@ public class PlatformInfoTests
         new PlatformInfo().Platform.ShouldBe(expected);
     }
 }
+
+public class PlatformInfoToolTests
+{
+    private static readonly string s_home = Path.Combine(Path.GetTempPath(), "lingocue-home");
+
+    [Fact]
+    public void Windows_appends_exe_once()
+    {
+        var info = new PlatformInfo(OsPlatform.Windows, s_home);
+
+        info.GetExecutableFileName("ffmpeg").ShouldBe("ffmpeg.exe");
+        info.GetExecutableFileName("ffmpeg.exe").ShouldBe("ffmpeg.exe");
+    }
+
+    [Fact]
+    public void MacOS_searches_homebrew_because_finder_apps_have_no_shell_path()
+    {
+        var info = new PlatformInfo(OsPlatform.MacOS, s_home);
+
+        info.GetExecutableFileName("ffmpeg").ShouldBe("ffmpeg");
+        info.ToolSearchDirectories.ShouldContain("/opt/homebrew/bin");
+        info.ToolSearchDirectories[0].ShouldBe(AppContext.BaseDirectory);
+    }
+}
