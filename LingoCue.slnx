@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LingoCue.App/LingoCue.App.csproj" />
+    <Project Path="src/LingoCue.Core/LingoCue.Core.csproj" />
+    <Project Path="src/LingoCue.Infrastructure/LingoCue.Infrastructure.csproj" />
+    <Project Path="src/LingoCue.Llm/LingoCue.Llm.csproj" />
+    <Project Path="src/LingoCue.Media/LingoCue.Media.csproj" />
+    <Project Path="src/LingoCue.Transcription/LingoCue.Transcription.csproj" />
+  </Folder>
+</Solution>
