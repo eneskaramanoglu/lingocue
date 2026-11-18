@@ -125,6 +125,17 @@ public class SegmenterTests
     }
 
     [Fact]
+    public void Extended_cues_do_not_exceed_the_cps_target_when_there_is_room()
+    {
+        // Fast speech followed by a long pause: room to extend.
+        var cues = Segmenter.Segment(Words("Bu videoda size şehrin en güzel köşelerini göstereceğim.", perWord: 0.2)
+            .Concat(Words("Sonra.", 10)).ToList());
+
+        cues[0].CharactersPerSecond.ShouldBeLessThanOrEqualTo(17);
+        ReadingRules.Default.Evaluate(cues[0]).ShouldBe(CueIssues.None);
+    }
+
+    [Fact]
     public void English_rules_keep_articles_with_nouns()
     {
         var words = Words("we walked through the old town and found a really nice little cafe near the river");

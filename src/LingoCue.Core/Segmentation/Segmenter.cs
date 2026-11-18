@@ -159,8 +159,9 @@ public static class Segmenter
                 limit = cue.End; // never shorten what was spoken
             }
 
-            // Duration needed to read the text at the target speed, at least the minimum duration.
-            var readable = TimeSpan.FromSeconds(cue.VisibleLength / rules.TargetCps);
+            // Duration needed to read the text at the target speed (+50 ms so rounding never lands a
+            // hair above the target), at least the minimum duration.
+            var readable = TimeSpan.FromSeconds(cue.VisibleLength / rules.TargetCps) + TimeSpan.FromMilliseconds(50);
             var wanted = cue.Start + Max(rules.MinDuration, readable);
             if (wanted > cue.Start + rules.MaxDuration)
             {
