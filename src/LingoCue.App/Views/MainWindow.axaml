@@ -1,0 +1,72 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:LingoCue.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
+        x:Class="LingoCue.App.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/lingocue.ico"
+        Title="{Binding Title}"
+        Width="1200" Height="720"
+        MinWidth="900" MinHeight="560"
+        WindowStartupLocation="CenterScreen">
+
+  <DockPanel>
+
+    <!-- Toolbar: actions are enabled milestone by milestone. -->
+    <Border DockPanel.Dock="Top" Padding="8,6" BorderThickness="0,0,0,1"
+            BorderBrush="{DynamicResource PanelBorderBrush}">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <TextBlock Text="Tema" VerticalAlignment="Center" Classes="muted" />
+          <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}" MinWidth="110" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Button Content="Video Aç" IsEnabled="False" ToolTip.Tip="M1" />
+          <Separator Width="1" Margin="4,2" />
+          <Button Content="Transkribe Et" IsEnabled="False" ToolTip.Tip="M3" />
+          <Button Content="Düzelt" IsEnabled="False" ToolTip.Tip="M4" />
+          <Button Content="Çevir" IsEnabled="False" ToolTip.Tip="M7" />
+          <Button Content="Stil" IsEnabled="False" ToolTip.Tip="M5" />
+          <Button Content="Dışa Aktar" IsEnabled="False" ToolTip.Tip="M6" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Status bar with progress + cancel for long-running jobs. -->
+    <Border DockPanel.Dock="Bottom" Padding="10,4" BorderThickness="0,1,0,0"
+            BorderBrush="{DynamicResource PanelBorderBrush}">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10">
+          <ProgressBar Width="180" Minimum="0" Maximum="1" Value="{Binding Progress}"
+                       IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
+          <Button Content="İptal" Command="{Binding CancelJobCommand}"
+                  IsVisible="{Binding IsBusy}" Padding="10,2" />
+          <TextBlock Text="{Binding PlatformText}" Classes="muted" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding VersionText}" Classes="muted" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" />
+      </DockPanel>
+    </Border>
+
+    <!-- Main area: video + timeline on the left, cue table on the right. -->
+    <Grid Margin="8" ColumnDefinitions="3*,Auto,2*">
+      <Grid Grid.Column="0" RowDefinitions="*,Auto,140">
+        <Border Grid.Row="0" Classes="panel" Background="{DynamicResource VideoBackgroundBrush}">
+          <TextBlock Classes="placeholder" Text="Video önizleme&#x0a;(M1: video aç ve oynat)" />
+        </Border>
+        <GridSplitter Grid.Row="1" Height="6" Background="Transparent" ResizeDirection="Rows" />
+        <Border Grid.Row="2" Classes="panel">
+          <TextBlock Classes="placeholder" Text="Zaman çizelgesi / dalga formu (M8)" />
+        </Border>
+      </Grid>
+
+      <GridSplitter Grid.Column="1" Width="6" Background="Transparent" ResizeDirection="Columns" />
+
+      <Border Grid.Column="2" Classes="panel">
+        <TextBlock Classes="placeholder" Text="Altyazı satırları (M2)" />
+      </Border>
+    </Grid>
+  </DockPanel>
+</Window>
