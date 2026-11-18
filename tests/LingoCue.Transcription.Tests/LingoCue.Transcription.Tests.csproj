@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\LingoCue.Transcription\LingoCue.Transcription.csproj" />
+    <ProjectReference Include="..\..\src\LingoCue.Infrastructure\LingoCue.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

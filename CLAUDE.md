@@ -26,6 +26,13 @@ dotnet publish src/LingoCue.App -c Release -r win-x64 --self-contained -o publis
   pinned + SHA256, output in `build/native/`, git-ignored); macOS dev needs `brew install mpv`.
 - Media integration tests generate clips with FFmpeg and skip without it; CI sets
   `LINGOCUE_REQUIRE_FFMPEG=1` so they fail instead.
+- Opt-in real-engine tests (never in CI): `LINGOCUE_WHISPER_TEST_AUDIO=<turkish audio>` runs Whisper
+  (downloads the ~1.1 GB model once to the app-data `models` folder);
+  `LINGOCUE_GEMINI_TEST_AUDIO=<turkish audio>` plus a Gemini key (env `GEMINI_API_KEY` or the key saved
+  in the app) calls the paid API (~$0.005/min). Both write a readable result to `%TEMP%`/`$TMPDIR`
+  (`lingocue-whisper-test.txt`, `lingocue-gemini-test.txt`).
+- Test audio in Turkish can be synthesized on Windows with the OneCore "Tolga" voice (WinRT
+  `Windows.Media.SpeechSynthesis`); never commit audio/video.
 
 ## Layout
 

@@ -6,6 +6,37 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-18
+
+### Added
+- **Transkribe Et** (toolbar, Altyazı menu, Ctrl/⌘+T): turns the speech in a video into a new
+  source track with word-timed, readable cues.
+- Local engine **Whisper** (Whisper.net 1.9.1): CUDA → Vulkan → CPU on Windows, CoreML on macOS; the
+  device in use is shown, with a hint when an NVIDIA GPU could use CUDA. Models large-v3 q5_0
+  (default, 1.1 GB) and large-v3-turbo q5_0 (0.6 GB), downloaded on first use from a pinned
+  whisper.cpp commit with resume and SHA256 verification. Silero VAD drops hallucinated segments.
+- Cloud engine **Gemini 3.5 Transcribe**: verbatim mode with word timestamps and optional speaker
+  diarization; audio uploaded as FLAC, split at silences beyond 25 minutes; retries on rate limits;
+  cost estimate (~$0.005/min).
+- Segmentation into cues: speaker changes, pauses, sentence ends, 42×2 characters, 0.8–7 s, reading-speed
+  target; Turkish heuristics keep determiners, numbers, frequent adjectives and genitive compounds
+  with the following word.
+- Recognition results cached in the project; re-running with the same settings is free and instant.
+- **Ayarlar → API Anahtarları**: Gemini key stored in Windows Credential Manager / macOS Keychain;
+  `GEMINI_API_KEY` overrides it.
+- Progress (stage, percent, device) and **İptal** in the status bar; recognition runs off the UI thread.
+- Track selector when a project has more than one track.
+- Audio extraction (WAV/FLAC, slices, progress) and silence detection in the media layer.
+
+- Whisper word timing via DTW alignment, a short punctuated Turkish prompt, and removal of
+  non-speech annotations (`*gülüşmeler*`, `[Müzik]`, `(alkış)`, ♪, laughter) before segmentation —
+  found necessary on a real phone recording (see `docs/reports/asr-comparison.md`).
+- ASR engine comparison report.
+
+### Changed
+- **Gemini 3.5 Transcribe is the default engine**; without a stored key the dialog falls back to Whisper.
+- New test project `LingoCue.Transcription.Tests`.
+
 ## [0.3.0] - 2026-11-18
 
 ### Added
@@ -73,7 +104,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   unsigned osx-arm64 `.app` zip.
 - Docs: plan, research notes, architecture overview, macOS test checklist, `CLAUDE.md`.
 
-[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/eneskaramanoglu/lingocue/releases/tag/v0.1.0

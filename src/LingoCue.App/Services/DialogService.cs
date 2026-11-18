@@ -3,6 +3,8 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Layout;
 using Avalonia.Media;
+using LingoCue.App.ViewModels;
+using LingoCue.App.Views;
 
 namespace LingoCue.App.Services;
 
@@ -18,11 +20,31 @@ public interface IDialogService
     Task<UnsavedChangesChoice> AskUnsavedChangesAsync(string documentName);
 
     Task<bool> ConfirmAsync(string title, string message, string confirmText, string cancelText = "Vazgeç");
+
+    Task<TranscribeOptions?> AskTranscribeOptionsAsync(TranscribeDialogViewModel viewModel);
+
+    Task ShowApiKeysAsync(ApiKeysViewModel viewModel);
 }
 
 /// <summary>Small modal dialogs built in code (Avalonia has no built-in message box).</summary>
 internal sealed class DialogService : IDialogService
 {
+    public async Task<TranscribeOptions?> AskTranscribeOptionsAsync(TranscribeDialogViewModel viewModel)
+        => Owner() is { } owner
+            ? await new TranscribeDialog { DataContext = viewModel }.ShowDialog<TranscribeOptions?>(owner)
+            : null;
+
+    public async Task ShowApiKeysAsync(ApiKeysViewModel viewModel)
+    {
+        if (Owner() is { } owner)
+        {
+            await new ApiKeysDialog { DataContext = viewModel }.ShowDialog(owner);
+        }
+    }
+
+    private static Window? Owner()
+        => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } w } ? w : null;
+
     public Task<UnsavedChangesChoice> AskUnsavedChangesAsync(string documentName)
         => ShowAsync(
             "Kaydedilmemiş değişiklikler",

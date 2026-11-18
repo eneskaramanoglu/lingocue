@@ -25,6 +25,12 @@ public sealed class Project
     /// <summary>Script resolution for ASS output; follows the video size when known.</summary>
     public AssScriptInfo ScriptInfo { get; set; } = new();
 
+    /// <summary>Speech-recognition results kept with the project (newest last).</summary>
+    public List<AsrRun> AsrRuns { get; init; } = [];
+
+    public AsrRun? FindAsrRun(string engine, string model, string? language, bool diarized)
+        => AsrRuns.LastOrDefault(r => r.Matches(engine, model, language, diarized));
+
     public SubtitleTrack? ActiveTrack
         => Tracks.FirstOrDefault(t => t.Id == ActiveTrackId) ?? Tracks.FirstOrDefault();
 

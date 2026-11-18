@@ -23,6 +23,29 @@ dotnet run --project src/LingoCue.App
 
 Logs are written to `~/Library/Logs/LingoCue/`.
 
+## v0.4.0 — Transcription
+
+Needs a video with Turkish speech (any phone recording; 1–3 minutes is enough).
+
+- [ ] **Ayarlar → API Anahtarları**: the dialog names "macOS Anahtar Zinciri (Keychain)"; paste the
+      Gemini key and **Kaydet** → "Kayıtlı bir anahtar var". Keychain Access.app shows an item
+      "LingoCue" with account `gemini-api-key`. Reopen the dialog: the key text is not shown.
+- [ ] Open the video, **Transkribe Et** (⌘T): motor Whisper, model large-v3 (q5_0) says
+      "İlk kullanımda 1,1 GB indirilecek". **Başlat**: status bar shows "Model indiriliyor %…", then
+      "Ses ayıklanıyor", then "Konuşma tanınıyor %… · Apple CoreML" (first run may spend a minute or two
+      compiling the CoreML model; later runs are faster). **İptal** stops it.
+- [ ] Run again to the end: a track "Kaynak · Whisper large-v3-q5_0" appears with readable rows
+      (≤ 2 lines, ≤ 42 chars per line); playing shows the subtitles on the video.
+- [ ] Repeat with model large-v3-turbo: noticeably faster; note the time shown in the status bar.
+- [ ] **Transkribe Et** again with the same settings: "Projedeki önceki sonucu kullan" is offered and
+      creates the track instantly without recognizing again.
+- [ ] Motor Gemini 3.5 Transcribe (bulut), "Konuşmacıları ayır" on: finishes with a cost in the status
+      bar; with two speakers in the video the rows carry spk_1 / spk_2 in the Konuşmacı column.
+- [ ] Delete the key (API Anahtarları → Kayıtlı anahtarı sil): Gemini shows "Gemini API anahtarı
+      girilmemiş" with instructions and **Başlat** is disabled.
+- [ ] Save, close and reopen the project: the tracks are there and the cached recognition is still offered.
+- [ ] Models live in `~/Library/Application Support/LingoCue/models/`.
+
 ## v0.3.0 — Subtitle core
 
 Sample SRT (save as `test.srt`, UTF-8):

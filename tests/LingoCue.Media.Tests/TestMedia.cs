@@ -20,6 +20,9 @@ public sealed class TestMedia : IAsyncLifetime
 
     public string NotMedia => Path.Combine(_directory, "not-media.mp4");
 
+    /// <summary>3 s of audio: 440 Hz tone, 1 s of silence (1–2 s), tone again.</summary>
+    public string ToneSilenceTone => Path.Combine(_directory, "tone-silence-tone.wav");
+
     public MediaTools RequireTools()
     {
         if (Tools is null)
@@ -57,6 +60,10 @@ public sealed class TestMedia : IAsyncLifetime
 
         // Same clip re-muxed with a 90 degree display rotation, like a phone recording.
         await Run(runner, tools.FfmpegPath, "-display_rotation", "90", "-i", LandscapeClip, "-c", "copy", PortraitClip);
+
+        await Run(runner, tools.FfmpegPath,
+            "-f", "lavfi", "-i", "aevalsrc=if(between(t\\,1\\,2)\\,0\\,0.5*sin(2*PI*440*t)):s=16000:d=3",
+            ToneSilenceTone);
 
         await File.WriteAllTextAsync(NotMedia, "this is not a video");
         Tools = tools;

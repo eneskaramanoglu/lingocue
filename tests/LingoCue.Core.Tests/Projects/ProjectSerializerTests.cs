@@ -64,6 +64,29 @@ public sealed class ProjectSerializerTests : IDisposable
     }
 
     [Fact]
+    public void Round_trips_the_asr_cache()
+    {
+        var project = CreateProject();
+        project.AsrRuns.Add(new AsrRun
+        {
+            Engine = "whisper",
+            Model = "large-v3-q5_0",
+            Language = "tr",
+            DetectedLanguage = "tr",
+            Elapsed = TimeSpan.FromSeconds(41),
+            CostUsd = 0m,
+            Words = [new Word("Merhaba,", TimeSpan.FromMilliseconds(120), TimeSpan.FromMilliseconds(600), 0.91)],
+        });
+
+        var loaded = ProjectSerializer.Deserialize(ProjectSerializer.Serialize(project));
+
+        var run = loaded.FindAsrRun("whisper", "large-v3-q5_0", "tr", diarized: false).ShouldNotBeNull();
+        run.Elapsed.ShouldBe(TimeSpan.FromSeconds(41));
+        run.Words.ShouldHaveSingleItem().Text.ShouldBe("Merhaba,");
+        loaded.FindAsrRun("whisper", "large-v3-q5_0", null, diarized: false).ShouldBeNull();
+    }
+
+    [Fact]
     public void Serializing_does_not_change_the_in_memory_path()
     {
         var project = CreateProject();
