@@ -28,7 +28,13 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Track selector when a project has more than one track.
 - Audio extraction (WAV/FLAC, slices, progress) and silence detection in the media layer.
 
+- Whisper word timing via DTW alignment, a short punctuated Turkish prompt, and removal of
+  non-speech annotations (`*gülüşmeler*`, `[Müzik]`, `(alkış)`, ♪, laughter) before segmentation —
+  found necessary on a real phone recording (see `docs/reports/asr-comparison.md`).
+- ASR engine comparison report.
+
 ### Changed
+- **Gemini 3.5 Transcribe is the default engine**; without a stored key the dialog falls back to Whisper.
 - New test project `LingoCue.Transcription.Tests`.
 
 ## [0.3.0] - 2026-11-18
