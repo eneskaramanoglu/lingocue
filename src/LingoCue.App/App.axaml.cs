@@ -28,9 +28,21 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = _services is null
-                ? new MainWindow { DataContext = MainViewModel.CreateDesignInstance() }
-                : _services.GetRequiredService<MainWindow>();
+            if (_services is null)
+            {
+                desktop.MainWindow = new MainWindow { DataContext = MainViewModel.CreateDesignInstance() };
+            }
+            else
+            {
+                var window = _services.GetRequiredService<MainWindow>();
+                var startup = StartupArguments.Parse(desktop.Args);
+                if (startup.VideoPath is not null && window.DataContext is MainViewModel vm)
+                {
+                    window.Opened += async (_, _) => await vm.OpenFileAsync(startup.VideoPath, startup.SubtitlePath);
+                }
+
+                desktop.MainWindow = window;
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
