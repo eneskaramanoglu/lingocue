@@ -66,8 +66,37 @@ times are 40–80 ms closer to the actual onsets in this sample.
   $0.30 per hour of audio and uploads the audio (files are deleted right after).
 - **Unique strengths:** Gemini separates speakers (needed for interviews); Whisper works offline.
 
-**Proposed default:** Whisper large-v3 q5_0 for everyday use; Gemini when the video has several
+**Proposed default (sample only, superseded below):** Whisper large-v3 q5_0 for everyday use; Gemini when the video has several
 speakers or Whisper struggles with a recording. The dialog remembers the last engine used in a session.
+
+## Real recording (owner's phone video)
+
+39 s handheld phone video, 1280×720, AAC stereo: several people talking casually outdoors, laughter,
+interruptions, at least three speakers. The transcript content is private and not reproduced here;
+only measurements and observed behaviour are recorded.
+
+| | Whisper large-v3 q5_0 | Whisper turbo q5_0 | Gemini 3.5 Transcribe |
+| --- | --- | --- | --- |
+| Wall time | 11.2 s | 7.2 s | 13.4 s |
+| Cost | free | free | ~$0.0033 |
+| Words / cues | 46 words → 9 cues | 66 words → 20 cues | 61 words → 18 cues |
+| Punctuation | almost none | sentence ends only | commas and sentence ends |
+| Recognition (owner's judgement pending) | several phrases wrong or missing | close to Gemini, a few wrong words | best; reads naturally |
+| Non-speech | `*gülüşmeler*` emitted as text | laughter emitted as "Eheheh" words (7×) | none |
+| Word timing | **unreliable**: many words snapped to segment edges; cues of 5–7 s | **unreliable**: times snapped to whole seconds (x.000 / x.040) | plausible, 100 ms grid |
+| Speakers | — | — | 3 speakers separated |
+
+### What this shows
+
+- On real, noisy, multi-speaker footage **Gemini is clearly better**: text, punctuation, speakers and
+  timing all usable as-is.
+- **Whisper's token timestamps are not good enough for subtitles here.** whisper.cpp's default token
+  times collapse to segment boundaries in fast, overlapping speech. The fix is DTW alignment
+  (`WhisperFactoryOptions.UseDtwTimeStamps` with the large-v3 / turbo heads preset), which aligns each
+  token against the audio.
+- Whisper also needs (a) a Turkish initial prompt with punctuation to bias it toward punctuated output
+  and (b) filtering of non-speech annotations (`*…*`, `[…]`, `(…)`, laughter tokens) before segmentation.
+- The clean synthetic sample above hid all of this — real footage is the only meaningful test.
 
 ## Re-running on a real video
 
