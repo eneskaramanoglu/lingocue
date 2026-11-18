@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (without leading v), e.g. 0.1.0'
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  PROJECT: src/LingoCue.App/LingoCue.App.csproj
+
+jobs:
+  package:
+    name: Package ${{ matrix.rid }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: macos-latest
+            rid: osx-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then v="${{ inputs.version }}"; else v="${GITHUB_REF_NAME#v}"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: dotnet test --solution LingoCue.slnx --configuration Release
+
+      - name: Publish
+        shell: bash
+        run: >
+          dotnet publish "$PROJECT" -c Release -r ${{ matrix.rid }} --self-contained true
+          -p:Version=${{ steps.ver.outputs.version }}
+          -p:PublishSingleFile=false
+          -o publish/${{ matrix.rid }}
+
+      - name: Zip (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          Compress-Archive -Path publish/${{ matrix.rid }}/* -DestinationPath artifacts/LingoCue-${{ steps.ver.outputs.version }}-${{ matrix.rid }}.zip
+
+      - name: Bundle .app and zip (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          bash build/macos/make-app.sh publish/${{ matrix.rid }} artifacts ${{ steps.ver.outputs.version }}
+          ditto -c -k --sequesterRsrc --keepParent artifacts/LingoCue.app artifacts/LingoCue-${{ steps.ver.outputs.version }}-${{ matrix.rid }}.zip
+          rm -rf artifacts/LingoCue.app
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: LingoCue-${{ matrix.rid }}
+          path: artifacts/*.zip
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          notes=$(awk -v ver="${tag#v}" '
+            $0 ~ "^## \[" ver "\]" {found=1; next}
+            found && /^## \[/ {exit}
+            found {print}' CHANGELOG.md)
+          [ -z "$notes" ] && notes="See CHANGELOG.md"
+          gh release create "$tag" dist/*.zip --title "LingoCue $tag" --notes "$notes" --verify-tag
