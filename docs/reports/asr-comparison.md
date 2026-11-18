@@ -1,0 +1,84 @@
+# ASR engine comparison (M3)
+
+Date: 2026-11-18 · LingoCue v0.4.0 (feature/m3-transcription) · Windows 11, RTX 3050 Laptop (4 GB), no CUDA Toolkit → Whisper ran on **Vulkan**.
+
+## Sample
+
+18.7 s of Turkish speech synthesized with the Windows OneCore voice "Tolga" (no real recording was
+available), with pauses of 1.2–2 s between sentences:
+
+> Merhaba, bugün İstanbul'dayız. ‖ Boğaz'ın kıyısında ılık bir rüzgâr esiyor ve martılar uçuşuyor. ‖
+> Bu videoda size şehrin en güzel köşelerini göstereceğim. Hazırsanız başlayalım! ‖ Görüşmek üzere.
+
+**Caveat:** synthetic speech is clean, single-speaker and studio-quiet. It shows that both engines
+work end to end, their timing behaviour and cost, but it does **not** measure accuracy on real
+recordings (noise, music, accents, overlapping speakers, proper names). Re-run on a real video before
+treating the accuracy rows as decisive (procedure at the end).
+
+## Results
+
+| | Whisper large-v3 q5_0 | Whisper large-v3-turbo q5_0 | Gemini 3.5 Transcribe |
+| --- | --- | --- | --- |
+| Where | local (Vulkan GPU) | local (Vulkan GPU) | Google cloud |
+| Wall time, 18.7 s audio | **7.5 s** (incl. model load) | **5.0 s** (incl. model load) | **10.6 s** (upload + recognition) |
+| Cost | free | free | **~$0.0016** (≈ $0.005/min) |
+| One-time download | 1.08 GB | 0.57 GB | — |
+| Words recognized | 24/24 | 24/24 | 24/24 |
+| Word timestamp resolution | 10 ms | 10 ms | **100 ms** (all offsets were multiples of 0.1 s) |
+| Speakers | — | — | yes (`spk:0`; one speaker here) |
+| Language detected | tr | tr | tr (requested `tr-TR`) |
+
+Text produced (all three identical except punctuation):
+
+| Engine | Text |
+| --- | --- |
+| Whisper large-v3 | Merhaba**,** bugün İstanbul'dayız. Boğazın kıyısında ılık bir rüzgar esiyor ve martılar uçuşuyor. Bu videoda size şehrin en güzel köşelerini göstereceğim. Hazırsanız başlayalım. Görüşmek üzere. |
+| Whisper turbo | identical to large-v3 |
+| Gemini | Merhaba**.** Bugün İstanbul'dayız. … identical from there on |
+
+Differences against the script, shared by all engines: `Boğaz'ın` → `Boğazın` (missing apostrophe),
+`rüzgâr` → `rüzgar` (circumflex), `başlayalım!` → `başlayalım.` These are exactly the kind of fixes the
+M4 LLM correction pass is for.
+
+## Resulting cues (after LingoCue segmentation)
+
+| # | Whisper large-v3 | Gemini 3.5 Transcribe |
+| --- | --- | --- |
+| 1 | 00:00.120 → 00:00.930 `Merhaba, bugün` | 00:00.100 → 00:02.100 `Merhaba. Bugün İstanbul'dayız.` |
+| 2 | 00:01.010 → 00:02.090 `İstanbul'dayız.` | 00:04.400 → 00:08.038 `Boğazın kıyısında ılık bir rüzgar esiyor` / `ve martılar uçuşuyor.` |
+| 3 | 00:04.320 → 00:07.958 `Boğazın kıyısında ılık bir rüzgar esiyor` / `ve martılar uçuşuyor.` | 00:09.500 → 00:12.785 `Bu videoda size` / `şehrin en güzel köşelerini göstereceğim.` |
+| 4 | 00:09.460 → 00:12.745 `Bu videoda size` / `şehrin en güzel köşelerini göstereceğim.` | 00:13.100 → 00:14.444 `Hazırsanız başlayalım.` |
+| 5 | 00:13.160 → 00:14.504 `Hazırsanız başlayalım.` | 00:17.100 → 00:18.032 `Görüşmek üzere.` |
+| 6 | 00:17.060 → 00:17.992 `Görüşmek üzere.` | — |
+
+Whisper's finer word timing exposed a ~450 ms pause after "bugün" (the voice breathes there), so the
+first sentence became two cues; Gemini's 100 ms grid hid it. Both splits are valid; Whisper's start
+times are 40–80 ms closer to the actual onsets in this sample.
+
+## Assessment
+
+- **Accuracy:** a tie on this clean sample. Real-world difference is unknown until tested on real footage.
+- **Timing:** Whisper is finer (10 ms vs 100 ms). This matters for tight cue starts and especially for
+  word-by-word karaoke (M5), where 100 ms steps are visible.
+- **Speed:** both are fast here. Whisper turbo is fastest; on longer videos Whisper on Vulkan scales
+  with GPU speed, Gemini mostly with upload size. CUDA Toolkit 13 would speed Whisper up further.
+- **Cost / privacy:** Whisper is free and the audio never leaves the computer; Gemini costs about
+  $0.30 per hour of audio and uploads the audio (files are deleted right after).
+- **Unique strengths:** Gemini separates speakers (needed for interviews); Whisper works offline.
+
+**Proposed default:** Whisper large-v3 q5_0 for everyday use; Gemini when the video has several
+speakers or Whisper struggles with a recording. The dialog remembers the last engine used in a session.
+
+## Re-running on a real video
+
+```bash
+set LINGOCUE_WHISPER_TEST_AUDIO=<path to a Turkish video>
+set LINGOCUE_WHISPER_TEST_MODEL=large-v3-q5_0
+dotnet test --project tests/LingoCue.Transcription.Tests -- --filter-class "*WhisperNetEngineIntegrationTests"
+set LINGOCUE_GEMINI_TEST_AUDIO=<same path>
+dotnet test --project tests/LingoCue.Transcription.Tests -- --filter-class "*GeminiTranscribeLiveTests"
+```
+
+Results are written to `%TEMP%\lingocue-whisper-test.txt` and `%TEMP%\lingocue-gemini-test.txt`.
+(The assertions expect words from the sample sentence; a real video will fail those checks but still
+write the result files.)
