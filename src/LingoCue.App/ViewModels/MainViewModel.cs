@@ -7,11 +7,15 @@ using LingoCue.Core;
 using LingoCue.Core.Formats;
 using LingoCue.Core.Platform;
 using LingoCue.Core.Projects;
+using LingoCue.Core.Security;
+using LingoCue.Core.Segmentation;
 using LingoCue.Core.Subtitles;
 using LingoCue.Core.Time;
 using LingoCue.Media;
 using LingoCue.Media.Probing;
 using LingoCue.Media.Tools;
+using LingoCue.Infrastructure.Security;
+using LingoCue.Transcription;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -26,7 +30,12 @@ public partial class MainViewModel : ViewModelBase
     private readonly IVideoPlayer? _player;
     private readonly SubtitlePreviewService? _preview;
     private readonly IPlatformInfo? _platform;
+    private readonly IReadOnlyList<ITranscriptionEngine> _engines = [];
+    private readonly ApiKeyProvider? _keys;
+    private readonly ISecretStore? _secretStore;
     private readonly ILogger<MainViewModel> _logger;
+    private CancellationTokenSource? _jobCts;
+    private string? _lastEngineId;
 
     public MainViewModel(
         IThemeService themeService,
@@ -38,6 +47,9 @@ public partial class MainViewModel : ViewModelBase
         PlayerViewModel playerViewModel,
         SubtitleEditorViewModel editor,
         IPlatformInfo platform,
+        IEnumerable<ITranscriptionEngine> engines,
+        ApiKeyProvider keys,
+        ISecretStore secretStore,
         ILogger<MainViewModel> logger)
     {
         _themeService = themeService;
@@ -47,6 +59,9 @@ public partial class MainViewModel : ViewModelBase
         _player = player;
         _preview = preview;
         _platform = platform;
+        _engines = [.. engines];
+        _keys = keys;
+        _secretStore = secretStore;
         _logger = logger;
         Player = playerViewModel;
         Editor = editor;
@@ -104,6 +119,7 @@ public partial class MainViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasMedia))]
+    [NotifyCanExecuteChangedFor(nameof(TranscribeCommand))]
     public partial MediaInfo? CurrentMedia { get; private set; }
 
     public bool HasMedia => CurrentMedia is not null;
@@ -111,17 +127,34 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     public partial string? ErrorText { get; set; }
 
-    // Long-running job state (wired up from M3 on).
+    /// <summary>Tracks of the project for the track selector (full track management comes in M7).</summary>
+    public System.Collections.ObjectModel.ObservableCollection<SubtitleTrack> Tracks { get; } = [];
+
+    [ObservableProperty]
+    public partial SubtitleTrack? SelectedTrack { get; set; }
+
+    public bool HasSeveralTracks => Tracks.Count > 1;
+
+    // Long-running job state.
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
-    [NotifyCanExecuteChangedFor(nameof(CancelJobCommand))]
-    [NotifyCanExecuteChangedFor(nameof(OpenVideoCommand), nameof(OpenProjectCommand), nameof(ImportSubtitleCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenVideoCommand), nameof(OpenProjectCommand), nameof(ImportSubtitleCommand), nameof(TranscribeCommand))]
     public partial bool IsBusy { get; set; }
 
+    /// <summary>0..1; 0 shows an indeterminate bar.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsProgressIndeterminate))]
     public partial double Progress { get; set; }
 
+    public bool IsProgressIndeterminate => Progress <= 0;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CancelJobCommand))]
+    public partial bool CanCancel { get; private set; }
+
     public bool IsIdle => !IsBusy;
+
+    private bool CanTranscribe => IsIdle && HasMedia && Project is not null;
 
     partial void OnSelectedThemeChanged(AppTheme value) => _themeService?.Apply(value);
 
@@ -401,12 +434,189 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     private void DismissError() => ErrorText = null;
 
-    [RelayCommand(CanExecute = nameof(IsBusy))]
+    [RelayCommand(CanExecute = nameof(CanCancel))]
     private void CancelJob()
     {
-        // Each job will own a CancellationTokenSource; nothing cancellable runs yet.
-        StatusText = "İptal edildi";
-        IsBusy = false;
+        _jobCts?.Cancel();
+        StatusText = "İptal ediliyor…";
+    }
+
+    // ---------------------------------------------------------------- transcription
+
+    [RelayCommand]
+    private async Task ManageApiKeys()
+    {
+        if (_dialogs is not null && _keys is not null && _secretStore is not null && _platform is not null)
+        {
+            await _dialogs.ShowApiKeysAsync(new ApiKeysViewModel(_keys, _secretStore, _platform));
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanTranscribe))]
+    private async Task Transcribe()
+    {
+        if (_dialogs is null || Project is not { } project || CurrentMedia is not { } media)
+        {
+            return;
+        }
+
+        var options = await _dialogs.AskTranscribeOptionsAsync(new TranscribeDialogViewModel(_engines, project, media.Duration, _lastEngineId));
+        if (options is null)
+        {
+            return;
+        }
+
+        _lastEngineId = options.Engine.Id;
+        AsrRun run;
+        if (options.CachedRun is { } cached)
+        {
+            run = cached;
+        }
+        else
+        {
+            var result = await RunTranscriptionAsync(options, media);
+            if (result is null)
+            {
+                return;
+            }
+
+            run = new AsrRun
+            {
+                Engine = result.Engine,
+                Model = result.Model,
+                Language = options.Language,
+                DetectedLanguage = result.DetectedLanguage,
+                Diarized = options.Diarize,
+                Elapsed = result.Elapsed,
+                CostUsd = result.EstimatedCostUsd,
+                Words = [.. result.Words],
+            };
+            project.AsrRuns.Add(run);
+            StatusText = $"Tanıma bitti: {run.Words.Count} kelime, {run.Elapsed:mm\\:ss} sürdü · {result.Device}" +
+                         (result.EstimatedCostUsd is > 0 ? $" · ~{result.EstimatedCostUsd:0.000} $" : string.Empty);
+        }
+
+        AddTrackFromAsr(project, run, options.Engine.DisplayName);
+    }
+
+    private async Task<TranscriptionResult?> RunTranscriptionAsync(TranscribeOptions options, MediaInfo media)
+    {
+        using var cts = new CancellationTokenSource();
+        _jobCts = cts;
+        IsBusy = true;
+        CanCancel = true;
+        Progress = 0;
+        ErrorText = null;
+        var progress = new Progress<TranscriptionProgress>(p =>
+        {
+            Progress = p.Fraction;
+            StatusText = $"{StageText(p.Stage)} %{p.Fraction * 100:0}{(p.Detail is null ? string.Empty : " · " + p.Detail)}";
+        });
+
+        try
+        {
+            var request = new TranscriptionRequest(media.FilePath, media.Duration, options.Language, options.ModelId, options.Diarize);
+
+            // Native inference is CPU/GPU heavy; keep it off the UI thread.
+            return await Task.Run(() => options.Engine.TranscribeAsync(request, progress, cts.Token), cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText = "Transkripsiyon iptal edildi.";
+        }
+        catch (TranscriptionException ex)
+        {
+            LogFailed(ex, media.FilePath);
+            ErrorText = ex.Remedy is null ? $"Transkripsiyon başarısız: {ex.Message}" : $"{ex.Remedy} ({ex.Message})";
+            StatusText = "Transkripsiyon başarısız";
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or Media.Audio.AudioExtractionException or MediaToolNotFoundException)
+        {
+            LogFailed(ex, media.FilePath);
+            ErrorText = ex is MediaToolNotFoundException ? FfmpegMissingMessage() : $"Transkripsiyon başarısız: {ex.Message}";
+            StatusText = "Transkripsiyon başarısız";
+        }
+        finally
+        {
+            _jobCts = null;
+            CanCancel = false;
+            IsBusy = false;
+            Progress = 0;
+        }
+
+        return null;
+    }
+
+    private void AddTrackFromAsr(Project project, AsrRun run, string engineName)
+    {
+        var language = run.Language ?? run.DetectedLanguage ?? project.SourceLanguage;
+        var cues = Segmenter.Segment(run.Words, new SegmentationOptions { Language = language });
+        var track = new SubtitleTrack
+        {
+            Name = $"Kaynak · {engineName.Split(' ')[0]} {run.Model}",
+            Language = language,
+            Kind = TrackKind.Source,
+            Cues = [.. cues],
+        };
+        // Replace the empty placeholder track a new project starts with.
+        if (project.ActiveTrack is { Cues.Count: 0 } empty)
+        {
+            project.Tracks.Remove(empty);
+        }
+
+        project.Tracks.Add(track);
+        project.ActiveTrackId = track.Id;
+        RefreshTracks();
+        MarkDirty();
+        RefreshPreview(immediate: true);
+        StatusText += $" · {cues.Count} satır oluşturuldu ({track.Name})";
+    }
+
+    private static string StageText(TranscriptionStage stage) => stage switch
+    {
+        TranscriptionStage.Preparing => "Hazırlanıyor",
+        TranscriptionStage.DownloadingModel => "Model indiriliyor",
+        TranscriptionStage.ExtractingAudio => "Ses ayıklanıyor",
+        TranscriptionStage.Uploading => "Yükleniyor",
+        TranscriptionStage.Recognizing => "Konuşma tanınıyor",
+        _ => "Bitiriliyor",
+    };
+
+    partial void OnSelectedTrackChanged(SubtitleTrack? value)
+    {
+        // RefreshTracks loads the editor itself.
+        if (value is null || Project is null || _syncingTracks)
+        {
+            return;
+        }
+
+        Project.ActiveTrackId = value.Id;
+        Editor?.Load(value);
+        RefreshPreview(immediate: true);
+    }
+
+    private bool _syncingTracks;
+
+    private void RefreshTracks()
+    {
+        _syncingTracks = true;
+        try
+        {
+            Tracks.Clear();
+            foreach (var track in Project?.Tracks ?? [])
+            {
+                Tracks.Add(track);
+            }
+
+            SelectedTrack = Project?.ActiveTrack;
+            Editor?.Load(Project?.ActiveTrack);
+        }
+        finally
+        {
+            _syncingTracks = false;
+        }
+
+        OnPropertyChanged(nameof(HasSeveralTracks));
     }
 
     private void SetProject(Project project, string? projectPath)
@@ -420,7 +630,9 @@ public partial class MainViewModel : ViewModelBase
             _player?.Close();
         }
 
-        Editor?.Load(project.EnsureActiveTrack());
+        project.EnsureActiveTrack();
+        RefreshTracks();
+        TranscribeCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(DocumentName));
     }
 

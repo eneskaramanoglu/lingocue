@@ -1,0 +1,63 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:LingoCue.App.ViewModels"
+        xmlns:tr="using:LingoCue.Transcription"
+        x:Class="LingoCue.App.Views.TranscribeDialog"
+        x:DataType="vm:TranscribeDialogViewModel"
+        Title="Transkribe Et"
+        Width="560" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+
+  <StackPanel Margin="20" Spacing="12">
+    <TextBlock Text="Videodaki konuşmayı kelime zamanlarıyla tanıyıp okunur altyazı satırlarına böler. Sonuç yeni bir 'Kaynak' izi olarak eklenir."
+               TextWrapping="Wrap" Classes="muted" />
+
+    <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
+      <TextBlock Grid.Row="0" Text="Motor" VerticalAlignment="Center" />
+      <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                ItemsSource="{Binding Engines}" SelectedItem="{Binding SelectedEngine}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="tr:ITranscriptionEngine">
+            <TextBlock Text="{Binding DisplayName}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+
+      <TextBlock Grid.Row="1" Text="Model" VerticalAlignment="Center" />
+      <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                ItemsSource="{Binding Models}" SelectedItem="{Binding SelectedModel}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="tr:TranscriptionModel">
+            <TextBlock Text="{Binding DisplayName}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+
+      <TextBlock Grid.Row="2" Text="Konuşma dili" VerticalAlignment="Center" />
+      <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch"
+                ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}" />
+
+      <CheckBox Grid.Row="3" Grid.Column="1" Content="Konuşmacıları ayır (bulut)"
+                IsChecked="{Binding Diarize}" IsEnabled="{Binding CanDiarize}" />
+    </Grid>
+
+    <TextBlock Text="{Binding ModelInfo}" TextWrapping="Wrap" Classes="muted" />
+
+    <Border Classes="error" Margin="0" IsVisible="{Binding Problem, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <StackPanel Spacing="4">
+        <TextBlock Text="{Binding Problem}" FontWeight="SemiBold" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Remedy}" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+
+    <StackPanel IsVisible="{Binding HasCachedRun}" Spacing="4">
+      <CheckBox Content="Projedeki önceki sonucu kullan (ücretsiz, anında)" IsChecked="{Binding UseCache}" />
+      <TextBlock Text="{Binding CachedRunText}" TextWrapping="Wrap" Classes="muted" />
+    </StackPanel>
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Başlat" Classes="accent" IsDefault="True" IsEnabled="{Binding CanStart}" Click="OnStart" MinWidth="90" />
+      <Button Content="Vazgeç" IsCancel="True" Click="OnCancel" MinWidth="90" />
+    </StackPanel>
+  </StackPanel>
+</Window>

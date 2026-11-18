@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:LingoCue.App.ViewModels"
+        x:Class="LingoCue.App.Views.ApiKeysDialog"
+        x:DataType="vm:ApiKeysViewModel"
+        Title="API Anahtarları"
+        Width="520" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+
+  <StackPanel Margin="20" Spacing="12">
+    <TextBlock TextWrapping="Wrap" Classes="muted">
+      <Run Text="Anahtarlar yalnızca bu bilgisayarın güvenli deposunda saklanır:" />
+      <Run Text="{Binding StoreName}" FontWeight="SemiBold" />
+      <Run Text=". Proje dosyalarına, ayarlara veya loglara yazılmaz." />
+    </TextBlock>
+
+    <TextBlock Text="Google Gemini" FontWeight="SemiBold" />
+    <TextBlock Text="{Binding GeminiStatus}" Classes="muted" />
+    <TextBox Text="{Binding GeminiKeyInput}" PasswordChar="●" PlaceholderText="Yeni Gemini API anahtarını yapıştırın"
+             IsEnabled="{Binding IsStoreSupported}" />
+    <TextBlock Text="Anahtarı Google AI Studio → Get API key sayfasından alabilirsiniz." TextWrapping="Wrap" Classes="muted" FontSize="12" />
+
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Content="Kaydet" Classes="accent" Command="{Binding SaveCommand}" MinWidth="90" />
+      <Button Content="Kayıtlı anahtarı sil" Command="{Binding RemoveCommand}" IsVisible="{Binding HasStoredKey}" />
+    </StackPanel>
+
+    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+    <Button Content="Kapat" HorizontalAlignment="Right" IsCancel="True" Click="OnClose" MinWidth="90" />
+  </StackPanel>
+</Window>
