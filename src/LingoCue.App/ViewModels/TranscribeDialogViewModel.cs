@@ -38,8 +38,21 @@ public sealed partial class TranscribeDialogViewModel : ViewModelBase
             new("ru", "Rusça"),
         ];
         SelectedLanguage = Languages.FirstOrDefault(l => l.Code == project.SourceLanguage) ?? Languages[0];
-        SelectedEngine = Engines.FirstOrDefault(e => e.Id == lastEngineId) ?? (Engines.Count > 0 ? Engines[0] : null);
+        _fallBackWhenUnavailable = lastEngineId is null;
+        SelectedEngine = Engines.FirstOrDefault(e => e.Id == (lastEngineId ?? DefaultEngineId)) ?? (Engines.Count > 0 ? Engines[0] : null);
     }
+
+    /// <summary>
+    /// Gemini is the default: on real, noisy multi-speaker footage it gave the best text, punctuation,
+    /// speakers and timing (docs/reports/asr-comparison.md). Without a key the dialog falls back to Whisper.
+    /// </summary>
+    public const string DefaultEngineId = "gemini";
+
+    private const string FallbackEngineId = "whisper";
+    private bool _fallBackWhenUnavailable;
+
+    [ObservableProperty]
+    public partial string? Note { get; private set; }
 
     public IReadOnlyList<ITranscriptionEngine> Engines { get; }
 
@@ -143,9 +156,21 @@ public sealed partial class TranscribeDialogViewModel : ViewModelBase
         var availability = await engine.CheckAvailabilityAsync();
         if (engine == SelectedEngine && !availability.IsAvailable)
         {
+            // First open without a key: quietly use the local engine instead of a disabled dialog.
+            if (_fallBackWhenUnavailable && engine.Id == DefaultEngineId &&
+                Engines.FirstOrDefault(e => e.Id == FallbackEngineId) is { } fallback)
+            {
+                _fallBackWhenUnavailable = false;
+                Note = $"{availability.Problem} Yerel Whisper seçildi; Gemini için {availability.Remedy}";
+                SelectedEngine = fallback;
+                return;
+            }
+
             Problem = availability.Problem;
             Remedy = availability.Remedy;
         }
+
+        _fallBackWhenUnavailable = false;
 
         Refresh();
     }

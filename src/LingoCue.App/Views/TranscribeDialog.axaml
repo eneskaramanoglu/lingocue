@@ -43,6 +43,9 @@
 
     <TextBlock Text="{Binding ModelInfo}" TextWrapping="Wrap" Classes="muted" />
 
+    <TextBlock Text="{Binding Note}" TextWrapping="Wrap" Classes="issues"
+               IsVisible="{Binding Note, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
     <Border Classes="error" Margin="0" IsVisible="{Binding Problem, Converter={x:Static ObjectConverters.IsNotNull}}">
       <StackPanel Spacing="4">
         <TextBlock Text="{Binding Problem}" FontWeight="SemiBold" TextWrapping="Wrap" />
