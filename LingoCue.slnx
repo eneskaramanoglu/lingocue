@@ -11,5 +11,6 @@
     <Project Path="tests/LingoCue.Core.Tests/LingoCue.Core.Tests.csproj" />
     <Project Path="tests/LingoCue.Llm.Tests/LingoCue.Llm.Tests.csproj" />
     <Project Path="tests/LingoCue.Media.Tests/LingoCue.Media.Tests.csproj" />
+    <Project Path="tests/LingoCue.Transcription.Tests/LingoCue.Transcription.Tests.csproj" />
   </Folder>
 </Solution>
