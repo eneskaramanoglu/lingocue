@@ -8,7 +8,7 @@ Drop in a video, get word-timed speech recognition (local Whisper or Gemini Tran
 readable subtitle lines, an LLM correction pass, live styled preview, translation to English,
 and export to SRT / VTT / ASS or a burned-in / soft-subbed MP4.
 
-> **Status:** early development (v0.2.0 = video playback). See the [roadmap](docs/PLAN.md#yol-haritası-her-biri-bir-github-milestone-ve-release).
+> **Status:** early development (v0.3.0 = subtitle editing: import/export SRT, VTT, ASS, live preview, projects). See the [roadmap](docs/PLAN.md#yol-haritası-her-biri-bir-github-milestone-ve-release).
 
 ## Download
 
