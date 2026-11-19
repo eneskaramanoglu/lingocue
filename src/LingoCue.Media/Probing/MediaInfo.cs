@@ -21,13 +21,21 @@ public sealed record VideoStreamInfo(
     int Width,
     int Height,
     double FrameRate,
-    int Rotation)
+    int Rotation,
+    string? PixelFormat = null,
+    string? ColorTransfer = null)
 {
     public int DisplayWidth => Rotation is 90 or 270 ? Height : Width;
 
     public int DisplayHeight => Rotation is 90 or 270 ? Width : Height;
 
     public bool IsPortrait => DisplayHeight > DisplayWidth;
+
+    /// <summary>More than 8 bits per sample (e.g. yuv420p10le), typical of HDR phone video.</summary>
+    public bool IsHighBitDepth => PixelFormat is { } f && (f.Contains("10", StringComparison.Ordinal) || f.Contains("12", StringComparison.Ordinal));
+
+    /// <summary>HDR transfer (PQ or HLG): converting to 8-bit SDR H.264 without tone mapping looks washed out.</summary>
+    public bool IsHdr => ColorTransfer is "smpte2084" or "arib-std-b67";
 
     /// <summary>Duration of one frame, used for frame-stepping. Falls back to 25 fps when unknown.</summary>
     public TimeSpan FrameDuration => TimeSpan.FromSeconds(1d / (FrameRate > 0 ? FrameRate : 25d));

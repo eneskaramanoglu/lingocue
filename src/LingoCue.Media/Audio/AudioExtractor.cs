@@ -83,7 +83,7 @@ public sealed class AudioExtractor(IMediaToolLocator locator, IProcessRunner run
         args.Add(outputPath);
 
         var tracker = new FfmpegProgress(duration ?? totalForProgress ?? TimeSpan.Zero, progress);
-        var result = await runner.RunAsync(tools.FfmpegPath, args, tracker.OnLine, cancellationToken);
+        var result = await runner.RunAsync(tools.FfmpegPath, args, tracker.OnLine, cancellationToken: cancellationToken);
         if (result.ExitCode != 0)
         {
             TryDelete(outputPath);
