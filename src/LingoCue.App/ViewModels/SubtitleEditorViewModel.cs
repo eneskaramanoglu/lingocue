@@ -16,7 +16,7 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
     private static readonly TimeSpan s_defaultCueLength = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan s_minGap = TimeSpan.FromMilliseconds(40);
     private readonly IVideoPlayer _player;
-    private readonly ReadingRules _rules = ReadingRules.Default;
+    private ReadingRules _rules = ReadingRules.Default;
     private SubtitleTrack? _track;
     private bool _selectingFromPlayback;
     private CueViewModel? _current;
@@ -52,6 +52,13 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
     public string Summary => Cues.Count == 0
         ? "Altyazı yok"
         : $"{Cues.Count} satır · {Cues.Count(c => c.HasError)} hata · {Cues.Count(c => c.HasWarning)} uyarı";
+
+    /// <summary>Applies new reading rules (from settings) and re-evaluates the rows.</summary>
+    public void SetRules(ReadingRules rules)
+    {
+        _rules = rules;
+        Load(_track);
+    }
 
     public void Load(SubtitleTrack? track)
     {

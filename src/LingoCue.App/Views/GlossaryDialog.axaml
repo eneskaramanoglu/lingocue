@@ -1,0 +1,63 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:LingoCue.App.ViewModels"
+        x:Class="LingoCue.App.Views.GlossaryDialog"
+        x:DataType="vm:GlossaryViewModel"
+        Title="Sözlük ve bağlam"
+        Width="900" Height="640" MinWidth="700" MinHeight="460"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+
+  <DockPanel Margin="16">
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+      <Button Content="Kaydet" Classes="accent" Click="OnSave" MinWidth="90" />
+      <Button Content="Vazgeç" IsCancel="True" Click="OnCancel" MinWidth="90" />
+    </StackPanel>
+
+    <!-- Context -->
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="90,*,90,160" RowDefinitions="Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="8">
+      <TextBlock Text="Özet" VerticalAlignment="Top" Margin="0,6,0,0" />
+      <TextBox Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Summary}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54"
+               PlaceholderText="Videonun konusu (LLM bağlamı için; ilk düzeltmede otomatik doldurulur)" />
+      <TextBlock Grid.Row="1" Text="Ton" VerticalAlignment="Center" />
+      <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Tone}" PlaceholderText="ör. samimi, resmi, esprili" />
+      <TextBlock Grid.Row="1" Grid.Column="2" Text="Hitap" VerticalAlignment="Center" HorizontalAlignment="Right" />
+      <ComboBox Grid.Row="1" Grid.Column="3" HorizontalAlignment="Stretch" ItemsSource="{Binding Addresses}" SelectedItem="{Binding Address}" />
+      <TextBlock Grid.Row="2" Text="Konuşmacılar" VerticalAlignment="Center" />
+      <TextBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Speakers}" PlaceholderText="Virgülle ayırın" />
+    </Grid>
+
+    <DockPanel DockPanel.Dock="Top" Margin="0,16,0,6">
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+        <Button Content="Önerileri onayla" Command="{Binding AcceptSuggestionsCommand}" ToolTip.Tip="Yapay zekânın önerdiği terimleri onaylanmış say" />
+        <Button Content="+ Terim" Command="{Binding AddCommand}" />
+        <Button Content="Sil" Command="{Binding RemoveCommand}" />
+      </StackPanel>
+      <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Classes="muted"
+                 Text="Kilitli terimler LLM tarafından aynen kullanılır. 'Doğru yazım' boşsa terim olduğu gibi korunur. Çeviri dili doluysa satır bir çeviri karşılığıdır (ör. en)." />
+    </DockPanel>
+
+    <DataGrid ItemsSource="{Binding Rows}" SelectedItem="{Binding Selected}" CanUserSortColumns="True"
+              GridLinesVisibility="Horizontal" HeadersVisibility="Column" FontSize="13">
+      <DataGrid.Columns>
+        <DataGridCheckBoxColumn Header="Kilitli" Binding="{Binding Locked}" Width="64" />
+        <DataGridTextColumn Header="Terim" Binding="{Binding Term}" Width="2*" />
+        <DataGridTextColumn Header="Doğru yazım / karşılık" Binding="{Binding Preferred}" Width="2*" />
+        <DataGridTextColumn Header="Çeviri dili" Binding="{Binding TargetLanguage}" Width="80" />
+        <DataGridTemplateColumn Header="Tür" Width="120">
+          <DataGridTemplateColumn.CellTemplate>
+            <DataTemplate x:DataType="vm:GlossaryRowViewModel">
+              <TextBlock Text="{Binding Kind}" VerticalAlignment="Center" Margin="6,0" />
+            </DataTemplate>
+          </DataGridTemplateColumn.CellTemplate>
+          <DataGridTemplateColumn.CellEditingTemplate>
+            <DataTemplate x:DataType="vm:GlossaryRowViewModel">
+              <ComboBox ItemsSource="{x:Static vm:GlossaryKinds.All}" SelectedItem="{Binding Kind}" HorizontalAlignment="Stretch" />
+            </DataTemplate>
+          </DataGridTemplateColumn.CellEditingTemplate>
+        </DataGridTemplateColumn>
+        <DataGridTextColumn Header="Not" Binding="{Binding Note}" Width="2*" />
+        <DataGridCheckBoxColumn Header="Öneri" Binding="{Binding Suggested}" Width="60" IsReadOnly="True" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </DockPanel>
+</Window>
