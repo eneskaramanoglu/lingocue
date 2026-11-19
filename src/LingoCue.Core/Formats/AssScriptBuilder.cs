@@ -47,19 +47,124 @@ public static class AssScriptBuilder
         var main = project.Style with { Name = MainStyleName };
 
         var culture = CultureFor(track.Language);
+        var cues = track.Cues.Where(c => c.End > c.Start).ToList();
+        var secondaryTrack = SecondaryTrackFor(project, track);
         var events = new List<Cue>();
-        foreach (var cue in track.Cues.Where(c => c.End > c.Start))
+        var styles = new List<SubtitleStyle> { main };
+
+        if (secondaryTrack is null)
         {
-            // Every cue uses the project style; layer and margins of imported cues are kept.
-            AddEvents(events, cue, cue.Format with { Style = null }, presentation, main, culture);
+            foreach (var cue in cues)
+            {
+                // Every cue uses the project style; layer and margins of imported cues are kept.
+                AddEvents(events, cue, cue.Format with { Style = null }, presentation, main, culture);
+            }
+        }
+        else
+        {
+            var bilingual = presentation.Bilingual;
+            var secondary = bilingual.SecondaryStyle with
+            {
+                Name = SecondaryStyleName,
+                Alignment = main.Alignment,
+                MarginL = main.MarginL,
+                MarginR = main.MarginR,
+            };
+            styles.Add(secondary);
+            AddBilingualEvents(events, cues, secondaryTrack, main, secondary, bilingual.Gap, presentation, culture, x);
         }
 
         return new SubtitleDocument
         {
             ScriptInfo = project.ScriptInfo with { PlayResX = x, PlayResY = y, Title = project.ScriptInfo.Title ?? "LingoCue" },
-            Styles = [main],
+            Styles = styles,
             Cues = events,
         };
+    }
+
+    /// <summary>Name of the second track's style in bilingual mode.</summary>
+    public const string SecondaryStyleName = "Secondary";
+
+    /// <summary>The second track for bilingual mode, or null when the mode is off or the track is missing.</summary>
+    public static SubtitleTrack? SecondaryTrackFor(Project project, SubtitleTrack track)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        ArgumentNullException.ThrowIfNull(track);
+        var bilingual = project.Presentation.Bilingual;
+        return bilingual.Enabled && bilingual.SecondaryTrackId is { } id && id != track.Id
+            ? project.Tracks.FirstOrDefault(t => t.Id == id)
+            : null;
+    }
+
+    /// <summary>
+    /// Main track above, second track below (at the bottom; mirrored for top alignments). The two
+    /// tracks sit on different layers so libass never pushes one around; instead each event's
+    /// vertical margin is computed from the height of the other track's text shown at the same time.
+    /// </summary>
+    private static void AddBilingualEvents(
+        List<Cue> events, List<Cue> mainCues, SubtitleTrack secondaryTrack, SubtitleStyle main, SubtitleStyle secondary,
+        int gap, PresentationOptions presentation, CultureInfo culture, int playResX)
+    {
+        var secondaryCues = secondaryTrack.Cues.Where(c => c.End > c.Start).ToList();
+        var secondaryCulture = CultureFor(secondaryTrack.Language);
+        var position = VerticalPosition(main.Alignment);
+        var plain = presentation with { Karaoke = new KaraokeOptions() };
+
+        foreach (var cue in mainCues)
+        {
+            var below = position == Vertical.Bottom
+                ? MaxHeight(Overlapping(secondaryCues, cue), secondary, playResX)
+                : 0;
+            var marginV = below > 0 ? main.MarginV + below + gap : 0;
+            AddEvents(events, cue, new CueFormatData { Layer = 1, MarginV = marginV }, presentation, main, culture);
+        }
+
+        foreach (var cue in secondaryCues)
+        {
+            var marginV = position switch
+            {
+                Vertical.Bottom => main.MarginV,
+                Vertical.Top => main.MarginV + MaxHeight(Overlapping(mainCues, cue), main, playResX) + gap,
+                _ => 0,
+            };
+            var format = new CueFormatData { Style = SecondaryStyleName, Layer = 0, MarginV = marginV };
+            AddEvents(events, cue, format, plain, secondary, secondaryCulture);
+        }
+    }
+
+    private enum Vertical
+    {
+        Bottom,
+        Middle,
+        Top,
+    }
+
+    // Numpad layout: 1–3 bottom, 4–6 middle, 7–9 top.
+    private static Vertical VerticalPosition(int alignment) => alignment switch
+    {
+        >= 7 => Vertical.Top,
+        >= 4 => Vertical.Middle,
+        _ => Vertical.Bottom,
+    };
+
+    private static IEnumerable<Cue> Overlapping(IEnumerable<Cue> cues, Cue cue)
+        => cues.Where(c => c.Start < cue.End && c.End > cue.Start);
+
+    private static int MaxHeight(IEnumerable<Cue> cues, SubtitleStyle style, int playResX)
+        => cues.Select(c => TextHeight(c.Text, style, playResX)).DefaultIfEmpty(0).Max();
+
+    /// <summary>
+    /// Estimated rendered height of a text block: libass makes one line about <c>FontSize</c> high;
+    /// long lines are assumed to wrap at the available width (average glyph ≈ 0.5 em).
+    /// </summary>
+    internal static int TextHeight(string text, SubtitleStyle style, int playResX)
+    {
+        var size = style.FontSize * style.ScaleY / 100;
+        var available = Math.Max(1, playResX - style.MarginL - style.MarginR);
+        var averageGlyph = size * 0.5 * style.ScaleX / 100;
+        var lines = SubtitleText.StripTags(text).Split('\n')
+            .Sum(line => Math.Max(1, (int)Math.Ceiling(line.Length * averageGlyph / available)));
+        return (int)Math.Ceiling((lines * size) + (2 * style.Outline));
     }
 
     /// <summary>Events for one cue: plain, karaoke fill (one event) or active word (one event per word).</summary>
