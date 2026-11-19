@@ -99,3 +99,17 @@ public sealed class StyleTemplateTests : IDisposable
         new JsonStyleTemplateStore(_dir).UserTemplates.ShouldBeEmpty();
     }
 }
+
+public class LanguageCodesTests
+{
+    [Theory]
+    [InlineData("tr", "tur")]
+    [InlineData("en-US", "eng")]
+    [InlineData("de", "ger")]
+    [InlineData("pl", "pol")]
+    [InlineData("", "und")]
+    [InlineData(null, "und")]
+    [InlineData("zz", "und")]
+    public void Maps_to_iso_639_2(string? input, string expected)
+        => LingoCue.Core.Text.LanguageCodes.ToIso6392(input).ShouldBe(expected);
+}
