@@ -67,6 +67,9 @@ public class PlatformInfoToolTests
 
         info.GetExecutableFileName("ffmpeg").ShouldBe("ffmpeg");
         info.ToolSearchDirectories.ShouldContain("/opt/homebrew/bin");
+        info.ToolSearchDirectories.ShouldContain("/opt/homebrew/opt/ffmpeg-full/bin");
+        info.ToolSearchDirectories.ToList().IndexOf("/opt/homebrew/opt/ffmpeg-full/bin")
+            .ShouldBeLessThan(info.ToolSearchDirectories.ToList().IndexOf("/opt/homebrew/bin"));
         info.ToolSearchDirectories[0].ShouldBe(AppContext.BaseDirectory);
     }
 }

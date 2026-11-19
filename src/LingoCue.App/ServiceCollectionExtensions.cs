@@ -6,12 +6,14 @@ using LingoCue.Core.Fonts;
 using LingoCue.Core.Platform;
 using LingoCue.Core.Projects;
 using LingoCue.Core.Settings;
+using LingoCue.Infrastructure.Platform;
 using LingoCue.Infrastructure.Security;
 using LingoCue.Infrastructure.Settings;
 using LingoCue.Llm.Providers;
 using LingoCue.Media.Audio;
 using LingoCue.Media.Probing;
 using LingoCue.Media.Processes;
+using LingoCue.Media.Rendering;
 using LingoCue.Media.Tools;
 using Microsoft.Extensions.Configuration;
 using LingoCue.Transcription;
@@ -29,6 +31,7 @@ internal static class ServiceCollectionExtensions
     public static IServiceCollection AddLingoCue(this IServiceCollection services, IPlatformInfo platform, IConfiguration configuration)
     {
         services.AddSingleton(platform);
+        services.AddSingleton<IFileManager, FileManager>();
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IFilePickerService, FilePickerService>();
         services.AddSingleton<IDialogService, DialogService>();
@@ -41,6 +44,7 @@ internal static class ServiceCollectionExtensions
         services.AddSingleton<IProcessRunner, ProcessRunner>();
         services.AddSingleton<IMediaProbe, MediaProbe>();
         services.AddSingleton<IAudioExtractor, AudioExtractor>();
+        services.AddSingleton<IVideoRenderer, VideoRenderer>();
 
         // Secrets
         services.AddSingleton(_ => SecretStoreFactory.Create());
@@ -75,6 +79,7 @@ internal static class ServiceCollectionExtensions
         services.AddSingleton<PlayerViewModel>();
         services.AddSingleton<SubtitleEditorViewModel>();
         services.AddSingleton<StyleEditorViewModel>();
+        services.AddSingleton<RenderQueueViewModel>();
         services.AddTransient<MainViewModel>();
         services.AddTransient<MainWindow>();
 

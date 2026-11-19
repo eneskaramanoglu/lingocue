@@ -58,7 +58,9 @@ internal static class FfprobeJsonParser
             Width: GetInt(stream, "width"),
             Height: GetInt(stream, "height"),
             FrameRate: rate,
-            Rotation: ParseRotation(stream));
+            Rotation: ParseRotation(stream),
+            PixelFormat: GetString(stream, "pix_fmt"),
+            ColorTransfer: GetString(stream, "color_transfer"));
     }
 
     private static AudioStreamInfo ParseAudio(JsonElement stream)

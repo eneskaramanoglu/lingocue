@@ -32,7 +32,7 @@ xattr -dr com.apple.quarantine /Applications/LingoCue.app
 Requirements:
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- FFmpeg: `winget install Gyan.FFmpeg` (Windows) / `brew install ffmpeg` (macOS)
+- FFmpeg: `winget install Gyan.FFmpeg` (Windows) / `brew install ffmpeg-full` (macOS; the plain `ffmpeg` formula lacks libass, needed to burn in subtitles)
 - libmpv: downloaded automatically on Windows builds; on macOS `brew install mpv`
 
 ```bash
@@ -44,7 +44,7 @@ dotnet run --project src/LingoCue.App
 ## Requirements at runtime
 
 The release packages bundle libmpv. **FFmpeg must be installed separately** (until v1.0):
-`winget install Gyan.FFmpeg` on Windows, `brew install ffmpeg` on macOS. LingoCue finds it in the
+`winget install Gyan.FFmpeg` on Windows, `brew install ffmpeg-full` on macOS. LingoCue finds it in the
 usual winget/Homebrew/Chocolatey/Scoop folders even when it is not on the PATH.
 
 ### Transcription

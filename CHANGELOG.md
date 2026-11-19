@@ -6,6 +6,38 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-19
+
+### Added
+- **Dışa Aktar** (toolbar, Dosya menu, Ctrl/⌘+E): one dialog for every export.
+  - **Subtitle files:** SRT (with a "Premiere Pro uyumlu" UTF-8 BOM option, on by default, and
+    import notes), WebVTT, or ASS with styling, karaoke and bilingual layout. Several tracks are
+    written as separate files.
+  - **Videoya göm (MP4):** burns the subtitles in exactly as the preview shows them, using the same
+    ASS and the same libass renderer, with the project's fonts. H.264 with x264 "veryfast" at a
+    quality from "Küçük dosya" to "Çok yüksek kalite" (default CRF 19). The audio is copied, or
+    converted to AAC when MP4 cannot hold it. Variable frame rate phone videos keep every frame's
+    timing.
+  - **Fast hardware encoding:** NVIDIA NVENC on Windows and VideoToolbox on macOS when they work on
+    the machine. A one-frame test encode decides, and the dialog explains why one cannot be used
+    (e.g. "NVIDIA sürücüsü eski: en az 610 gerekli").
+  - **Açılıp kapanabilen altyazılı video:** MP4 (mov_text, plays everywhere) or MKV (ASS tracks
+    with styling and attached project fonts). The video is not re-encoded; each track carries its
+    language and title, and the first one is the default.
+  - Warnings before rendering: a missing font, a font without Turkish letters, an HDR/10-bit
+    source.
+- **Export queue:** video exports run one after another in the background. "İşler" in the status
+  bar shows progress, speed and time left, with cancel per job and "Göster" to open the finished
+  file in Explorer/Finder. A failed or cancelled export leaves no partial file. Closing the app
+  while exports run asks first.
+
+### Changed
+- "Altyazı Dışa Aktar" (SRT/VTT/ASS submenu) is replaced by the export dialog.
+- **macOS needs `brew install ffmpeg-full`** instead of `brew install ffmpeg`: Homebrew's plain
+  `ffmpeg` no longer includes libass, which burning in subtitles needs. LingoCue prefers
+  `ffmpeg-full` when both are installed. With an FFmpeg without libass, the export dialog disables
+  "Videoya göm" and explains what to install.
+
 ## [0.6.0] - 2026-11-19
 
 ### Added
@@ -168,7 +200,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   unsigned osx-arm64 `.app` zip.
 - Docs: plan, research notes, architecture overview, macOS test checklist, `CLAUDE.md`.
 
-[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.3.0...v0.4.0

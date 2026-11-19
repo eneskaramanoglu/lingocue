@@ -1,0 +1,106 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:LingoCue.App.ViewModels"
+        xmlns:sub="using:LingoCue.Core.Subtitles"
+        x:Class="LingoCue.App.Views.ExportDialog"
+        x:DataType="vm:ExportDialogViewModel"
+        Title="Dışa Aktar"
+        Width="640" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+
+  <!-- Three kinds of export; each shows only its own options. -->
+  <StackPanel Margin="20" Spacing="12">
+    <StackPanel Spacing="6">
+      <RadioButton GroupName="kind" IsChecked="{Binding IsSubtitleFiles}"
+                   Content="Altyazı dosyası (SRT / VTT / ASS) — Premiere Pro'ya veya YouTube'a yüklemek için" />
+      <RadioButton GroupName="kind" IsChecked="{Binding IsBurnIn}" IsEnabled="{Binding CanBurnIn}"
+                   Content="Videoya göm (MP4) — altyazı görüntünün parçası olur, önizlemedeki gibi" />
+      <RadioButton GroupName="kind" IsChecked="{Binding IsSoftSub}" IsEnabled="{Binding HasVideo}"
+                   Content="Açılıp kapanabilen altyazılı video (MP4 / MKV) — video yeniden kodlanmaz, hızlıdır" />
+    </StackPanel>
+
+    <TextBlock Text="{Binding BurnInProblem}" Classes="issues" TextWrapping="Wrap"
+               IsVisible="{Binding BurnInProblem, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+    <Separator />
+
+    <!-- Track list for subtitle files and soft subtitles -->
+    <StackPanel Spacing="6" IsVisible="{Binding !IsBurnIn}">
+      <TextBlock Text="İzler" FontWeight="SemiBold" />
+      <ItemsControl ItemsSource="{Binding Tracks}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:TrackChoice">
+            <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+
+    <!-- Subtitle files -->
+    <StackPanel Spacing="8" IsVisible="{Binding IsSubtitleFiles}">
+      <ComboBox ItemsSource="{Binding Formats}" SelectedItem="{Binding SelectedFormat}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:SubtitleFormatChoice">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <CheckBox Content="Premiere Pro uyumlu (UTF-8 BOM)" IsChecked="{Binding PremiereBom}" IsVisible="{Binding IsSrt}" />
+      <TextBlock Classes="muted" TextWrapping="Wrap" IsVisible="{Binding IsSrt}"
+                 Text="Premiere Pro: Dosya → İçe Aktar ile SRT'yi seçin, zaman çizelgesine sürükleyin. Stil Premiere'de verilir; SRT yalnızca metin ve zaman taşır. Birden çok iz seçerseniz her biri ayrı dosyaya yazılır." />
+    </StackPanel>
+
+    <!-- Burn-in -->
+    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8" IsVisible="{Binding IsBurnIn}">
+      <TextBlock Text="İz" VerticalAlignment="Center" />
+      <ComboBox Grid.Column="1" ItemsSource="{Binding AllTracks}" SelectedItem="{Binding BurnTrack}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="sub:SubtitleTrack">
+            <TextBlock>
+              <Run Text="{Binding Name, Mode=OneWay}" />
+              <Run Text="{Binding Language, StringFormat=' · {0}', Mode=OneWay}" Foreground="{DynamicResource MutedTextBrush}" />
+            </TextBlock>
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+
+      <TextBlock Grid.Row="1" Text="Kodlayıcı" VerticalAlignment="Center" />
+      <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Encoders}" SelectedItem="{Binding SelectedEncoder}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:EncoderChoice">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding EncoderNote}" Classes="issues" TextWrapping="Wrap"
+                 IsVisible="{Binding EncoderNote, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+      <TextBlock Grid.Row="3" Text="Kalite" VerticalAlignment="Center" />
+      <DockPanel Grid.Row="3" Grid.Column="1">
+        <TextBlock DockPanel.Dock="Right" Text="{Binding QualityText}" VerticalAlignment="Center" Margin="12,0,0,0" MinWidth="200" />
+        <!-- Slider runs from small file (left) to high quality (right): CRF is inverted. -->
+        <Slider Minimum="-26" Maximum="-16" Value="{Binding Quality, Converter={x:Static vm:NegateConverter.Instance}}"
+                TickFrequency="1" IsSnapToTickEnabled="True" />
+      </DockPanel>
+    </Grid>
+    <TextBlock Text="{Binding BilingualNote}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding IsBurnIn}" />
+
+    <!-- Soft subtitles -->
+    <StackPanel Spacing="6" IsVisible="{Binding IsSoftSub}">
+      <RadioButton GroupName="container" IsChecked="{Binding !UseMkv}"
+                   Content="MP4 — her oynatıcıda ve telefonda çalışır; stil taşımaz" />
+      <RadioButton GroupName="container" IsChecked="{Binding UseMkv}"
+                   Content="MKV — stil, karaoke ve fontlar korunur (VLC, mpv, IINA)" />
+      <TextBlock Classes="muted" TextWrapping="Wrap" Text="İlk seçilen iz varsayılan olarak açık gelir." />
+    </StackPanel>
+
+    <Border Classes="error" Margin="0" IsVisible="{Binding StyleWarning, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <TextBlock Text="{Binding StyleWarning}" TextWrapping="Wrap" />
+    </Border>
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="{Binding StartLabel}" Classes="accent" IsDefault="True" IsEnabled="{Binding CanStart}" Click="OnStart" MinWidth="110" />
+      <Button Content="Vazgeç" IsCancel="True" Click="OnCancel" MinWidth="90" />
+    </StackPanel>
+  </StackPanel>
+</Window>

@@ -49,9 +49,12 @@ jobs:
 
       - name: Install FFmpeg (macOS)
         if: runner.os == 'macOS'
+        # Homebrew's plain "ffmpeg" has no libass (no subtitle burn-in) and the runner image's ffmpeg
+        # may lack it too; "ffmpeg-full" (keg-only) has it. Tests and the app look in its folder first.
         run: |
-          command -v ffmpeg >/dev/null || brew install ffmpeg
-          ffmpeg -hide_banner -version | head -1
+          brew install ffmpeg-full
+          "$(brew --prefix ffmpeg-full)/bin/ffmpeg" -hide_banner -version | head -1
+          "$(brew --prefix ffmpeg-full)/bin/ffmpeg" -hide_banner -filters | grep -E '^ \S+ ass '
 
       - name: Restore
         run: dotnet restore LingoCue.slnx

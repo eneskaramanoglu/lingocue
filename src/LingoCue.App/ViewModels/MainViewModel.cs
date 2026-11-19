@@ -14,6 +14,7 @@ using LingoCue.Core.Subtitles;
 using LingoCue.Core.Time;
 using LingoCue.Media;
 using LingoCue.Media.Probing;
+using LingoCue.Media.Rendering;
 using LingoCue.Media.Tools;
 using LingoCue.Core.Settings;
 using LingoCue.Infrastructure.Security;
@@ -39,6 +40,8 @@ public partial class MainViewModel : ViewModelBase
     private readonly ApiKeyProvider? _keys;
     private readonly ISecretStore? _secretStore;
     private readonly ISettingsStore? _settings;
+    private readonly IVideoRenderer? _renderer;
+    private readonly IFontCatalog? _fontCatalog;
     private readonly ModelResolver? _resolver;
     private readonly ILoggerFactory? _loggers;
     private readonly ILogger<MainViewModel> _logger;
@@ -55,6 +58,9 @@ public partial class MainViewModel : ViewModelBase
         PlayerViewModel playerViewModel,
         SubtitleEditorViewModel editor,
         StyleEditorViewModel styleEditor,
+        RenderQueueViewModel renderQueue,
+        IVideoRenderer renderer,
+        IFontCatalog fontCatalog,
         IPlatformInfo platform,
         IEnumerable<ITranscriptionEngine> engines,
         ApiKeyProvider keys,
@@ -82,6 +88,10 @@ public partial class MainViewModel : ViewModelBase
         Editor = editor;
         Editor.Edited += (_, _) => OnEdited();
         StyleEditor = styleEditor;
+        RenderQueue = renderQueue;
+        RenderQueue.JobFinished += (_, message) => StatusText = message;
+        _renderer = renderer;
+        _fontCatalog = fontCatalog;
         StyleEditor.FontAdded += (_, _) => UpdateFontsDirectory();
         StyleEditor.Changed += (_, _) =>
         {
@@ -107,6 +117,8 @@ public partial class MainViewModel : ViewModelBase
 
     public StyleEditorViewModel? StyleEditor { get; }
 
+    public RenderQueueViewModel? RenderQueue { get; }
+
     /// <summary>Right panel tab: 0 = lines, 1 = style.</summary>
     [ObservableProperty]
     public partial int SelectedPanel { get; set; }
@@ -117,7 +129,7 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Title))]
     [NotifyPropertyChangedFor(nameof(HasProject))]
-    [NotifyCanExecuteChangedFor(nameof(SaveProjectCommand), nameof(SaveProjectAsCommand), nameof(ExportSubtitleCommand), nameof(EditGlossaryCommand), nameof(CorrectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveProjectCommand), nameof(SaveProjectAsCommand), nameof(ExportCommand), nameof(EditGlossaryCommand), nameof(CorrectCommand))]
     public partial Project? Project { get; private set; }
 
     [ObservableProperty]
@@ -422,37 +434,139 @@ public partial class MainViewModel : ViewModelBase
         return true;
     }
 
-    /// <param name="formatKey"><c>srt</c>, <c>vtt</c> or <c>ass</c>.</param>
-    [RelayCommand(CanExecute = nameof(HasProject))]
-    private async Task ExportSubtitle(string formatKey)
+    private bool CanExport => HasProject && Project!.Tracks.Any(t => t.Cues.Count > 0);
+
+    /// <summary>One dialog for subtitle files, burned-in video and soft-subtitle video.</summary>
+    [RelayCommand(CanExecute = nameof(CanExport))]
+    private async Task Export()
     {
-        if (_files is null || Project?.ActiveTrack is not { } track)
+        if (_dialogs is null || _files is null || _renderer is null || Project is not { } project || project.ActiveTrack is not { } active)
         {
             return;
         }
 
-        var format = SubtitleFormats.ForExtension("." + formatKey) ?? SubtitleFormats.Srt;
-        var baseName = Path.GetFileNameWithoutExtension(Project.VideoPath ?? ProjectPath ?? "altyazi");
-        var suggested = $"{baseName}.{track.Language}";
-        if (await _files.SaveSubtitleAsync(format, suggested) is not { } path)
+        var hardware = CurrentMedia is null ? [] : await _renderer.HardwareEncodersAsync();
+        var burnInProblem = CurrentMedia is not null && !await _renderer.SupportsBurnInAsync() ? BurnInMissingMessage() : null;
+        var choice = await _dialogs.AskExportAsync(new ExportDialogViewModel(project, active, CurrentMedia, _fontCatalog, ProjectPath, hardware, burnInProblem));
+        if (choice is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (choice.Kind == ExportKind.SubtitleFiles)
+            {
+                await ExportSubtitleFilesAsync(project, choice);
+            }
+            else
+            {
+                await QueueVideoExportAsync(project, choice);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            LogFailed(ex, ProjectPath ?? project.VideoPath ?? "export");
+            ErrorText = $"Dışa aktarılamadı: {ex.Message}";
+        }
+    }
+
+    private string ExportBaseName() => Path.GetFileNameWithoutExtension(Project?.VideoPath ?? ProjectPath ?? "altyazi");
+
+    private async Task ExportSubtitleFilesAsync(Project project, ExportChoice choice)
+    {
+        var format = choice.SubtitleFormat;
+        var extension = format.Extensions[0];
+        string folder;
+        string? singlePath = null;
+        if (choice.Tracks.Count == 1)
+        {
+            if (await _files!.SaveSubtitleAsync(format, $"{ExportBaseName()}.{choice.Tracks[0].Language}") is not { } path)
+            {
+                return;
+            }
+
+            singlePath = path;
+            folder = Path.GetDirectoryName(path)!;
+        }
+        else if (await _files!.PickFolderAsync("Altyazı dosyalarının klasörü") is { } picked)
+        {
+            folder = picked;
+        }
+        else
         {
             return;
         }
 
         var (width, height) = VideoSize();
-        var document = format is AssFormat
-            ? AssScriptBuilder.BuildDocument(Project, track, width, height)
-            : SubtitleDocument.FromTrack(track);
-        try
+        var options = new SubtitleWriteOptions { Utf8Bom = choice.Utf8Bom };
+        var written = new List<string>();
+        foreach (var track in choice.Tracks)
         {
-            await SubtitleFile.WriteAsync(path, document, format);
-            StatusText = $"Dışa aktarıldı ({format.Name}): {path}";
+            var path = singlePath ?? Path.Combine(folder, UniqueSubtitleName(choice.Tracks, track) + extension);
+            var document = format is AssFormat
+                ? AssScriptBuilder.BuildDocument(project, track, width, height, allowBilingual: choice.Tracks.Count == 1)
+                : SubtitleDocument.FromTrack(track);
+            await SubtitleFile.WriteAsync(path, document, format, options);
+            written.Add(path);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+
+        StatusText = written.Count == 1
+            ? $"Dışa aktarıldı ({format.Name}): {written[0]}"
+            : $"{written.Count} altyazı dosyası dışa aktarıldı ({format.Name}): {folder}";
+    }
+
+    /// <summary><c>film.tr</c>, or <c>film.tr.Düzeltilmiş</c> when two chosen tracks share a language.</summary>
+    private string UniqueSubtitleName(IReadOnlyList<SubtitleTrack> tracks, SubtitleTrack track)
+    {
+        var name = $"{ExportBaseName()}.{track.Language}";
+        if (tracks.Count(t => t.Language == track.Language) > 1)
         {
-            LogFailed(ex, path);
-            ErrorText = $"Dışa aktarılamadı: {ex.Message}";
+            var safe = string.Concat(track.Name.Select(c => Path.GetInvalidFileNameChars().Contains(c) || c is ':' or '/' or '\\' ? '_' : c)).Trim();
+            name += "." + safe.Replace(" · ", "-", StringComparison.Ordinal);
         }
+
+        return name;
+    }
+
+    private async Task QueueVideoExportAsync(Project project, ExportChoice choice)
+    {
+        if (CurrentMedia is not { } media || _renderer is null || RenderQueue is null)
+        {
+            return;
+        }
+
+        var burnIn = choice.Kind == ExportKind.BurnIn;
+        var extension = burnIn || choice.Container == SoftSubContainer.Mp4 ? ".mp4" : ".mkv";
+        var suffix = burnIn ? "altyazili" : "altyazi-izli";
+        if (await _files!.SaveVideoAsync($"{ExportBaseName()}.{suffix}", extension) is not { } output)
+        {
+            return;
+        }
+
+        var jobsRoot = Path.Combine(Path.GetTempPath(), "LingoCue", "jobs");
+        var fonts = FontCatalog.ProjectFontDirectory(ProjectPath);
+        var job = burnIn
+            ? await ExportJobs.PrepareBurnInAsync(project, choice.Tracks[0], media, output, choice.Encoder, choice.Quality, fonts, jobsRoot)
+            : await ExportJobs.PrepareSoftSubAsync(project, choice.Tracks, media, output, choice.Container, fonts, jobsRoot);
+        RenderQueue.Enqueue(job);
+        StatusText = $"Kuyruğa eklendi: {Path.GetFileName(output)} — ilerlemeyi sağ alttaki İşler'den izleyebilirsiniz.";
+    }
+
+    /// <summary>Before the window closes: running exports and unsaved changes. False keeps the window open.</summary>
+    public async Task<bool> ConfirmCloseAsync()
+    {
+        if (RenderQueue is { IsBusy: true } queue && _dialogs is not null)
+        {
+            if (!await _dialogs.ConfirmAsync("Dışa aktarma sürüyor", $"{queue.ActiveCount} dışa aktarma işi bitmedi. Kapatırsanız iptal edilecek.", "İptal et ve kapat"))
+            {
+                return false;
+            }
+
+            queue.CancelAll();
+        }
+
+        return await ConfirmDiscardChangesAsync();
     }
 
     /// <summary>Asks to save unsaved changes. Returns false when the user cancels.</summary>
@@ -803,6 +917,7 @@ public partial class MainViewModel : ViewModelBase
         RefreshTracks();
         TranscribeCommand.NotifyCanExecuteChanged();
         CorrectCommand.NotifyCanExecuteChanged();
+        ExportCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(DocumentName));
     }
 
@@ -843,6 +958,7 @@ public partial class MainViewModel : ViewModelBase
     private void OnEdited()
     {
         CorrectCommand.NotifyCanExecuteChanged();
+        ExportCommand.NotifyCanExecuteChanged();
         MarkDirty();
         RefreshPreview(immediate: false);
     }
@@ -898,10 +1014,18 @@ public partial class MainViewModel : ViewModelBase
             $"{Path.GetFileName(info.FilePath)} · {video.DisplayWidth}×{video.DisplayHeight} · {video.FrameRate:0.##} fps · {video.Codec} · {audio} · {Timecode.Format(info.Duration)}");
     }
 
+    /// <summary>The installed FFmpeg lacks libass (the "ass" filter), so subtitles cannot be burned in.</summary>
+    private string BurnInMissingMessage() => _platform?.Platform switch
+    {
+        OsPlatform.MacOS => "Kurulu FFmpeg altyazı gömmeyi desteklemiyor (libass yok). Terminal'de çalıştırın: brew install ffmpeg-full — sonra uygulamayı yeniden başlatın.",
+        OsPlatform.Windows => "Kurulu FFmpeg altyazı gömmeyi desteklemiyor (libass yok). Tam sürümü kurun: winget install Gyan.FFmpeg — sonra uygulamayı yeniden başlatın.",
+        _ => "Kurulu FFmpeg altyazı gömmeyi desteklemiyor (libass yok). libass içeren bir FFmpeg kurun.",
+    };
+
     private string FfmpegMissingMessage() => _platform?.Platform switch
     {
         OsPlatform.Windows => "FFmpeg bulunamadı. Kurmak için PowerShell'de çalıştırın: winget install Gyan.FFmpeg — sonra uygulamayı yeniden başlatın.",
-        OsPlatform.MacOS => "FFmpeg bulunamadı. Kurmak için Terminal'de çalıştırın: brew install ffmpeg — sonra uygulamayı yeniden başlatın.",
+        OsPlatform.MacOS => "FFmpeg bulunamadı. Kurmak için Terminal'de çalıştırın: brew install ffmpeg-full — sonra uygulamayı yeniden başlatın.",
         _ => "FFmpeg bulunamadı. Paket yöneticinizle ffmpeg kurup uygulamayı yeniden başlatın.",
     };
 

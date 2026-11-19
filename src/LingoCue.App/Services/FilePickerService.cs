@@ -27,6 +27,12 @@ public interface IFilePickerService
 
     /// <summary>A TrueType/OpenType font file to add to the project.</summary>
     Task<string?> PickFontAsync();
+
+    /// <summary>Where to save an exported video (<c>.mp4</c> or <c>.mkv</c>).</summary>
+    Task<string?> SaveVideoAsync(string suggestedName, string extension);
+
+    /// <summary>A folder for several exported files.</summary>
+    Task<string?> PickFolderAsync(string title);
 }
 
 internal sealed class FilePickerService : IFilePickerService
@@ -71,6 +77,27 @@ internal sealed class FilePickerService : IFilePickerService
         => SaveAsync("Stil şablonunu dışa aktar", suggestedName, ".json", s_template);
 
     public Task<string?> PickFontAsync() => OpenAsync("Font dosyası ekle", s_font);
+
+    public Task<string?> SaveVideoAsync(string suggestedName, string extension)
+    {
+        var type = new FilePickerFileType(extension == ".mkv" ? "Matroska video (MKV)" : "MP4 video")
+        {
+            Patterns = ["*" + extension],
+            AppleUniformTypeIdentifiers = [extension == ".mkv" ? "public.movie" : "public.mpeg-4"],
+        };
+        return SaveAsync("Videoyu dışa aktar", suggestedName, extension, type);
+    }
+
+    public async Task<string?> PickFolderAsync(string title)
+    {
+        if (GetWindow() is not { } window)
+        {
+            return null;
+        }
+
+        var folders = await window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = title, AllowMultiple = false });
+        return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
+    }
 
     public Task<string?> PickProjectAsync() => OpenAsync("Proje aç", s_project);
 

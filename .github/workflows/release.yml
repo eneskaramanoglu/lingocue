@@ -59,7 +59,8 @@ jobs:
 
       - name: Install FFmpeg, mpv and dylibbundler (macOS)
         if: runner.os == 'macOS'
-        run: brew install ffmpeg mpv dylibbundler
+        # ffmpeg-full: the plain Homebrew ffmpeg has no libass, which subtitle burn-in needs.
+        run: brew install ffmpeg-full mpv dylibbundler
 
       - name: Test
         env:

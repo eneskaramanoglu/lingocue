@@ -188,6 +188,30 @@ AssScriptBuilder ──► one ASS script ──► preview (libmpv/libass, sub-
 - XAML rule: `Run.Text` binds two-way by default in Avalonia; display-only Runs must say
   `Mode=OneWay` (enforced by `XamlRulesTests`).
 
+## Export (M6)
+
+```
+ExportDialog ──► subtitle files: SubtitleFile.WriteAsync (SRT/VTT, or ASS from AssScriptBuilder)
+            └──► video: ExportJobs (Media) ── snapshot now ──► <temp>/LingoCue/jobs/<id>/
+                       │                                         subtitles.ass | trackN.srt/ass
+                       │                                         fonts/ (copy of <project>/fonts)
+                       ▼
+                 FfmpegCommands ──► RenderQueue (App, one at a time) ──► VideoRenderer (Media)
+                   burn-in: ass=subtitles.ass:fontsdir=fonts, x264 | NVENC | VideoToolbox,
+                            audio copy or AAC, -fps_mode passthrough, +faststart
+                   soft sub: -c copy + mov_text (MP4) or ASS + attached fonts (MKV)
+```
+
+- FFmpeg runs inside the job folder, so the `ass` filter only sees relative names. Escaping Windows
+  paths (drive colons, backslashes) inside a filter graph is fragile, and this avoids it.
+- `VideoRenderer` writes `<name>.lingocue-partial.<ext>` and renames it on success. Failure or
+  cancellation (the process tree is killed) deletes it, so a half file never sits under the real name.
+- Hardware encoders are found with a one-frame test encode using the export's own settings.
+  `HardwareEncoderStatus` separates "not on this machine" (not offered) from "present but unusable"
+  (shown with a reason, e.g. an old NVIDIA driver).
+- Progress comes from `-progress pipe:1` (`out_time_us`, `speed`), giving a fraction, speed and time left.
+- The job snapshot means editing the project while a render waits does not change that render.
+
 ## Preview equals output
 
 The ASS style model is the single source of truth. `AssScriptBuilder` produces the script for both

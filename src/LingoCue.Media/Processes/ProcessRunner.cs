@@ -9,12 +9,14 @@ public interface IProcessRunner
 {
     /// <summary>
     /// Runs an executable to completion. Arguments are passed via <see cref="ProcessStartInfo.ArgumentList"/>
-    /// (no shell, no quoting issues). Cancelling kills the whole process tree.
+    /// (no shell, no quoting issues). Cancelling kills the whole process tree. <paramref name="workingDirectory"/>
+    /// lets FFmpeg filters use short relative file names (filter arguments need escaping otherwise).
     /// </summary>
     Task<ProcessResult> RunAsync(
         string fileName,
         IReadOnlyList<string> arguments,
         Action<string>? onStandardOutputLine = null,
+        string? workingDirectory = null,
         CancellationToken cancellationToken = default);
 }
 
@@ -24,6 +26,7 @@ public sealed class ProcessRunner : IProcessRunner
         string fileName,
         IReadOnlyList<string> arguments,
         Action<string>? onStandardOutputLine = null,
+        string? workingDirectory = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
@@ -37,6 +40,7 @@ public sealed class ProcessRunner : IProcessRunner
             CreateNoWindow = true,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
+            WorkingDirectory = workingDirectory ?? string.Empty,
         };
         foreach (var argument in arguments)
         {
@@ -85,6 +89,10 @@ public sealed class ProcessRunner : IProcessRunner
         catch (OperationCanceledException)
         {
             TryKill(process);
+
+            // Wait for the process to really exit so files it was writing are closed before the
+            // caller cleans them up (otherwise a cancelled export could leave a partial file).
+            process.WaitForExit(TimeSpan.FromSeconds(10));
             throw;
         }
 

@@ -104,6 +104,6 @@ public sealed class TestMedia : IAsyncLifetime
             return new FakePlatform(OsPlatform.Windows, Path.Combine(local, "Microsoft", "WinGet", "Links"), @"C:\ProgramData\chocolatey\bin");
         }
 
-        return new FakePlatform(OperatingSystem.IsMacOS() ? OsPlatform.MacOS : OsPlatform.Linux, "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin");
+        return new FakePlatform(OperatingSystem.IsMacOS() ? OsPlatform.MacOS : OsPlatform.Linux, "/opt/homebrew/opt/ffmpeg-full/bin", "/usr/local/opt/ffmpeg-full/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin");
     }
 }

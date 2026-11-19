@@ -38,7 +38,8 @@ public static class AssScriptBuilder
     /// <summary>Name of the main style in generated scripts.</summary>
     public const string MainStyleName = "Default";
 
-    public static SubtitleDocument BuildDocument(Project project, SubtitleTrack track, int videoWidth = 0, int videoHeight = 0)
+    /// <param name="allowBilingual">False for one-track-per-file outputs (e.g. MKV soft subtitles), where the second track is its own file.</param>
+    public static SubtitleDocument BuildDocument(Project project, SubtitleTrack track, int videoWidth = 0, int videoHeight = 0, bool allowBilingual = true)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(track);
@@ -48,7 +49,7 @@ public static class AssScriptBuilder
 
         var culture = CultureFor(track.Language);
         var cues = track.Cues.Where(c => c.End > c.Start).ToList();
-        var secondaryTrack = SecondaryTrackFor(project, track);
+        var secondaryTrack = allowBilingual ? SecondaryTrackFor(project, track) : null;
         var events = new List<Cue>();
         var styles = new List<SubtitleStyle> { main };
 
@@ -297,8 +298,8 @@ public static class AssScriptBuilder
     private static Cue Event(Cue source, string text, TimeSpan start, TimeSpan end, CueFormatData format)
         => new(source.Id, start, end, text) { Speaker = source.Speaker, Marks = source.Marks, Format = format };
 
-    public static string Build(Project project, SubtitleTrack track, int videoWidth = 0, int videoHeight = 0)
-        => SubtitleFormats.Ass.Write(BuildDocument(project, track, videoWidth, videoHeight));
+    public static string Build(Project project, SubtitleTrack track, int videoWidth = 0, int videoHeight = 0, bool allowBilingual = true)
+        => SubtitleFormats.Ass.Write(BuildDocument(project, track, videoWidth, videoHeight, allowBilingual));
 
     /// <summary>
     /// Brings a style authored for another script height (e.g. an imported 720p ASS) to the

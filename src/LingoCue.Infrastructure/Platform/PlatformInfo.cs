@@ -110,6 +110,10 @@ public sealed class PlatformInfo : IPlatformInfo
             case OsPlatform.MacOS:
                 // .app bundle: Contents/MacOS is the base directory; Contents/Resources may hold tools.
                 dirs.Add(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Resources")));
+                // Homebrew's plain "ffmpeg" has no libass (no subtitle burn-in); the keg-only
+                // "ffmpeg-full" does, so it wins when both are installed.
+                dirs.Add("/opt/homebrew/opt/ffmpeg-full/bin");
+                dirs.Add("/usr/local/opt/ffmpeg-full/bin");
                 dirs.Add("/opt/homebrew/bin"); // Homebrew on Apple Silicon
                 dirs.Add("/usr/local/bin");
                 dirs.Add("/opt/local/bin");    // MacPorts
