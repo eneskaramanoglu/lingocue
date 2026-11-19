@@ -26,6 +26,16 @@ public class PlatformInfoTests
     }
 
     [Fact]
+    public void Font_folders_include_the_users_own_fonts()
+    {
+        new PlatformInfo(OsPlatform.MacOS, s_home).FontDirectories
+            .ShouldBe(["/System/Library/Fonts", "/System/Library/Fonts/Supplemental", "/Library/Fonts", Path.Combine(s_home, "Library", "Fonts")]);
+        var windows = new PlatformInfo(OsPlatform.Windows, s_home).FontDirectories;
+        windows.Count.ShouldBe(2);
+        windows[1].ShouldEndWith(Path.Combine("Microsoft", "Windows", "Fonts"));
+    }
+
+    [Fact]
     public void Detects_the_current_os()
     {
         var expected = OperatingSystem.IsWindows() ? OsPlatform.Windows

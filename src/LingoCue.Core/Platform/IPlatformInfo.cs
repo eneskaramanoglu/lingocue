@@ -29,6 +29,9 @@ public interface IPlatformInfo
     /// </summary>
     string NativeLibraryDirectory { get; }
 
+    /// <summary>Folders with installed fonts (system and per-user), the ones libass searches.</summary>
+    IReadOnlyList<string> FontDirectories { get; }
+
     /// <summary>Returns the platform file name of an executable, e.g. <c>ffmpeg</c> → <c>ffmpeg.exe</c> on Windows.</summary>
     string GetExecutableFileName(string name);
 }

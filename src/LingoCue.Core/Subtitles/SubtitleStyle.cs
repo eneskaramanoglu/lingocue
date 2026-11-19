@@ -5,7 +5,7 @@ public enum AssBorderStyle
     /// <summary>Outline + drop shadow.</summary>
     Outline = 1,
 
-    /// <summary>Opaque box behind the text (uses <see cref="SubtitleStyle.BackColor"/>).</summary>
+    /// <summary>Opaque box behind the text; libass paints the box with <see cref="SubtitleStyle.OutlineColor"/> and its shadow with <see cref="SubtitleStyle.BackColor"/>.</summary>
     OpaqueBox = 3,
 }
 
