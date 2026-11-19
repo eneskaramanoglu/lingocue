@@ -42,6 +42,12 @@ public sealed class ContextExtractor(IChatClient client)
         }
         """);
 
+    /// <summary>Retry/timeout policy for the call (the pipeline's options when run from a track pass).</summary>
+    internal PipelineOptions Policy { get; init; } = new();
+
+    /// <summary>Replaceable wait for tests.</summary>
+    internal Func<TimeSpan, CancellationToken, Task> Delay { get; init; } = Task.Delay;
+
     public async Task<ContextResult> ExtractAsync(
         IReadOnlyList<LineItem> lines, string sourceLanguage, IReadOnlyList<GlossaryEntry> existingGlossary, CancellationToken cancellationToken = default)
     {
@@ -60,7 +66,8 @@ public sealed class ContextExtractor(IChatClient client)
             Answer with JSON only.
             """;
 
-        var response = await client.GetResponseAsync(
+        var response = await ResilientChat.GetResponseAsync(
+            client,
             [new ChatMessage(ChatRole.System, system), new ChatMessage(ChatRole.User, transcript)],
             new ChatOptions
             {
@@ -68,6 +75,9 @@ public sealed class ContextExtractor(IChatClient client)
                 ResponseFormat = ChatResponseFormat.ForJsonSchema(s_schema, "video_context"),
                 Reasoning = new ReasoningOptions { Effort = ReasoningEffort.Low },
             },
+            Policy,
+            Delay,
+            onRetry: null,
             cancellationToken);
 
         var usage = LlmUsage.Zero.Add(response.Usage?.InputTokenCount ?? 0, response.Usage?.OutputTokenCount ?? 0);

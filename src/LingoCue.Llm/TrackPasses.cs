@@ -49,7 +49,7 @@ public sealed class TrackPassRunner(IChatClient client, ILoggerFactory loggers)
         if (request.RefreshContext || project.Context.Summary is null)
         {
             progress?.Report(new PipelineProgress("Bağlam çıkarılıyor", 0, 1));
-            var context = await new ContextExtractor(client).ExtractAsync(lines, source.Language, project.Glossary, cancellationToken);
+            var context = await new ContextExtractor(client) { Policy = request.Options }.ExtractAsync(lines, source.Language, project.Glossary, cancellationToken);
             project.Context = context.Context;
             var before = project.Glossary.Count;
             var merged = project.Glossary.MergeSuggestions(context.Suggestions, TurkishText.Culture);

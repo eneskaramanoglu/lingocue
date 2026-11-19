@@ -274,22 +274,8 @@ public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatc
             : new LineResult(source.Id, output, LineStatus.Changed);
     }
 
-    private async Task<ChatResponse> CallWithBackoffAsync(List<ChatMessage> messages, ChatOptions chatOptions, PipelineOptions options, CancellationToken cancellationToken)
-    {
-        for (var attempt = 0; ; attempt++)
-        {
-            try
-            {
-                return await client.GetResponseAsync(messages, chatOptions, cancellationToken);
-            }
-            catch (Exception ex) when (!cancellationToken.IsCancellationRequested && IsTransient(ex) && attempt < options.TransientDelays.Count)
-            {
-                var delay = options.TransientDelays[attempt];
-                LogTransient(ex.GetType().Name, delay);
-                await Delay(delay, cancellationToken);
-            }
-        }
-    }
+    private Task<ChatResponse> CallWithBackoffAsync(List<ChatMessage> messages, ChatOptions chatOptions, PipelineOptions options, CancellationToken cancellationToken)
+        => ResilientChat.GetResponseAsync(client, messages, chatOptions, options, Delay, LogTransient, cancellationToken);
 
     /// <summary>Rate limits and server-side hiccups worth retrying; everything else surfaces.</summary>
     internal static bool IsTransient(Exception ex)

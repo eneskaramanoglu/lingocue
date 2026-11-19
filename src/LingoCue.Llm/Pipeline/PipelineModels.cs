@@ -62,6 +62,12 @@ public sealed record PipelineOptions
     /// <summary>Above this normalized edit distance a corrected line is flagged for review.</summary>
     public double ReviewChangeRatio { get; init; } = 0.6;
 
+    /// <summary>
+    /// Longest wait for one model answer. Without it a stalled request (seen live while Google was
+    /// overloaded) kept a run on "Bağlam çıkarılıyor" for minutes; a timed-out call is retried.
+    /// </summary>
+    public TimeSpan RequestTimeout { get; init; } = TimeSpan.FromMinutes(2);
+
     /// <summary>Back-off for rate limits and transient server errors.</summary>
     public IReadOnlyList<TimeSpan> TransientDelays { get; init; } =
         [TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(45)];
