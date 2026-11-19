@@ -79,6 +79,10 @@ public sealed class TranslationTask : LineTaskBase
             - At most 2 lines per subtitle (use "\n" between them).
             - Keep names as in the glossary; follow glossary translations marked [required] exactly.
             - Do not translate song lyrics' rhyme literally; do not add explanations or notes.
+            - "text" is the edited, authoritative line: translate it. Some lines also carry "original", what
+              speech recognition heard in the source audio; it may contain recognition errors. Use it only to
+              resolve ambiguity, never to overrule "text".
+            {PronounRule(context)}
             Video context:
             {ContextBlock(context.Project)}
             Glossary:
@@ -86,6 +90,19 @@ public sealed class TranslationTask : LineTaskBase
             Answer with JSON only.
             """;
     }
+
+    /// <summary>
+    /// Turkish "o" (and its forms) has no gender; English and many other targets need one. Without a
+    /// rule models guess "he" and guess inconsistently.
+    /// </summary>
+    internal static string PronounRule(TaskContext context)
+        => context.SourceLanguage.StartsWith("tr", StringComparison.OrdinalIgnoreCase)
+            ? """
+              - Turkish third-person pronouns have no gender. Infer he/she/they from the video context, the
+                speakers list and glossary notes; keep the choice consistent for the same person. When it is
+                truly unknown, prefer wording that needs no gendered pronoun (name, role, or "they").
+              """
+            : string.Empty;
 
     public override string ReflectPrompt(TaskContext context)
         => SystemPrompt(context) + """

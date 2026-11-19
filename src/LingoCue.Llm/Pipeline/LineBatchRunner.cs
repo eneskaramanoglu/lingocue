@@ -156,12 +156,12 @@ public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatc
         if (drafts is null)
         {
             sb.Append("Lines to process. Return every id exactly once, in the same order, as {\"lines\":[{\"id\":…,\"text\":…}]}:\n");
-            sb.Append(LineJson.Serialize(batch.Select(l => (l.Id, l.Text, l.Speaker, l.MaxChars))));
+            sb.Append(LineJson.Serialize(batch));
         }
         else
         {
             sb.Append("Source lines:\n");
-            sb.Append(LineJson.Serialize(batch.Select(l => (l.Id, l.Text, l.Speaker, l.MaxChars))));
+            sb.Append(LineJson.Serialize(batch));
             sb.Append("\n\nDraft results to review. Return every id exactly once with the final text:\n");
             sb.Append(LineJson.Serialize(batch.Select(l => (l.Id, drafts[l.Id], (string?)null))));
         }

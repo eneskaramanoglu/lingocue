@@ -37,8 +37,11 @@ public sealed class TrackPassRunner(IChatClient client, ILoggerFactory loggers)
         ArgumentNullException.ThrowIfNull(request);
         var project = request.Project;
         var source = request.Source;
+        // Translation gets the recognized original speech as a hint next to the edited text.
+        var withReference = request.Kind == TrackPassKind.Translation;
         var lines = source.Cues
-            .Select(c => new LineItem(c.Id, c.Text, c.Duration, c.Speaker, c.Marks.HasFlag(CueMarks.Locked)))
+            .Select(c => new LineItem(c.Id, c.Text, c.Duration, c.Speaker, c.Marks.HasFlag(CueMarks.Locked),
+                Reference: withReference ? TrackOperations.OriginalText(project, source, c) : null))
             .ToList();
 
         var usage = LlmUsage.Zero;

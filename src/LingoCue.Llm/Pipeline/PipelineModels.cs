@@ -4,7 +4,11 @@ using LingoCue.Core.Subtitles;
 namespace LingoCue.Llm.Pipeline;
 
 /// <summary>One subtitle line sent to the model. <see cref="Id"/> keys the JSON round-trip.</summary>
-public sealed record LineItem(int Id, string Text, TimeSpan Duration, string? Speaker = null, bool Locked = false, int? MaxChars = null);
+/// <param name="Reference">
+/// What the speech recognizer heard for this line in the original language (may contain recognition
+/// errors). Given to translation as a hint; the edited <paramref name="Text"/> stays authoritative.
+/// </param>
+public sealed record LineItem(int Id, string Text, TimeSpan Duration, string? Speaker = null, bool Locked = false, int? MaxChars = null, string? Reference = null);
 
 public enum LineStatus
 {
