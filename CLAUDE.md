@@ -74,12 +74,15 @@ dotnet publish src/LingoCue.App -c Release -r win-x64 --self-contained -o publis
 - **Video:** the UI talks to `IVideoPlayer` only (mpv implementation in `App/Playback`, ADR 0001).
   The mpv view renders through OpenGL on all platforms (ADR 0002); keep `Renderer="OpenGl"`.
 - **Preview = output:** the preview ASS comes from `AssScriptBuilder` (Core); burn-in must use the
-  same builder. Never render subtitles with Avalonia text for preview.
+  same builder. Never render subtitles with Avalonia text for preview. Fonts: the preview uses
+  `<project folder>/fonts` (mpv `sub-fonts-dir`); burn-in must pass the same folder as `fontsdir`.
 - **Subtitle text model:** line breaks are `\n`; inline formatting is kept as written (HTML tags from
   SRT/VTT or ASS overrides) and converted by `TagConverter` when writing another format.
 - **Turkish typing in UI tests:** this machine has Caps Lock on and a Turkish layout; `SendKeys`
   flips case and turns `i` into `İ`. Paste text via the clipboard instead of typing it.
 - **MVVM:** CommunityToolkit.Mvvm with `[ObservableProperty] public partial ...` properties and
   `[RelayCommand]`. Views are resolved from DI; compiled bindings (`x:DataType`) everywhere.
+  `Run.Text` (and other text inlines) bind two-way by default: always add `Mode=OneWay` for display
+  text (`XamlRulesTests` enforces it for `Run`).
 - **Milestone close:** update CHANGELOG, add the version's steps to `docs/TESTING-macos.md`, open a
   PR, merge only with the owner's approval, tag `vX.Y.Z` (release.yml publishes win-x64 + osx-arm64).

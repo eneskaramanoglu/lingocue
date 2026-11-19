@@ -159,6 +159,35 @@ track cues ──► LineItem(id, text, duration, speaker, locked)
 - The editor links a derived track to its source through `SourceTrackId`/`SourceCueId` to show the
   original text and the changed-only filter.
 
+## Style (M5)
+
+```
+Project.Style (main ASS style) + Project.Presentation (upper case, fades, karaoke, bilingual)
+        │
+AssScriptBuilder ──► one ASS script ──► preview (libmpv/libass, sub-fonts-dir = <project>/fonts)
+        │                           └─► ASS export, burn-in (M6, FFmpeg fontsdir = same folder)
+        ├─ upper case: SubtitleText.MapVisible with the track language's culture (tags untouched)
+        ├─ fades: {\fad(in,out)}
+        ├─ karaoke: KaraokeTiming aligns the cue's text to its ASR words (Needleman–Wunsch on
+        │  normalized spelling; unmatched words share their neighbours' time) →
+        │  Fill = {\kf} per word, ActiveWord = one event per word with the word recolored
+        └─ bilingual: second track in style "Secondary" on layer 0, main track on layer 1;
+           each event's MarginV comes from the estimated height of the other track's text shown
+           at the same time, so libass never shifts either block
+```
+
+- Styles are authored on a 1080-pixel-high canvas; `PlayResFor` keeps that for any aspect ratio.
+- Templates (`StyleTemplates`, Core) are a style plus presentation options without track references;
+  user templates are JSON files in `<app data>/templates` (`JsonStyleTemplateStore`, Infrastructure).
+- Fonts: `FontFileReader` reads the `name` and `cmap` tables of TTF/OTF/TTC files, so the font list
+  uses the legacy family names that ASS and libass use (Avalonia's font list groups faces such as
+  "Arial Black" under "Arial"). `FontCatalog` scans `IPlatformInfo.FontDirectories` and the project's
+  `fonts` folder and reports missing Turkish glyphs.
+- The style panel (`StyleEditorViewModel`) writes every edit to the project at once and raises
+  `Changed`; the main view model marks the project dirty and refreshes the preview.
+- XAML rule: `Run.Text` binds two-way by default in Avalonia; display-only Runs must say
+  `Mode=OneWay` (enforced by `XamlRulesTests`).
+
 ## Preview equals output
 
 The ASS style model is the single source of truth. `AssScriptBuilder` produces the script for both

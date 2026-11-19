@@ -23,6 +23,33 @@ dotnet run --project src/LingoCue.App
 
 Logs are written to `~/Library/Logs/LingoCue/`.
 
+## v0.6.0 — Style
+
+Needs a project with a video and a transcribed Turkish track (word timings come from Transkribe Et);
+for bilingual mode also a second track (import any English SRT with **Altyazı içe aktar**).
+
+- [ ] **Stil** (toolbar) opens the Stil tab next to Satırlar; the video stays visible. Switch between
+      the tabs several times: no crash, values stay.
+- [ ] Change font size, color, outline, shadow, alignment (3×3 tiles) and margins: the preview on the
+      video changes immediately. Tick "Arka plan kutusu": a dark box appears behind the text.
+- [ ] Font list contains the Mac's fonts (e.g. Helvetica, Avenir, Arial Black). Type a name that does
+      not exist: an orange warning says the font is missing. Pick "Apple Color Emoji" or "Zapfino":
+      a warning about missing Turkish letters (if the font lacks them).
+- [ ] Save the project, **Font dosyası ekle…** and pick a .ttf/.otf that is *not* installed (e.g. a
+      downloaded Google Font): the file is copied to `<project folder>/fonts/`, the font is selected,
+      and the preview uses it (compare letter shapes with Arial).
+- [ ] Templates: apply each built-in one. "Shorts / Reels" turns text to capitals with correct
+      İ/I and highlights the spoken word while playing. "Belgesel" shows a dark box.
+- [ ] **Şablon olarak kaydet…**, give a Turkish name (e.g. "Şık başlık"); restart the app: it is in
+      the list. **Dışa aktar…** to a .json, **Sil**, then **İçe aktar…** the .json: it is back.
+      Files live in `~/Library/Application Support/LingoCue/templates/`.
+- [ ] Karaoke "Dolan renk": words fill with the highlight color in time with speech. On the
+      "Düzeltilmiş" track (from v0.5.0) karaoke still follows speech.
+- [ ] İki dilli mod: tick it, choose the English track: English appears under Turkish without
+      overlapping, also with two-line cues; switch alignment to top: Turkish on top, English under it.
+- [ ] Güvenli alan kılavuzlarını göster: two dashed rectangles over the picture (also for a 9:16 video).
+- [ ] Export ASS (Dışa Aktar → ASS) and open it in IINA/VLC: looks like the preview.
+
 ## v0.5.0 — AI correction
 
 Needs a project with a transcribed (or imported) Turkish track and a Gemini key. A short track

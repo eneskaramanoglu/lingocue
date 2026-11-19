@@ -6,6 +6,32 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-19
+
+### Added
+- **Stil** panel (toolbar button or the right panel's Stil tab): font, size, bold/italic/underline,
+  letter spacing, upper case, text/outline/shadow colors with transparency, outline or background
+  box, 9-point alignment and margins, fade in/out. Every change shows at once in the video preview,
+  which is the same libass output that ASS export and (in M6) burn-in use.
+- **Templates:** YouTube klasik, Netflix tarzı, Shorts / Reels (9:16) and Belgesel, using fonts
+  present on both Windows and macOS. Save the current look as your own template (shared by all
+  projects), import/export templates as JSON, delete your own.
+- **Karaoke** (word-by-word highlight) from the speech-recognition word timings: "Dolan renk" (words
+  fill with the highlight color as they are spoken) or "Aktif kelime" (only the spoken word is
+  highlighted, Shorts style). Corrected text is matched back to the recognized words, so karaoke
+  also works on the "Düzeltilmiş" track; tracks without word timings stay plain.
+- **Bilingual mode:** a second track (e.g. an English translation or an imported SRT) under the
+  active one, with its own size and color; the two never overlap (also with top alignment).
+- **Fonts:** the font list shows names exactly as the subtitle renderer finds them (e.g. "Arial
+  Black"), warns when a font is missing or lacks Turkish letters (ğ ş ı İ …), and "Font dosyası ekle"
+  copies a TTF/OTF into a `fonts` folder next to the project, which the preview uses (so a project
+  moved to another computer keeps its look).
+- Optional safe-area guides (93 % / 90 %) over the video.
+
+### Fixed
+- Display-only text in lists could write itself back into the project (e.g. a track's language)
+  and, with formatted text, crash the app; such bindings are one-way now.
+
 ## [0.5.0] - 2026-11-19
 
 ### Added
@@ -142,7 +168,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   unsigned osx-arm64 `.app` zip.
 - Docs: plan, research notes, architecture overview, macOS test checklist, `CLAUDE.md`.
 
-[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.2.0...v0.3.0
