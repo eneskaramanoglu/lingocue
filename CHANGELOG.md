@@ -6,6 +6,35 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-19
+
+### Added
+- **Çevir** (toolbar, Altyazı menu): translates a track into a new track with exactly the same
+  timing.
+  - The source defaults to the latest "Düzeltilmiş" track, because the edited text is
+    authoritative; what speech recognition heard goes along as a hint for each line.
+  - Target languages: English (default), Turkish, German, French, Spanish, Italian, Arabic,
+    Russian and Azerbaijani. Translating a foreign-language video into Turkish works the same way.
+  - Glossary entries for the target language are enforced.
+  - Turkish pronouns have no gender, so he/she/they is inferred from the video context and kept
+    consistent, or neutral wording is used.
+  - The dialog shows the model and a token/cost estimate; an optional review pass gives more
+    natural wording.
+  - The first translation becomes the bilingual mode's second track.
+- **İzler** window (Altyazı menu, or the button next to the track selector, which is now always
+  shown): rename, change the language, reorder (export order), duplicate, add an empty track,
+  delete (with confirmation), and **Zamanlamayı kaynaktan al**.
+  - "Zamanlamayı kaynaktan al" copies timing fixes made in the Turkish track into its translation.
+  - Deleting a track keeps the tracks made from it linked to the original lines.
+- **Importing a subtitle** into a project that already has lines asks: add it as a new track (the
+  language comes from names like `film.en.srt`) or replace the active track.
+
+### Changed
+- Reading speed limits depend on the track language: English allows 3 characters per second more
+  than Turkish (Netflix guidance: 20 vs 17 CPS). The editor's marks and the shortening pass follow it.
+- In a translation track the editor no longer marks every line as "changed"; the filter becomes
+  "Kontrol bekleyenler".
+
 ## [0.7.0] - 2026-11-19
 
 ### Added
@@ -200,7 +229,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   unsigned osx-arm64 `.app` zip.
 - Docs: plan, research notes, architecture overview, macOS test checklist, `CLAUDE.md`.
 
-[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.4.0...v0.5.0
