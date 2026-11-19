@@ -113,3 +113,18 @@ public class LanguageCodesTests
     public void Maps_to_iso_639_2(string? input, string expected)
         => LingoCue.Core.Text.LanguageCodes.ToIso6392(input).ShouldBe(expected);
 }
+
+public class ReadingRulesLanguageTests
+{
+    [Fact]
+    public void English_reads_faster_than_turkish()
+    {
+        var settings = new LingoCue.Core.Settings.ReadingRulesSettings { TargetCps = 17, MaxCps = 21 };
+
+        settings.ToRules("tr").TargetCps.ShouldBe(17);
+        settings.ToRules().MaxCps.ShouldBe(21);
+        settings.ToRules("en").TargetCps.ShouldBe(20);
+        settings.ToRules("en-GB").MaxCps.ShouldBe(24);
+        settings.ToRules("en").MaxCharsPerLine.ShouldBe(42);
+    }
+}

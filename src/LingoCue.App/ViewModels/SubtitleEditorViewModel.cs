@@ -56,12 +56,11 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         : $"{Cues.Count} satır · {Cues.Count(c => c.HasError)} hata · {Cues.Count(c => c.HasWarning)} uyarı" +
           (HasSourceTrack ? $" · {ChangedCount} değişti · {ReviewCount} kontrol bekliyor" : string.Empty);
 
-    /// <summary>Applies new reading rules (from settings) and re-evaluates the rows.</summary>
-    public void SetRules(ReadingRules rules)
-    {
-        _rules = rules;
-        Load(_track, _sourceTrack);
-    }
+    /// <summary>Reading rules for a track language (English allows a higher reading speed than Turkish).</summary>
+    public Func<string?, ReadingRules> RulesFor { get; set; } = _ => ReadingRules.Default;
+
+    /// <summary>Re-evaluates the rows, e.g. after the reading rules changed in the settings.</summary>
+    public void Refresh() => Load(_track, _sourceTrack);
 
     /// <summary>The track this one was derived from (correction/translation); its cue texts are shown as originals.</summary>
     private SubtitleTrack? _sourceTrack;
@@ -98,6 +97,7 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
 
     public void Load(SubtitleTrack? track, SubtitleTrack? sourceTrack = null)
     {
+        _rules = RulesFor(track?.Language);
         _sourceTrack = track is { SourceTrackId: { } sourceId } && sourceTrack?.Id == sourceId ? sourceTrack : null;
         HasSourceTrack = _sourceTrack is not null;
         if (!HasSourceTrack)

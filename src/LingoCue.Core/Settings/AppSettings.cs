@@ -78,15 +78,23 @@ public sealed record ReadingRulesSettings
 
     public double PauseThresholdMs { get; init; } = 400;
 
-    public ReadingRules ToRules() => new()
+    /// <summary>English is read faster than Turkish (Netflix: 20 CPS vs 17), so its limits are higher.</summary>
+    public const double EnglishCpsBonus = 3;
+
+    /// <param name="language">Track language; English gets <see cref="EnglishCpsBonus"/> more characters per second.</param>
+    public ReadingRules ToRules(string? language = null)
     {
-        MaxCharsPerLine = Math.Clamp(MaxCharsPerLine, 10, 120),
-        MaxLines = Math.Clamp(MaxLines, 1, 4),
-        MinDuration = TimeSpan.FromSeconds(Math.Clamp(MinDurationSeconds, 0.2, 5)),
-        MaxDuration = TimeSpan.FromSeconds(Math.Clamp(MaxDurationSeconds, 1, 30)),
-        TargetCps = Math.Clamp(TargetCps, 5, 40),
-        MaxCps = Math.Clamp(Math.Max(MaxCps, TargetCps), 5, 50),
-    };
+        var bonus = language is not null && language.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? EnglishCpsBonus : 0;
+        return new()
+        {
+            MaxCharsPerLine = Math.Clamp(MaxCharsPerLine, 10, 120),
+            MaxLines = Math.Clamp(MaxLines, 1, 4),
+            MinDuration = TimeSpan.FromSeconds(Math.Clamp(MinDurationSeconds, 0.2, 5)),
+            MaxDuration = TimeSpan.FromSeconds(Math.Clamp(MaxDurationSeconds, 1, 30)),
+            TargetCps = Math.Clamp(TargetCps + bonus, 5, 45),
+            MaxCps = Math.Clamp(Math.Max(MaxCps, TargetCps) + bonus, 5, 55),
+        };
+    }
 }
 
 public interface ISettingsStore

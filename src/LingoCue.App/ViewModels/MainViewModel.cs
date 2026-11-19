@@ -87,6 +87,7 @@ public partial class MainViewModel : ViewModelBase
         Player = playerViewModel;
         Editor = editor;
         Editor.Edited += (_, _) => OnEdited();
+        Editor.RulesFor = language => settings.Current.Reading.ToRules(language);
         StyleEditor = styleEditor;
         RenderQueue = renderQueue;
         RenderQueue.JobFinished += (_, message) => StatusText = message;
@@ -605,7 +606,7 @@ public partial class MainViewModel : ViewModelBase
         if (_dialogs is not null && _settings is not null && _resolver is not null && _keys is not null && _secretStore is not null && _platform is not null &&
             await _dialogs.ShowSettingsAsync(new SettingsViewModel(_settings, _resolver, _engines, new ApiKeysViewModel(_keys, _secretStore, _platform))))
         {
-            Editor?.SetRules(_settings.Current.Reading.ToRules());
+            Editor?.Refresh();
             StatusText = "Ayarlar kaydedildi.";
         }
     }
@@ -765,7 +766,7 @@ public partial class MainViewModel : ViewModelBase
             MaxRetries = settings.Llm.MaxRetries,
             Reflect = choice.Reflect,
             ShortenOverlong = settings.Llm.ShortenOverlongLines,
-            Rules = settings.Reading.ToRules(),
+            Rules = settings.Reading.ToRules(source.Language),
         };
         var request = new TrackPassRequest(project, source, TrackPassKind.Correction, options, choice.RefreshContext, settings.Llm.KeepCircumflex);
 
