@@ -18,7 +18,7 @@
       <!-- General -->
       <TabItem Header="Genel">
         <ScrollViewer>
-          <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10" Margin="0,12">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10" Margin="0,12">
             <TextBlock Text="Varsayılan transkripsiyon motoru" VerticalAlignment="Center" />
             <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Engines}" SelectedItem="{Binding SelectedEngine}">
               <ComboBox.ItemTemplate>
@@ -41,7 +41,7 @@
       <TabItem Header="Dil modeli (LLM)">
         <ScrollViewer>
           <StackPanel Spacing="10" Margin="0,12">
-            <Grid ColumnDefinitions="200,*,Auto" RowDefinitions="Auto,Auto" RowSpacing="10">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16" RowDefinitions="Auto,Auto" RowSpacing="10">
               <TextBlock Text="Günlük model" VerticalAlignment="Center" />
               <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding FastModels}" SelectedItem="{Binding SelectedFast}" />
               <Button Grid.Column="2" Content="Modelleri yenile" Command="{Binding RefreshModelsCommand}" Margin="8,0,0,0" />
@@ -54,7 +54,7 @@
             <CheckBox Content="İkinci geçişte gözden geçir (reflect; maliyeti yaklaşık iki katına çıkarır)" IsChecked="{Binding Reflect}" />
             <CheckBox Content="Okuma hızını aşan satırları anlamı koruyarak kısalt" IsChecked="{Binding ShortenOverlong}" />
             <CheckBox Content="Şapkalı yazımları koru (rüzgâr, kâr, hâlâ)" IsChecked="{Binding KeepCircumflex}" />
-            <Grid ColumnDefinitions="200,140" RowDefinitions="Auto,Auto" RowSpacing="10">
+            <Grid ColumnDefinitions="Auto,140" ColumnSpacing="16" RowDefinitions="Auto,Auto" RowSpacing="10">
               <TextBlock Text="İstek başına satır" VerticalAlignment="Center" />
               <NumericUpDown Grid.Column="1" Minimum="5" Maximum="60" Increment="5" Value="{Binding BatchSize}" FormatString="0" />
               <TextBlock Grid.Row="1" Text="Aynı anda istek" VerticalAlignment="Center" />

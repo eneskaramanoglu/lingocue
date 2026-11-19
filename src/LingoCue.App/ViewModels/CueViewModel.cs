@@ -106,6 +106,9 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
 
     public bool LlmFailed => cue.Marks.HasFlag(CueMarks.LlmFailed);
 
+    /// <summary>Needs a person: flagged for review or failed in the LLM pass.</summary>
+    public bool IsFlagged => NeedsReview || LlmFailed;
+
     /// <summary>Shown by the "changed only" filter: edited by the pass or flagged for a person.</summary>
     public bool IsOfInterest => IsChanged || NeedsReview || LlmFailed;
 
@@ -261,6 +264,7 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
         OnPropertyChanged(nameof(IsChanged));
         OnPropertyChanged(nameof(NeedsReview));
         OnPropertyChanged(nameof(LlmFailed));
+        OnPropertyChanged(nameof(IsFlagged));
         OnPropertyChanged(nameof(IsOfInterest));
         OnPropertyChanged(nameof(MarkGlyph));
         OnPropertyChanged(nameof(MarkTip));

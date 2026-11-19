@@ -175,9 +175,11 @@
         <DockPanel DataContext="{Binding Editor}" x:DataType="vm:SubtitleEditorViewModel">
 
           <!-- Header: summary + list actions -->
+          <!-- Summary on its own line; the actions wrap so nothing is cut off in a narrow panel. -->
           <DockPanel DockPanel.Dock="Top" Margin="8,6">
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
-              <CheckBox Content="Sadece değişenler" IsChecked="{Binding ShowChangedOnly}" Focusable="False"
+            <TextBlock DockPanel.Dock="Top" Text="{Binding Summary}" Classes="muted" TextWrapping="Wrap" Margin="0,0,0,4" />
+            <WrapPanel HorizontalAlignment="Right" ItemSpacing="6" LineSpacing="4">
+              <CheckBox Content="Değişenler" IsChecked="{Binding ShowChangedOnly}" Focusable="False"
                         IsVisible="{Binding HasSourceTrack}"
                         ToolTip.Tip="Yalnızca yapay zekânın değiştirdiği ya da kontrol bekleyen satırları göster" />
               <CheckBox Content="Oynatmayı takip et" IsChecked="{Binding FollowPlayback}" Focusable="False" />
@@ -185,8 +187,7 @@
                       ToolTip.Tip="Oynatma konumuna yeni satır ekle" />
               <Button Content="Sil" Command="{Binding DeleteCueCommand}" Focusable="False"
                       ToolTip.Tip="Seçili satırı sil" />
-            </StackPanel>
-            <TextBlock Text="{Binding Summary}" VerticalAlignment="Center" Classes="muted" />
+            </WrapPanel>
           </DockPanel>
 
           <!-- Editor for the selected cue -->
@@ -225,7 +226,7 @@
                   <Button Content="Orijinale dön" Command="{Binding RevertToOriginalCommand}" Focusable="False"
                           IsEnabled="{Binding SelectedCue.IsChanged, FallbackValue=False}" />
                   <Button Content="Kontrol edildi" Command="{Binding MarkReviewedCommand}" Focusable="False"
-                          IsVisible="{Binding SelectedCue.NeedsReview, FallbackValue=False}" />
+                          IsVisible="{Binding SelectedCue.IsFlagged, FallbackValue=False}" />
                 </StackPanel>
                 <TextBlock Classes="muted" TextWrapping="Wrap" VerticalAlignment="Center">
                   <Run Text="Orijinal: " /><Run Text="{Binding SelectedCue.OriginalText, FallbackValue=''}" />
