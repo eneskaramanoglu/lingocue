@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\LingoCue.Llm\LingoCue.Llm.csproj" />
+    <ProjectReference Include="..\..\src\LingoCue.Infrastructure\LingoCue.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

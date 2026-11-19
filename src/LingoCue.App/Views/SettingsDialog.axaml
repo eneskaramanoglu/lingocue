@@ -1,0 +1,112 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:LingoCue.App.ViewModels"
+        xmlns:tr="using:LingoCue.Transcription"
+        x:Class="LingoCue.App.Views.SettingsDialog"
+        x:DataType="vm:SettingsViewModel"
+        Title="Tercihler"
+        Width="720" Height="600" MinWidth="620" MinHeight="480"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+
+  <DockPanel Margin="16">
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+      <Button Content="Kaydet" Classes="accent" IsDefault="True" Click="OnSave" MinWidth="90" />
+      <Button Content="Vazgeç" IsCancel="True" Click="OnCancel" MinWidth="90" />
+    </StackPanel>
+
+    <TabControl>
+      <!-- General -->
+      <TabItem Header="Genel">
+        <ScrollViewer>
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10" Margin="0,12">
+            <TextBlock Text="Varsayılan transkripsiyon motoru" VerticalAlignment="Center" />
+            <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Engines}" SelectedItem="{Binding SelectedEngine}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="tr:ITranscriptionEngine">
+                  <TextBlock Text="{Binding DisplayName}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Grid.Row="1" Text="Whisper modeli" VerticalAlignment="Center" />
+            <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding WhisperModels}" SelectedItem="{Binding WhisperModel}" />
+            <TextBlock Grid.Row="2" Text="Konuşma dili" VerticalAlignment="Center" />
+            <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding LanguageCodes}" SelectedItem="{Binding Language}" />
+            <TextBlock Grid.Row="3" Grid.ColumnSpan="2" Classes="muted" TextWrapping="Wrap"
+                       Text="Whisper yereldir ve ücretsizdir. Gemini 3.5 Transcribe gürültülü ve çok konuşmacılı videolarda daha iyidir ama ücretlidir (~0,005 $/dk)." />
+          </Grid>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- LLM -->
+      <TabItem Header="Dil modeli (LLM)">
+        <ScrollViewer>
+          <StackPanel Spacing="10" Margin="0,12">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16" RowDefinitions="Auto,Auto" RowSpacing="10">
+              <TextBlock Text="Günlük model" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding FastModels}" SelectedItem="{Binding SelectedFast}" />
+              <Button Grid.Column="2" Content="Modelleri yenile" Command="{Binding RefreshModelsCommand}" Margin="8,0,0,0" />
+              <TextBlock Grid.Row="1" Text="Kalite modu modeli" VerticalAlignment="Center" />
+              <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding QualityModels}" SelectedItem="{Binding SelectedQuality}" />
+            </Grid>
+            <TextBlock Text="{Binding ModelStatus}" Classes="muted" TextWrapping="Wrap"
+                       IsVisible="{Binding ModelStatus, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            <CheckBox Content="Kalite modunu kullan (daha yavaş, daha pahalı)" IsChecked="{Binding UseQualityModel}" />
+            <CheckBox Content="İkinci geçişte gözden geçir (reflect; maliyeti yaklaşık iki katına çıkarır)" IsChecked="{Binding Reflect}" />
+            <CheckBox Content="Okuma hızını aşan satırları anlamı koruyarak kısalt" IsChecked="{Binding ShortenOverlong}" />
+            <CheckBox Content="Şapkalı yazımları koru (rüzgâr, kâr, hâlâ)" IsChecked="{Binding KeepCircumflex}" />
+            <Grid ColumnDefinitions="Auto,140" ColumnSpacing="16" RowDefinitions="Auto,Auto" RowSpacing="10">
+              <TextBlock Text="İstek başına satır" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Column="1" Minimum="5" Maximum="60" Increment="5" Value="{Binding BatchSize}" FormatString="0" />
+              <TextBlock Grid.Row="1" Text="Aynı anda istek" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Row="1" Grid.Column="1" Minimum="1" Maximum="8" Value="{Binding Parallelism}" FormatString="0" />
+            </Grid>
+            <Border Classes="error" Margin="0,8,0,0">
+              <TextBlock Text="{Binding PrivacyNote}" TextWrapping="Wrap" />
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- Reading rules -->
+      <TabItem Header="Altyazı kuralları">
+        <ScrollViewer>
+          <Grid ColumnDefinitions="260,140" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="10" Margin="0,12">
+            <TextBlock Text="Satır başına en fazla karakter" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Column="1" Minimum="10" Maximum="120" Value="{Binding MaxCharsPerLine}" FormatString="0" />
+            <TextBlock Grid.Row="1" Text="En fazla satır" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="1" Grid.Column="1" Minimum="1" Maximum="4" Value="{Binding MaxLines}" FormatString="0" />
+            <TextBlock Grid.Row="2" Text="En kısa süre (sn)" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="2" Grid.Column="1" Minimum="0.2" Maximum="5" Increment="0.1" Value="{Binding MinDuration}" FormatString="0.0" />
+            <TextBlock Grid.Row="3" Text="En uzun süre (sn)" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="3" Grid.Column="1" Minimum="1" Maximum="30" Increment="0.5" Value="{Binding MaxDuration}" FormatString="0.0" />
+            <TextBlock Grid.Row="4" Text="Hedef okuma hızı (karakter/sn)" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="4" Grid.Column="1" Minimum="5" Maximum="40" Value="{Binding TargetCps}" FormatString="0.#" />
+            <TextBlock Grid.Row="5" Text="En yüksek okuma hızı (karakter/sn)" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="5" Grid.Column="1" Minimum="5" Maximum="50" Value="{Binding MaxCps}" FormatString="0.#" />
+            <TextBlock Grid.Row="6" Grid.ColumnSpan="2" Classes="muted" TextWrapping="Wrap"
+                       Text="Bu kurallar uyarıları, yeni transkripsiyonların satırlara bölünmesini ve LLM kısaltmasını etkiler." />
+          </Grid>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- API keys -->
+      <TabItem Header="API anahtarları">
+        <StackPanel DataContext="{Binding ApiKeys}" x:DataType="vm:ApiKeysViewModel" Spacing="12" Margin="0,12">
+          <TextBlock TextWrapping="Wrap" Classes="muted">
+            <Run Text="Anahtarlar yalnızca bu bilgisayarın güvenli deposunda saklanır:" />
+            <Run Text="{Binding StoreName}" FontWeight="SemiBold" />
+            <Run Text=". Proje dosyalarına, ayarlara veya loglara yazılmaz." />
+          </TextBlock>
+          <TextBlock Text="Google Gemini" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding GeminiStatus}" Classes="muted" />
+          <TextBox Text="{Binding GeminiKeyInput}" PasswordChar="●" PlaceholderText="Yeni Gemini API anahtarını yapıştırın" IsEnabled="{Binding IsStoreSupported}" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Anahtarı kaydet" Command="{Binding SaveCommand}" />
+            <Button Content="Kayıtlı anahtarı sil" Command="{Binding RemoveCommand}" IsVisible="{Binding HasStoredKey}" />
+          </StackPanel>
+          <TextBlock Text="{Binding Message}" TextWrapping="Wrap" IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        </StackPanel>
+      </TabItem>
+    </TabControl>
+  </DockPanel>
+</Window>

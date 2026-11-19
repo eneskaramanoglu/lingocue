@@ -3,7 +3,10 @@ using LingoCue.App.Services;
 using LingoCue.App.ViewModels;
 using LingoCue.App.Views;
 using LingoCue.Core.Platform;
+using LingoCue.Core.Settings;
 using LingoCue.Infrastructure.Security;
+using LingoCue.Infrastructure.Settings;
+using LingoCue.Llm.Providers;
 using LingoCue.Media.Audio;
 using LingoCue.Media.Probing;
 using LingoCue.Media.Processes;
@@ -53,6 +56,11 @@ internal static class ServiceCollectionExtensions
             sp.GetRequiredService<GeminiTranscribeClient>(),
             sp.GetRequiredService<ApiKeyProvider>().GetGeminiKey,
             sp.GetRequiredService<ILogger<GeminiTranscribeEngine>>()));
+
+        // Settings and language models
+        services.AddSingleton<ISettingsStore, JsonSettingsStore>();
+        services.AddSingleton<ILlmProvider>(sp => new GeminiProvider(sp.GetRequiredService<ApiKeyProvider>().GetGeminiKey));
+        services.AddSingleton<ModelResolver>();
 
         // Playback
         services.AddSingleton<MpvVideoPlayer>();

@@ -16,7 +16,7 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
     private static readonly TimeSpan s_defaultCueLength = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan s_minGap = TimeSpan.FromMilliseconds(40);
     private readonly IVideoPlayer _player;
-    private readonly ReadingRules _rules = ReadingRules.Default;
+    private ReadingRules _rules = ReadingRules.Default;
     private SubtitleTrack? _track;
     private bool _selectingFromPlayback;
     private CueViewModel? _current;
@@ -37,6 +37,8 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(DeleteCueCommand))]
     [NotifyCanExecuteChangedFor(nameof(SetStartToPlayheadCommand))]
     [NotifyCanExecuteChangedFor(nameof(SetEndToPlayheadCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RevertToOriginalCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MarkReviewedCommand))]
     public partial CueViewModel? SelectedCue { get; set; }
 
     /// <summary>While playing, select the cue under the playhead.</summary>
@@ -51,10 +53,59 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
 
     public string Summary => Cues.Count == 0
         ? "Altyazı yok"
-        : $"{Cues.Count} satır · {Cues.Count(c => c.HasError)} hata · {Cues.Count(c => c.HasWarning)} uyarı";
+        : $"{Cues.Count} satır · {Cues.Count(c => c.HasError)} hata · {Cues.Count(c => c.HasWarning)} uyarı" +
+          (HasSourceTrack ? $" · {ChangedCount} değişti · {ReviewCount} kontrol bekliyor" : string.Empty);
 
-    public void Load(SubtitleTrack? track)
+    /// <summary>Applies new reading rules (from settings) and re-evaluates the rows.</summary>
+    public void SetRules(ReadingRules rules)
     {
+        _rules = rules;
+        Load(_track, _sourceTrack);
+    }
+
+    /// <summary>The track this one was derived from (correction/translation); its cue texts are shown as originals.</summary>
+    private SubtitleTrack? _sourceTrack;
+
+    /// <summary>Show only lines changed by a pass or flagged for review.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VisibleCues))]
+    [NotifyCanExecuteChangedFor(nameof(AddCueCommand))]
+    public partial bool ShowChangedOnly { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasSourceTrack { get; private set; }
+
+    /// <summary>The grid's rows: the live list, or a snapshot of the interesting lines while filtering.</summary>
+    public IEnumerable<CueViewModel> VisibleCues => ShowChangedOnly ? [.. Cues.Where(c => c.IsOfInterest)] : Cues;
+
+    public int ChangedCount => Cues.Count(c => c.IsChanged);
+
+    public int ReviewCount => Cues.Count(c => c.NeedsReview || c.LlmFailed);
+
+    private bool CanAddCue => HasTrack && !ShowChangedOnly;
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void RevertToOriginal()
+    {
+        if (SelectedCue is { OriginalText: { } original } vm)
+        {
+            vm.Text = original;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void MarkReviewed() => SelectedCue?.ClearMarks();
+
+    public void Load(SubtitleTrack? track, SubtitleTrack? sourceTrack = null)
+    {
+        _sourceTrack = track is { SourceTrackId: { } sourceId } && sourceTrack?.Id == sourceId ? sourceTrack : null;
+        HasSourceTrack = _sourceTrack is not null;
+        if (!HasSourceTrack)
+        {
+            ShowChangedOnly = false;
+        }
+
+        var originals = _sourceTrack?.Cues.GroupBy(c => c.Id).ToDictionary(g => g.Key, g => g.First().Text);
         foreach (var vm in Cues)
         {
             Detach(vm);
@@ -74,15 +125,17 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         track.Sort();
         foreach (var cue in track.Cues)
         {
-            Cues.Add(Attach(new CueViewModel(cue, _rules)));
+            var original = originals is not null && cue.SourceCueId is { } sourceCueId && originals.TryGetValue(sourceCueId, out var text) ? text : null;
+            Cues.Add(Attach(new CueViewModel(cue, _rules) { OriginalText = original }));
         }
 
         Renumber();
         OnPropertyChanged(nameof(Summary));
+        OnPropertyChanged(nameof(VisibleCues));
         UpdateCurrent(_player.Position);
     }
 
-    [RelayCommand(CanExecute = nameof(HasTrack))]
+    [RelayCommand(CanExecute = nameof(CanAddCue))]
     private void AddCue()
     {
         if (_track is null)

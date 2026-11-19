@@ -78,6 +78,22 @@
     <Setter Property="TextDecorations" Value="Underline" />
   </Style>
 
+  <!-- Mark column: ● changed (accent), ! needs review (warning), ✕ LLM failed (error). -->
+  <Style Selector="TextBlock.mark">
+    <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="FontWeight" Value="Bold" />
+  </Style>
+
+  <Style Selector="TextBlock.mark.review">
+    <Setter Property="Foreground" Value="{DynamicResource WarningForegroundBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.mark.failed">
+    <Setter Property="Foreground" Value="{DynamicResource SystemErrorTextColor}" />
+  </Style>
+
   <Style Selector="TextBlock.issues">
     <Setter Property="Foreground" Value="{DynamicResource WarningForegroundBrush}" />
     <Setter Property="FontSize" Value="12" />

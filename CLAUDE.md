@@ -31,6 +31,9 @@ dotnet publish src/LingoCue.App -c Release -r win-x64 --self-contained -o publis
   `LINGOCUE_GEMINI_TEST_AUDIO=<turkish audio>` plus a Gemini key (env `GEMINI_API_KEY` or the key saved
   in the app) calls the paid API (~$0.005/min). Both write a readable result to `%TEMP%`/`$TMPDIR`
   (`lingocue-whisper-test.txt`, `lingocue-gemini-test.txt`).
+  `LINGOCUE_LLM_LIVE=1` plus a key lists the Gemini models (free, no generation call).
+- LLM pipeline tests use `FakeChatClient` (tests/LingoCue.Llm.Tests); never spend on generation calls
+  in tests. A real correction run on a short track costs well under a cent; ask the owner first.
 - Test audio in Turkish can be synthesized on Windows with the OneCore "Tolga" voice (WinRT
   `Windows.Media.SpeechSynthesis`); never commit audio/video.
 

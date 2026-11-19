@@ -48,9 +48,11 @@
       </MenuItem>
       <MenuItem Header="_Altyazı">
         <MenuItem Header="_Transkribe Et…" InputGesture="Ctrl+T" Command="{Binding TranscribeCommand}" />
+        <MenuItem Header="_Düzelt…" Command="{Binding CorrectCommand}" />
+        <MenuItem Header="_Sözlük ve Bağlam…" Command="{Binding EditGlossaryCommand}" />
       </MenuItem>
       <MenuItem Header="A_yarlar">
-        <MenuItem Header="API _Anahtarları…" Command="{Binding ManageApiKeysCommand}" />
+        <MenuItem Header="_Tercihler…" InputGesture="Ctrl+OemComma" Command="{Binding PreferencesCommand}" />
       </MenuItem>
     </Menu>
 
@@ -70,7 +72,7 @@
           <Separator Width="1" Margin="4,2" />
           <Button Content="Transkribe Et" Command="{Binding TranscribeCommand}" Focusable="False"
                   ToolTip.Tip="Konuşmayı tanı ve altyazı oluştur (Ctrl+T / ⌘T)" />
-          <Button Content="Düzelt" IsEnabled="False" ToolTip.Tip="M4" />
+          <Button Content="Düzelt" Command="{Binding CorrectCommand}" ToolTip.Tip="Yapay zekâ ile tanıma hatalarını düzelt" />
           <Button Content="Çevir" IsEnabled="False" ToolTip.Tip="M7" />
           <Button Content="Stil" IsEnabled="False" ToolTip.Tip="M5" />
           <Button Content="Dışa Aktar" IsEnabled="False" ToolTip.Tip="M6 (şimdilik Dosya → Altyazı Dışa Aktar)" />
@@ -173,21 +175,25 @@
         <DockPanel DataContext="{Binding Editor}" x:DataType="vm:SubtitleEditorViewModel">
 
           <!-- Header: summary + list actions -->
+          <!-- Summary on its own line; the actions wrap so nothing is cut off in a narrow panel. -->
           <DockPanel DockPanel.Dock="Top" Margin="8,6">
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+            <TextBlock DockPanel.Dock="Top" Text="{Binding Summary}" Classes="muted" TextWrapping="Wrap" Margin="0,0,0,4" />
+            <WrapPanel HorizontalAlignment="Right" ItemSpacing="6" LineSpacing="4">
+              <CheckBox Content="Değişenler" IsChecked="{Binding ShowChangedOnly}" Focusable="False"
+                        IsVisible="{Binding HasSourceTrack}"
+                        ToolTip.Tip="Yalnızca yapay zekânın değiştirdiği ya da kontrol bekleyen satırları göster" />
               <CheckBox Content="Oynatmayı takip et" IsChecked="{Binding FollowPlayback}" Focusable="False" />
               <Button Content="+ Satır" Command="{Binding AddCueCommand}" Focusable="False"
                       ToolTip.Tip="Oynatma konumuna yeni satır ekle" />
               <Button Content="Sil" Command="{Binding DeleteCueCommand}" Focusable="False"
                       ToolTip.Tip="Seçili satırı sil" />
-            </StackPanel>
-            <TextBlock Text="{Binding Summary}" VerticalAlignment="Center" Classes="muted" />
+            </WrapPanel>
           </DockPanel>
 
           <!-- Editor for the selected cue -->
           <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource PanelBorderBrush}"
                   Padding="8" IsEnabled="{Binding HasSelection}">
-            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto,*" >
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto,*" >
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Başlangıç" VerticalAlignment="Center" Margin="0,0,6,0" />
               <DockPanel Grid.Row="0" Grid.Column="1" Margin="0,0,12,0">
                 <Button DockPanel.Dock="Right" Content="⏱" Command="{Binding SetStartToPlayheadCommand}" Focusable="False"
@@ -212,10 +218,24 @@
               <TextBox Grid.Row="2" Grid.Column="1" Margin="0,8,12,0" Text="{Binding SelectedCue.Speaker, FallbackValue=''}" />
               <TextBlock Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" Margin="0,8,0,0" VerticalAlignment="Center"
                          Text="{Binding SelectedCue.IssuesText, FallbackValue=''}" Classes="issues" TextWrapping="Wrap" />
+
+              <!-- Original text from the source track, for corrected/translated tracks. -->
+              <DockPanel Grid.Row="3" Grid.ColumnSpan="4" Margin="0,8,0,0"
+                         IsVisible="{Binding SelectedCue.HasOriginal, FallbackValue=False}">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
+                  <Button Content="Orijinale dön" Command="{Binding RevertToOriginalCommand}" Focusable="False"
+                          IsEnabled="{Binding SelectedCue.IsChanged, FallbackValue=False}" />
+                  <Button Content="Kontrol edildi" Command="{Binding MarkReviewedCommand}" Focusable="False"
+                          IsVisible="{Binding SelectedCue.IsFlagged, FallbackValue=False}" />
+                </StackPanel>
+                <TextBlock Classes="muted" TextWrapping="Wrap" VerticalAlignment="Center">
+                  <Run Text="Orijinal: " /><Run Text="{Binding SelectedCue.OriginalText, FallbackValue=''}" />
+                </TextBlock>
+              </DockPanel>
             </Grid>
           </Border>
 
-          <DataGrid x:Name="CueGrid" ItemsSource="{Binding Cues}" SelectedItem="{Binding SelectedCue}"
+          <DataGrid x:Name="CueGrid" ItemsSource="{Binding VisibleCues}" SelectedItem="{Binding SelectedCue}"
                     IsReadOnly="True" SelectionMode="Single" CanUserSortColumns="False" CanUserReorderColumns="False"
                     GridLinesVisibility="Horizontal" HeadersVisibility="Column" RowHeight="28" FontSize="13">
             <DataGrid.Columns>
@@ -241,11 +261,19 @@
                   </DataTemplate>
                 </DataGridTemplateColumn.CellTemplate>
               </DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="" Width="26">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate x:DataType="vm:CueViewModel">
+                    <TextBlock Text="{Binding MarkGlyph}" ToolTip.Tip="{Binding MarkTip}" Classes="mark"
+                               Classes.review="{Binding NeedsReview}" Classes.failed="{Binding LlmFailed}" />
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
               <DataGridTemplateColumn Header="Metin" Width="*">
                 <DataGridTemplateColumn.CellTemplate>
                   <DataTemplate x:DataType="vm:CueViewModel">
                     <TextBlock Text="{Binding OneLineText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="6,0"
-                               Classes.hasError="{Binding HasError}" ToolTip.Tip="{Binding IssuesText}" />
+                               Classes.hasError="{Binding HasError}" ToolTip.Tip="{Binding TextTip}" />
                   </DataTemplate>
                 </DataGridTemplateColumn.CellTemplate>
               </DataGridTemplateColumn>

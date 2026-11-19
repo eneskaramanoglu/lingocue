@@ -14,7 +14,11 @@ using LingoCue.Core.Time;
 using LingoCue.Media;
 using LingoCue.Media.Probing;
 using LingoCue.Media.Tools;
+using LingoCue.Core.Settings;
 using LingoCue.Infrastructure.Security;
+using LingoCue.Llm;
+using LingoCue.Llm.Pipeline;
+using LingoCue.Llm.Providers;
 using LingoCue.Transcription;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -33,6 +37,9 @@ public partial class MainViewModel : ViewModelBase
     private readonly IReadOnlyList<ITranscriptionEngine> _engines = [];
     private readonly ApiKeyProvider? _keys;
     private readonly ISecretStore? _secretStore;
+    private readonly ISettingsStore? _settings;
+    private readonly ModelResolver? _resolver;
+    private readonly ILoggerFactory? _loggers;
     private readonly ILogger<MainViewModel> _logger;
     private CancellationTokenSource? _jobCts;
     private string? _lastEngineId;
@@ -50,6 +57,9 @@ public partial class MainViewModel : ViewModelBase
         IEnumerable<ITranscriptionEngine> engines,
         ApiKeyProvider keys,
         ISecretStore secretStore,
+        ISettingsStore settings,
+        ModelResolver resolver,
+        ILoggerFactory loggers,
         ILogger<MainViewModel> logger)
     {
         _themeService = themeService;
@@ -62,6 +72,9 @@ public partial class MainViewModel : ViewModelBase
         _engines = [.. engines];
         _keys = keys;
         _secretStore = secretStore;
+        _settings = settings;
+        _resolver = resolver;
+        _loggers = loggers;
         _logger = logger;
         Player = playerViewModel;
         Editor = editor;
@@ -86,7 +99,7 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Title))]
     [NotifyPropertyChangedFor(nameof(HasProject))]
-    [NotifyCanExecuteChangedFor(nameof(SaveProjectCommand), nameof(SaveProjectAsCommand), nameof(ExportSubtitleCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveProjectCommand), nameof(SaveProjectAsCommand), nameof(ExportSubtitleCommand), nameof(EditGlossaryCommand), nameof(CorrectCommand))]
     public partial Project? Project { get; private set; }
 
     [ObservableProperty]
@@ -131,6 +144,7 @@ public partial class MainViewModel : ViewModelBase
     public System.Collections.ObjectModel.ObservableCollection<SubtitleTrack> Tracks { get; } = [];
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CorrectCommand))]
     public partial SubtitleTrack? SelectedTrack { get; set; }
 
     public bool HasSeveralTracks => Tracks.Count > 1;
@@ -138,7 +152,7 @@ public partial class MainViewModel : ViewModelBase
     // Long-running job state.
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
-    [NotifyCanExecuteChangedFor(nameof(OpenVideoCommand), nameof(OpenProjectCommand), nameof(ImportSubtitleCommand), nameof(TranscribeCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenVideoCommand), nameof(OpenProjectCommand), nameof(ImportSubtitleCommand), nameof(TranscribeCommand), nameof(CorrectCommand))]
     public partial bool IsBusy { get; set; }
 
     /// <summary>0..1; 0 shows an indeterminate bar.</summary>
@@ -155,6 +169,8 @@ public partial class MainViewModel : ViewModelBase
     public bool IsIdle => !IsBusy;
 
     private bool CanTranscribe => IsIdle && HasMedia && Project is not null;
+
+    private bool CanCorrect => IsIdle && Project?.ActiveTrack is { Cues.Count: > 0 };
 
     partial void OnSelectedThemeChanged(AppTheme value) => _themeService?.Apply(value);
 
@@ -326,7 +342,7 @@ public partial class MainViewModel : ViewModelBase
             project.Style = AssScriptBuilder.NormalizeStyle(style, result.Document.ScriptInfo?.PlayResY ?? AssScriptBuilder.ReferenceHeight) with { Name = "Default" };
         }
 
-        Editor?.Load(track);
+        Editor?.Load(track, SourceOf(track));
         MarkDirty();
         RefreshPreview(immediate: true);
 
@@ -444,11 +460,13 @@ public partial class MainViewModel : ViewModelBase
     // ---------------------------------------------------------------- transcription
 
     [RelayCommand]
-    private async Task ManageApiKeys()
+    private async Task Preferences()
     {
-        if (_dialogs is not null && _keys is not null && _secretStore is not null && _platform is not null)
+        if (_dialogs is not null && _settings is not null && _resolver is not null && _keys is not null && _secretStore is not null && _platform is not null &&
+            await _dialogs.ShowSettingsAsync(new SettingsViewModel(_settings, _resolver, _engines, new ApiKeysViewModel(_keys, _secretStore, _platform))))
         {
-            await _dialogs.ShowApiKeysAsync(new ApiKeysViewModel(_keys, _secretStore, _platform));
+            Editor?.SetRules(_settings.Current.Reading.ToRules());
+            StatusText = "Ayarlar kaydedildi.";
         }
     }
 
@@ -460,7 +478,7 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        var options = await _dialogs.AskTranscribeOptionsAsync(new TranscribeDialogViewModel(_engines, project, media.Duration, _lastEngineId));
+        var options = await _dialogs.AskTranscribeOptionsAsync(new TranscribeDialogViewModel(_engines, project, media.Duration, _lastEngineId ?? _settings?.Current.Transcription.DefaultEngine));
         if (options is null)
         {
             return;
@@ -572,6 +590,123 @@ public partial class MainViewModel : ViewModelBase
         StatusText += $" · {cues.Count} satır oluşturuldu ({track.Name})";
     }
 
+    // ---------------------------------------------------------------- glossary / correction
+
+    [RelayCommand(CanExecute = nameof(HasProject))]
+    private async Task EditGlossary()
+    {
+        if (_dialogs is not null && Project is { } project && await _dialogs.EditGlossaryAsync(new GlossaryViewModel(project)))
+        {
+            MarkDirty();
+            StatusText = $"Sözlük güncellendi: {project.Glossary.Count} terim.";
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCorrect))]
+    private async Task Correct()
+    {
+        if (_dialogs is null || _resolver is null || _settings is null || _loggers is null ||
+            Project is not { } project || project.ActiveTrack is not { Cues.Count: > 0 } source)
+        {
+            return;
+        }
+
+        var settings = _settings.Current;
+        var choice = await _dialogs.AskCorrectOptionsAsync(new CorrectDialogViewModel(_resolver, settings, project, source));
+        if (choice is null)
+        {
+            return;
+        }
+
+        var options = new PipelineOptions
+        {
+            BatchSize = settings.Llm.BatchSize,
+            Parallelism = settings.Llm.Parallelism,
+            MaxRetries = settings.Llm.MaxRetries,
+            Reflect = choice.Reflect,
+            ShortenOverlong = settings.Llm.ShortenOverlongLines,
+            Rules = settings.Reading.ToRules(),
+        };
+        var request = new TrackPassRequest(project, source, TrackPassKind.Correction, options, choice.RefreshContext, settings.Llm.KeepCircumflex);
+
+        using var cts = new CancellationTokenSource();
+        _jobCts = cts;
+        IsBusy = true;
+        CanCancel = true;
+        Progress = 0;
+        ErrorText = null;
+        var progress = new Progress<PipelineProgress>(p =>
+        {
+            Progress = p.Fraction;
+            StatusText = $"Düzeltiliyor ({choice.ModelId}) · {p.Stage} {p.Done}/{p.Total}";
+        });
+
+        try
+        {
+            using var client = _resolver.Provider.CreateChatClient(choice.ModelId);
+            var result = await new TrackPassRunner(client, _loggers).RunAsync(request, progress, cts.Token);
+            AddCorrectedTrack(project, result, choice.ModelId);
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText = "Düzeltme iptal edildi; mevcut izler değişmedi.";
+        }
+        catch (LlmException ex)
+        {
+            LogFailed(ex, choice.ModelId);
+            ErrorText = ex.Remedy is null ? $"Düzeltme başarısız: {ex.Message}" : $"{ex.Remedy} ({ex.Message})";
+            StatusText = "Düzeltme başarısız";
+        }
+#pragma warning disable CA1031 // The provider SDK throws its own exception types; any failure is shown and the source track is untouched.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            LogFailed(ex, choice.ModelId);
+            ErrorText = $"Düzeltme başarısız: {ex.Message}";
+            StatusText = "Düzeltme başarısız";
+        }
+        finally
+        {
+            _jobCts = null;
+            CanCancel = false;
+            IsBusy = false;
+            Progress = 0;
+        }
+    }
+
+    private void AddCorrectedTrack(Project project, TrackPassResult result, string modelId)
+    {
+        var track = result.Track;
+        var existing = project.Tracks.Count(t => t.Kind == TrackKind.Corrected && t.SourceTrackId == track.SourceTrackId);
+        if (existing > 0)
+        {
+            track.Name = $"{track.Name} {existing + 1}";
+        }
+
+        project.Tracks.Add(track);
+        project.ActiveTrackId = track.Id;
+        RefreshTracks();
+        MarkDirty();
+        RefreshPreview(immediate: true);
+
+        var lines = result.Pipeline.Lines;
+        var changed = lines.Count(l => l.Status == LineStatus.Changed);
+        var review = lines.Count(l => l.Status == LineStatus.NeedsReview);
+        var failed = lines.Count(l => l.Status == LineStatus.Failed);
+        var usage = result.TotalUsage;
+        var cost = _resolver?.Provider.PriceFor(modelId) is { } price
+            ? string.Create(CultureInfo.InvariantCulture, $" · ücretli anahtarla ~{price.Cost(usage.InputTokens, usage.OutputTokens):0.000} $")
+            : string.Empty;
+        var suggestions = result.NewGlossarySuggestions > 0 ? $" · sözlüğe {result.NewGlossarySuggestions} öneri eklendi" : string.Empty;
+        StatusText = string.Create(
+            CultureInfo.GetCultureInfo("tr-TR"),
+            $"Düzeltme bitti ({track.Name}): {changed} değişti, {review} kontrol bekliyor, {failed} başarısız · {usage.InputTokens:N0}+{usage.OutputTokens:N0} token{cost}{suggestions}");
+        if (failed > 0)
+        {
+            ErrorText = $"{failed} satır işlenemedi ve olduğu gibi bırakıldı. Düzelt'i yeniden çalıştırabilir veya elle düzenleyebilirsiniz.";
+        }
+    }
+
     private static string StageText(TranscriptionStage stage) => stage switch
     {
         TranscriptionStage.Preparing => "Hazırlanıyor",
@@ -591,11 +726,14 @@ public partial class MainViewModel : ViewModelBase
         }
 
         Project.ActiveTrackId = value.Id;
-        Editor?.Load(value);
+        Editor?.Load(value, SourceOf(value));
         RefreshPreview(immediate: true);
     }
 
     private bool _syncingTracks;
+
+    private SubtitleTrack? SourceOf(SubtitleTrack? track)
+        => track?.SourceTrackId is { } id ? Project?.Tracks.FirstOrDefault(t => t.Id == id) : null;
 
     private void RefreshTracks()
     {
@@ -609,7 +747,7 @@ public partial class MainViewModel : ViewModelBase
             }
 
             SelectedTrack = Project?.ActiveTrack;
-            Editor?.Load(Project?.ActiveTrack);
+            Editor?.Load(Project?.ActiveTrack, SourceOf(Project?.ActiveTrack));
         }
         finally
         {
@@ -633,6 +771,7 @@ public partial class MainViewModel : ViewModelBase
         project.EnsureActiveTrack();
         RefreshTracks();
         TranscribeCommand.NotifyCanExecuteChanged();
+        CorrectCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(DocumentName));
     }
 
@@ -672,6 +811,7 @@ public partial class MainViewModel : ViewModelBase
 
     private void OnEdited()
     {
+        CorrectCommand.NotifyCanExecuteChanged();
         MarkDirty();
         RefreshPreview(immediate: false);
     }

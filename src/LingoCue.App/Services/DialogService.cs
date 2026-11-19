@@ -23,7 +23,13 @@ public interface IDialogService
 
     Task<TranscribeOptions?> AskTranscribeOptionsAsync(TranscribeDialogViewModel viewModel);
 
-    Task ShowApiKeysAsync(ApiKeysViewModel viewModel);
+    /// <summary>Returns true when the settings were saved.</summary>
+    Task<bool> ShowSettingsAsync(SettingsViewModel viewModel);
+
+    /// <summary>Returns true when the glossary or context changed.</summary>
+    Task<bool> EditGlossaryAsync(GlossaryViewModel viewModel);
+
+    Task<CorrectOptions?> AskCorrectOptionsAsync(CorrectDialogViewModel viewModel);
 }
 
 /// <summary>Small modal dialogs built in code (Avalonia has no built-in message box).</summary>
@@ -34,13 +40,16 @@ internal sealed class DialogService : IDialogService
             ? await new TranscribeDialog { DataContext = viewModel }.ShowDialog<TranscribeOptions?>(owner)
             : null;
 
-    public async Task ShowApiKeysAsync(ApiKeysViewModel viewModel)
-    {
-        if (Owner() is { } owner)
-        {
-            await new ApiKeysDialog { DataContext = viewModel }.ShowDialog(owner);
-        }
-    }
+    public async Task<bool> ShowSettingsAsync(SettingsViewModel viewModel)
+        => Owner() is { } owner && await new SettingsDialog { DataContext = viewModel }.ShowDialog<bool>(owner);
+
+    public async Task<bool> EditGlossaryAsync(GlossaryViewModel viewModel)
+        => Owner() is { } owner && await new GlossaryDialog { DataContext = viewModel }.ShowDialog<bool>(owner);
+
+    public async Task<CorrectOptions?> AskCorrectOptionsAsync(CorrectDialogViewModel viewModel)
+        => Owner() is { } owner
+            ? await new CorrectDialog { DataContext = viewModel }.ShowDialog<CorrectOptions?>(owner)
+            : null;
 
     private static Window? Owner()
         => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } w } ? w : null;

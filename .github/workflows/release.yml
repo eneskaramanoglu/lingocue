@@ -26,9 +26,11 @@ jobs:
         include:
           - os: windows-latest
             rid: win-x64
-          - os: macos-latest
+          # Pinned arm64 image: the macos-latest label sometimes queues without a runner and is cancelled.
+          - os: macos-15
             rid: osx-arm64
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
 
@@ -97,7 +99,9 @@ jobs:
   release:
     name: GitHub Release
     needs: package
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Publish whatever packaged (e.g. Windows when no macOS runner was available); a missing
+    # platform can be added later with: gh run rerun <id> --failed, then gh release upload.
+    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.package.result != 'skipped'
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -40,6 +40,11 @@
     <PackageVersion Include="Whisper.net.Runtime.CoreML" Version="1.9.1" />
   </ItemGroup>
 
+  <ItemGroup Label="Language models">
+    <PackageVersion Include="Google.GenAI" Version="2.2.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.11.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Testing">
     <PackageVersion Include="xunit.v3" Version="4.0.3" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
