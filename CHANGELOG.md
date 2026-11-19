@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-19
+
 ### Added
 - **Düzelt** (toolbar, Altyazı menu): an AI pass over the active track that fixes recognition
   errors, proper names, punctuation and spelling by Turkish (TDK) rules. Timing is never touched;
@@ -38,6 +40,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Ayarlar → API Anahtarları** moved into **Tercihler** as a tab.
 - CI and release use the `macos-15` runner image; a release is published even when one platform's
   package is missing, so it can be added later.
+
+### Fixed
+- GitHub Release notes are taken from this changelog again (they only said "See CHANGELOG.md").
 
 ## [0.4.0] - 2026-11-18
 
@@ -137,7 +142,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   unsigned osx-arm64 `.app` zip.
 - Docs: plan, research notes, architecture overview, macOS test checklist, `CLAUDE.md`.
 
-[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.1.0...v0.2.0

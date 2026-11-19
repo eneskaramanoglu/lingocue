@@ -118,9 +118,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${GITHUB_REF_NAME}"
-          notes=$(awk -v ver="${tag#v}" '
-            $0 ~ "^## \[" ver "\]" {found=1; next}
-            found && /^## \[/ {exit}
+          # Plain prefix match: "\[" inside an awk string is not a regex escape, so a regex never matched.
+          notes=$(awk -v head="## [${tag#v}]" '
+            index($0, head) == 1 {found=1; next}
+            found && index($0, "## [") == 1 {exit}
             found {print}' CHANGELOG.md)
           [ -z "$notes" ] && notes="See CHANGELOG.md"
           gh release create "$tag" dist/*.zip --title "LingoCue $tag" --notes "$notes" --verify-tag
