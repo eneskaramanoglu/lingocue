@@ -22,7 +22,7 @@ dotnet publish src/LingoCue.App -c Release -r win-x64 --self-contained -o publis
 - Logs: Windows `%APPDATA%\LingoCue\logs`, macOS `~/Library/Logs/LingoCue`.
 - Run with a file: `dotnet run --project src/LingoCue.App -- video.mp4 [--subtitle preview.ass]`.
 - **Native dependencies:** FFmpeg on PATH or a package-manager folder (`winget install Gyan.FFmpeg`,
-  `brew install ffmpeg`). libmpv: Windows builds download it automatically (`build/fetch-libmpv.ps1`,
+  `brew install ffmpeg-full`: the plain Homebrew `ffmpeg` has no libass, so burn-in fails). libmpv: Windows builds download it automatically (`build/fetch-libmpv.ps1`,
   pinned + SHA256, output in `build/native/`, git-ignored); macOS dev needs `brew install mpv`.
 - Media integration tests generate clips with FFmpeg and skip without it; CI sets
   `LINGOCUE_REQUIRE_FFMPEG=1` so they fail instead.

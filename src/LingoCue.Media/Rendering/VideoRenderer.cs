@@ -74,6 +74,12 @@ public interface IVideoRenderer
     /// </summary>
     Task RenderAsync(FfmpegCommand command, TimeSpan duration, IProgress<RenderProgress>? progress = null, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// True when this FFmpeg has the libass <c>ass</c> filter that burn-in needs. Some builds lack it,
+    /// notably Homebrew's plain <c>ffmpeg</c> (its <c>ffmpeg-full</c> has it).
+    /// </summary>
+    Task<bool> SupportsBurnInAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Whether each hardware encoder works on this machine (a one-frame test encode each).</summary>
     Task<IReadOnlyList<HardwareEncoderStatus>> HardwareEncodersAsync(CancellationToken cancellationToken = default);
 }
@@ -116,6 +122,7 @@ public sealed class VideoRenderer(IMediaToolLocator locator, IProcessRunner runn
 {
     private readonly Lock _probeGate = new();
     private Task<IReadOnlyList<HardwareEncoderStatus>>? _hardware;
+    private Task<bool>? _burnIn;
 
     public async Task RenderAsync(FfmpegCommand command, TimeSpan duration, IProgress<RenderProgress>? progress = null, CancellationToken cancellationToken = default)
     {
@@ -151,6 +158,26 @@ public sealed class VideoRenderer(IMediaToolLocator locator, IProcessRunner runn
 
         progress?.Report(new RenderProgress(1, null, TimeSpan.Zero));
     }
+
+    public Task<bool> SupportsBurnInAsync(CancellationToken cancellationToken = default)
+    {
+        lock (_probeGate)
+        {
+            _burnIn ??= ProbeBurnInAsync();
+        }
+
+        return _burnIn.WaitAsync(cancellationToken);
+    }
+
+    private async Task<bool> ProbeBurnInAsync()
+    {
+        var result = await runner.RunAsync(locator.Locate().FfmpegPath, ["-hide_banner", "-filters"]);
+        return result.ExitCode == 0 && HasAssFilter(result.StandardOutput);
+    }
+
+    /// <summary>Finds the <c>ass</c> line in <c>ffmpeg -filters</c> output (" .. ass   V->V   Render ASS …").</summary>
+    internal static bool HasAssFilter(string filters)
+        => Regex.IsMatch(filters, @"^\s*\S+\s+ass\s+V->V", RegexOptions.Multiline);
 
     public Task<IReadOnlyList<HardwareEncoderStatus>> HardwareEncodersAsync(CancellationToken cancellationToken = default)
     {

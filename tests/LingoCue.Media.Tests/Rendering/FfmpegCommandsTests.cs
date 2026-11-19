@@ -133,6 +133,25 @@ public class FfmpegCommandsTests
     }
 
     [Fact]
+    public void Ass_filter_is_found_in_the_filter_list()
+    {
+        // Lines as printed by "ffmpeg -hide_banner -filters" (FFmpeg 9).
+        const string withLibass = """
+             .. aresample         A->A       Resample audio data.
+             .. ass               V->V       Render ASS subtitles onto input video using the libass library.
+             .. scale             V->V       Scale the input video size and/or convert the image format.
+            """;
+        const string withoutLibass = """
+             .. aresample         A->A       Resample audio data.
+             .. asetpts           A->A       Set PTS for the output audio frame.
+             .. scale             V->V       Scale the input video size and/or convert the image format.
+            """;
+
+        VideoRenderer.HasAssFilter(withLibass).ShouldBeTrue();
+        VideoRenderer.HasAssFilter(withoutLibass).ShouldBeFalse();
+    }
+
+    [Fact]
     public void Working_encoder_is_available()
         => HardwareEncoderStatus.FromProbe(VideoEncoder.Nvenc, 0, string.Empty).ShouldBe(new HardwareEncoderStatus(VideoEncoder.Nvenc, true, true, null));
 

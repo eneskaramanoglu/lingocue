@@ -446,7 +446,8 @@ public partial class MainViewModel : ViewModelBase
         }
 
         var hardware = CurrentMedia is null ? [] : await _renderer.HardwareEncodersAsync();
-        var choice = await _dialogs.AskExportAsync(new ExportDialogViewModel(project, active, CurrentMedia, _fontCatalog, ProjectPath, hardware));
+        var burnInProblem = CurrentMedia is not null && !await _renderer.SupportsBurnInAsync() ? BurnInMissingMessage() : null;
+        var choice = await _dialogs.AskExportAsync(new ExportDialogViewModel(project, active, CurrentMedia, _fontCatalog, ProjectPath, hardware, burnInProblem));
         if (choice is null)
         {
             return;
@@ -1013,10 +1014,18 @@ public partial class MainViewModel : ViewModelBase
             $"{Path.GetFileName(info.FilePath)} · {video.DisplayWidth}×{video.DisplayHeight} · {video.FrameRate:0.##} fps · {video.Codec} · {audio} · {Timecode.Format(info.Duration)}");
     }
 
+    /// <summary>The installed FFmpeg lacks libass (the "ass" filter), so subtitles cannot be burned in.</summary>
+    private string BurnInMissingMessage() => _platform?.Platform switch
+    {
+        OsPlatform.MacOS => "Kurulu FFmpeg altyazı gömmeyi desteklemiyor (libass yok). Terminal'de çalıştırın: brew install ffmpeg-full — sonra uygulamayı yeniden başlatın.",
+        OsPlatform.Windows => "Kurulu FFmpeg altyazı gömmeyi desteklemiyor (libass yok). Tam sürümü kurun: winget install Gyan.FFmpeg — sonra uygulamayı yeniden başlatın.",
+        _ => "Kurulu FFmpeg altyazı gömmeyi desteklemiyor (libass yok). libass içeren bir FFmpeg kurun.",
+    };
+
     private string FfmpegMissingMessage() => _platform?.Platform switch
     {
         OsPlatform.Windows => "FFmpeg bulunamadı. Kurmak için PowerShell'de çalıştırın: winget install Gyan.FFmpeg — sonra uygulamayı yeniden başlatın.",
-        OsPlatform.MacOS => "FFmpeg bulunamadı. Kurmak için Terminal'de çalıştırın: brew install ffmpeg — sonra uygulamayı yeniden başlatın.",
+        OsPlatform.MacOS => "FFmpeg bulunamadı. Kurmak için Terminal'de çalıştırın: brew install ffmpeg-full — sonra uygulamayı yeniden başlatın.",
         _ => "FFmpeg bulunamadı. Paket yöneticinizle ffmpeg kurup uygulamayı yeniden başlatın.",
     };
 

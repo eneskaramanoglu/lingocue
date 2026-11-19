@@ -13,11 +13,14 @@
     <StackPanel Spacing="6">
       <RadioButton GroupName="kind" IsChecked="{Binding IsSubtitleFiles}"
                    Content="Altyazı dosyası (SRT / VTT / ASS) — Premiere Pro'ya veya YouTube'a yüklemek için" />
-      <RadioButton GroupName="kind" IsChecked="{Binding IsBurnIn}" IsEnabled="{Binding HasVideo}"
+      <RadioButton GroupName="kind" IsChecked="{Binding IsBurnIn}" IsEnabled="{Binding CanBurnIn}"
                    Content="Videoya göm (MP4) — altyazı görüntünün parçası olur, önizlemedeki gibi" />
       <RadioButton GroupName="kind" IsChecked="{Binding IsSoftSub}" IsEnabled="{Binding HasVideo}"
                    Content="Açılıp kapanabilen altyazılı video (MP4 / MKV) — video yeniden kodlanmaz, hızlıdır" />
     </StackPanel>
+
+    <TextBlock Text="{Binding BurnInProblem}" Classes="issues" TextWrapping="Wrap"
+               IsVisible="{Binding BurnInProblem, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
     <Separator />
 

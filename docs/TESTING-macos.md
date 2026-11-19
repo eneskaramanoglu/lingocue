@@ -164,7 +164,7 @@ Ilık bir rüzgâr esiyor,
 
 ## v0.2.0 — Video
 
-Prerequisite: `brew install ffmpeg` (the app does not bundle FFmpeg yet). From source also
+Prerequisite: `brew install ffmpeg-full` (the app does not bundle FFmpeg yet; the plain `ffmpeg` formula has no libass, so burn-in would be unavailable). From source also
 `brew install mpv`; the release `.app` bundles libmpv and must work **without** Homebrew mpv.
 
 Test video: any MP4 from your phone (portrait) and one landscape MP4/MOV/MKV. To generate one:
@@ -186,7 +186,7 @@ Test video: any MP4 from your phone (portrait) and one landscape MP4/MOV/MKV. To
       `dotnet run --project src/LingoCue.App -- test.mp4 --subtitle sample.ass` with any ASS file containing
       Turkish text (ğ ş ı İ); the subtitle renders with its style.
 - [ ] With FFmpeg uninstalled or unlinked (`brew unlink ffmpeg`), opening a video shows the banner
-      "FFmpeg bulunamadı … brew install ffmpeg" (re-link afterwards).
+      "FFmpeg bulunamadı … brew install ffmpeg-full" (re-link afterwards).
 - [ ] Log `~/Library/Logs/LingoCue/` shows "mpv context attached" and "Using ffmpeg at /opt/homebrew/bin/ffmpeg".
 
 ## v0.1.0 — Skeleton

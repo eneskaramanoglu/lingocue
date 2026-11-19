@@ -48,9 +48,10 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
 {
     public ExportDialogViewModel(
         Project project, SubtitleTrack activeTrack, MediaInfo? media, IFontCatalog? fonts, string? projectPath,
-        IReadOnlyList<HardwareEncoderStatus> hardware)
+        IReadOnlyList<HardwareEncoderStatus> hardware, string? burnInProblem = null)
     {
         HasVideo = media?.Video is not null;
+        BurnInProblem = burnInProblem;
         Tracks = [.. project.Tracks.Where(t => t.Cues.Count > 0).Select(t => new TrackChoice(t, t == activeTrack))];
         BurnTrack = Tracks.FirstOrDefault(t => t.Track == activeTrack)?.Track ?? Tracks.FirstOrDefault()?.Track;
         foreach (var choice in Tracks)
@@ -103,6 +104,11 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
     }
 
     public bool HasVideo { get; }
+
+    /// <summary>Why burn-in is unavailable (FFmpeg without libass), with the fix; null when it works.</summary>
+    public string? BurnInProblem { get; }
+
+    public bool CanBurnIn => HasVideo && BurnInProblem is null;
 
     public ObservableCollection<TrackChoice> Tracks { get; }
 
@@ -199,7 +205,7 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
     public bool CanStart => Kind switch
     {
         ExportKind.SubtitleFiles => Tracks.Any(t => t.IsSelected),
-        ExportKind.BurnIn => HasVideo && BurnTrack is not null,
+        ExportKind.BurnIn => CanBurnIn && BurnTrack is not null,
         _ => HasVideo && Tracks.Any(t => t.IsSelected),
     };
 

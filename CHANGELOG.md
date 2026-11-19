@@ -33,6 +33,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 - "Altyazı Dışa Aktar" (SRT/VTT/ASS submenu) is replaced by the export dialog.
+- **macOS needs `brew install ffmpeg-full`** instead of `brew install ffmpeg`: Homebrew's plain
+  `ffmpeg` no longer includes libass, which burning in subtitles needs. LingoCue prefers
+  `ffmpeg-full` when both are installed. With an FFmpeg without libass, the export dialog disables
+  "Videoya göm" and explains what to install.
 
 ## [0.6.0] - 2026-11-19
 

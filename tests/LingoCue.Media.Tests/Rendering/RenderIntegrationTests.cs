@@ -77,6 +77,7 @@ public sealed class RenderIntegrationTests(TestMedia media) : IClassFixture<Test
     {
         var ct = TestContext.Current.CancellationToken;
         var (renderer, probe, runner, tools) = Create();
+        (await renderer.SupportsBurnInAsync(ct)).ShouldBeTrue("this FFmpeg has no libass; on macOS install ffmpeg-full");
         var source = await probe.ProbeAsync(media.LandscapeClip, ct);
         var output = Path.Combine(OutputDir(), "Gömülü film.mp4");
         var reports = new List<RenderProgress>();
