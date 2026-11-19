@@ -31,6 +31,9 @@ public static class ProjectSerializer
 {
     private static readonly JsonSerializerOptions s_options = CreateOptions();
 
+    /// <summary>Shared JSON options (camelCase, ms times, #RRGGBB colors), also used for style templates.</summary>
+    internal static JsonSerializerOptions Options => s_options;
+
     public static string Serialize(Project project, string? projectPath = null)
     {
         ArgumentNullException.ThrowIfNull(project);
