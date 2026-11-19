@@ -15,8 +15,21 @@ public enum UnsavedChangesChoice
     Cancel,
 }
 
+public enum ImportMode
+{
+    AddTrack,
+    Replace,
+    Cancel,
+}
+
 public interface IDialogService
 {
+    /// <summary>A subtitle file is imported into a project that already has lines.</summary>
+    Task<ImportMode> AskImportModeAsync(string fileName, string trackName, int existingLines);
+
+    /// <summary>The tracks window (rename, language, order, duplicate, delete, timing sync).</summary>
+    Task ShowTracksAsync(TracksViewModel viewModel);
+
     Task<UnsavedChangesChoice> AskUnsavedChangesAsync(string documentName);
 
     Task<bool> ConfirmAsync(string title, string message, string confirmText, string cancelText = "Vazgeç");
@@ -59,6 +72,23 @@ internal sealed class DialogService : IDialogService
         => Owner() is { } owner
             ? await new CorrectDialog { DataContext = viewModel }.ShowDialog<CorrectOptions?>(owner)
             : null;
+
+    public Task<ImportMode> AskImportModeAsync(string fileName, string trackName, int existingLines)
+        => ShowAsync(
+            "Altyazı içe aktar",
+            $"\"{fileName}\" nasıl eklensin? \"{trackName}\" izinde {existingLines} satır var.",
+            ImportMode.Cancel,
+            ("Yeni iz olarak ekle", ImportMode.AddTrack, true),
+            ("Mevcut izi değiştir", ImportMode.Replace, false),
+            ("Vazgeç", ImportMode.Cancel, false));
+
+    public async Task ShowTracksAsync(TracksViewModel viewModel)
+    {
+        if (Owner() is { } owner)
+        {
+            await new TracksDialog { DataContext = viewModel }.ShowDialog(owner);
+        }
+    }
 
     public async Task<TranslateOptions?> AskTranslateOptionsAsync(TranslateDialogViewModel viewModel)
         => Owner() is { } owner

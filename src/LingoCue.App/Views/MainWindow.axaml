@@ -49,6 +49,8 @@
         <MenuItem Header="_Transkribe Et…" InputGesture="Ctrl+T" Command="{Binding TranscribeCommand}" />
         <MenuItem Header="_Düzelt…" Command="{Binding CorrectCommand}" />
         <MenuItem Header="Çe_vir…" Command="{Binding TranslateCommand}" />
+        <Separator />
+        <MenuItem Header="_İzler…" Command="{Binding ManageTracksCommand}" />
         <MenuItem Header="_Sözlük ve Bağlam…" Command="{Binding EditGlossaryCommand}" />
       </MenuItem>
       <MenuItem Header="A_yarlar">
@@ -205,8 +207,10 @@
       <!-- Cue list + editor -->
       <Border Grid.Column="2" Classes="panel" Padding="0">
        <DockPanel>
-        <!-- Track selector (full track management in M7) -->
-        <DockPanel DockPanel.Dock="Top" Margin="8,6,8,0" IsVisible="{Binding HasSeveralTracks}">
+        <!-- Track selector; "İzler…" opens track management. -->
+        <DockPanel DockPanel.Dock="Top" Margin="8,6,8,0" IsVisible="{Binding HasProject}">
+          <Button DockPanel.Dock="Right" Content="İzler…" Command="{Binding ManageTracksCommand}" Margin="6,0,0,0" Focusable="False"
+                  ToolTip.Tip="İzleri yönet: ad, dil, sıra, çoğalt, sil, zamanlamayı kaynaktan al" />
           <TextBlock Text="İz" VerticalAlignment="Center" Margin="0,0,8,0" Classes="muted" />
           <ComboBox ItemsSource="{Binding Tracks}" SelectedItem="{Binding SelectedTrack}" HorizontalAlignment="Stretch" Focusable="False">
             <ComboBox.ItemTemplate>

@@ -130,7 +130,7 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Title))]
     [NotifyPropertyChangedFor(nameof(HasProject))]
-    [NotifyCanExecuteChangedFor(nameof(SaveProjectCommand), nameof(SaveProjectAsCommand), nameof(ExportCommand), nameof(EditGlossaryCommand), nameof(CorrectCommand), nameof(TranslateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveProjectCommand), nameof(SaveProjectAsCommand), nameof(ExportCommand), nameof(EditGlossaryCommand), nameof(ManageTracksCommand), nameof(CorrectCommand), nameof(TranslateCommand))]
     public partial Project? Project { get; private set; }
 
     [ObservableProperty]
@@ -361,25 +361,36 @@ public partial class MainViewModel : ViewModelBase
         }
 
         var track = project.EnsureActiveTrack();
-        if (track.Cues.Count > 0 && _dialogs is not null &&
-            !await _dialogs.ConfirmAsync("Altyazıyı değiştir", $"Mevcut {track.Cues.Count} satır, \"{Path.GetFileName(path)}\" içeriğiyle değiştirilecek.", "Değiştir"))
+        var mode = track.Cues.Count == 0 || _dialogs is null
+            ? ImportMode.Replace
+            : await _dialogs.AskImportModeAsync(Path.GetFileName(path), track.Name, track.Cues.Count);
+        if (mode == ImportMode.Cancel)
         {
             return;
         }
 
-        track.Cues.Clear();
-        track.Cues.AddRange(result.Document.Cues);
-        track.Sort();
-        track.Renumber();
-
-        // An imported ASS brings its look along (scaled to our 1080 reference).
-        if ((result.Document.Styles.FirstOrDefault(s => s.Name == "Default") ?? result.Document.Styles.FirstOrDefault()) is { } style)
+        if (mode == ImportMode.AddTrack)
         {
-            project.Style = AssScriptBuilder.NormalizeStyle(style, result.Document.ScriptInfo?.PlayResY ?? AssScriptBuilder.ReferenceHeight) with { Name = "Default" };
+            // A second language (e.g. an English SRT) next to the existing tracks; the project style stays.
+            track = TrackOperations.AddImported(project, result.Document.Cues, Path.GetFileName(path));
+            RefreshTracks();
         }
+        else
+        {
+            track.Cues.Clear();
+            track.Cues.AddRange(result.Document.Cues);
+            track.Sort();
+            track.Renumber();
 
-        Editor?.Load(track, SourceOf(track));
-        StyleEditor?.Load(Project, track, ProjectPath);
+            // An imported ASS brings its look along (scaled to our 1080 reference).
+            if ((result.Document.Styles.FirstOrDefault(s => s.Name == "Default") ?? result.Document.Styles.FirstOrDefault()) is { } style)
+            {
+                project.Style = AssScriptBuilder.NormalizeStyle(style, result.Document.ScriptInfo?.PlayResY ?? AssScriptBuilder.ReferenceHeight) with { Name = "Default" };
+            }
+
+            Editor?.Load(track, SourceOf(track));
+            StyleEditor?.Load(Project, track, ProjectPath);
+        }
         MarkDirty();
         RefreshPreview(immediate: true);
 
@@ -732,6 +743,25 @@ public partial class MainViewModel : ViewModelBase
     }
 
     // ---------------------------------------------------------------- glossary / correction
+
+    [RelayCommand(CanExecute = nameof(HasProject))]
+    private async Task ManageTracks()
+    {
+        if (_dialogs is null || Project is not { } project)
+        {
+            return;
+        }
+
+        var tracks = new TracksViewModel(project, _dialogs);
+        await _dialogs.ShowTracksAsync(tracks);
+        if (tracks.Changed)
+        {
+            project.EnsureActiveTrack();
+            RefreshTracks();
+            MarkDirty();
+            RefreshPreview(immediate: true);
+        }
+    }
 
     [RelayCommand(CanExecute = nameof(HasProject))]
     private async Task EditGlossary()
