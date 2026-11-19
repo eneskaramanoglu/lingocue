@@ -21,6 +21,31 @@ public sealed class PlatformInfo : IPlatformInfo
         RuntimeIdentifier = RuntimeInformation.RuntimeIdentifier;
         (AppDataDirectory, LogDirectory) = ResolveDirectories(platform, userHome);
         ToolSearchDirectories = ResolveToolDirectories(platform, userHome, AppDataDirectory);
+        FontDirectories = ResolveFontDirectories(platform, userHome);
+    }
+
+    public IReadOnlyList<string> FontDirectories { get; }
+
+    private static string[] ResolveFontDirectories(OsPlatform platform, string userHome)
+    {
+        switch (platform)
+        {
+            case OsPlatform.Windows:
+                var windows = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                if (string.IsNullOrEmpty(localAppData))
+                {
+                    localAppData = Path.Combine(userHome, "AppData", "Local");
+                }
+
+                return [string.IsNullOrEmpty(windows) ? @"C:\Windows\Fonts" : windows, Path.Combine(localAppData, "Microsoft", "Windows", "Fonts")];
+
+            case OsPlatform.MacOS:
+                return ["/System/Library/Fonts", "/System/Library/Fonts/Supplemental", "/Library/Fonts", Path.Combine(userHome, "Library", "Fonts")];
+
+            default:
+                return ["/usr/share/fonts", "/usr/local/share/fonts", Path.Combine(userHome, ".local", "share", "fonts"), Path.Combine(userHome, ".fonts")];
+        }
     }
 
     public OsPlatform Platform { get; }

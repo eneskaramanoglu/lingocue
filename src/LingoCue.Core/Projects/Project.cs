@@ -19,8 +19,11 @@ public sealed class Project
 
     public Guid? ActiveTrackId { get; set; }
 
-    /// <summary>Style used for preview and burn-in until the style editor (M5) adds more.</summary>
+    /// <summary>Main ASS style used for preview, ASS export and burn-in.</summary>
     public SubtitleStyle Style { get; set; } = new();
+
+    /// <summary>Upper case, fades, karaoke and bilingual mode (applied when building the ASS script).</summary>
+    public PresentationOptions Presentation { get; set; } = new();
 
     /// <summary>Script resolution for ASS output; follows the video size when known.</summary>
     public AssScriptInfo ScriptInfo { get; set; } = new();

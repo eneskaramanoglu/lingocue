@@ -20,6 +20,13 @@ public interface IFilePickerService
     Task<string?> SaveProjectAsync(string suggestedName);
 
     Task<string?> SaveSubtitleAsync(ISubtitleFormat format, string suggestedName);
+
+    Task<string?> PickStyleTemplateAsync();
+
+    Task<string?> SaveStyleTemplateAsync(string suggestedName);
+
+    /// <summary>A TrueType/OpenType font file to add to the project.</summary>
+    Task<string?> PickFontAsync();
 }
 
 internal sealed class FilePickerService : IFilePickerService
@@ -43,7 +50,27 @@ internal sealed class FilePickerService : IFilePickerService
         AppleUniformTypeIdentifiers = ["public.text", "public.data"],
     };
 
+    private static readonly FilePickerFileType s_template = new("LingoCue stil şablonu (JSON)")
+    {
+        Patterns = ["*.json"],
+        AppleUniformTypeIdentifiers = ["public.json"],
+        MimeTypes = ["application/json"],
+    };
+
+    private static readonly FilePickerFileType s_font = new("Font (TTF, OTF)")
+    {
+        Patterns = ["*.ttf", "*.otf", "*.ttc"],
+        AppleUniformTypeIdentifiers = ["public.truetype-ttf-font", "public.opentype-font", "public.font"],
+    };
+
     public Task<string?> PickVideoAsync() => OpenAsync("Video aç", s_video);
+
+    public Task<string?> PickStyleTemplateAsync() => OpenAsync("Stil şablonu içe aktar", s_template);
+
+    public Task<string?> SaveStyleTemplateAsync(string suggestedName)
+        => SaveAsync("Stil şablonunu dışa aktar", suggestedName, ".json", s_template);
+
+    public Task<string?> PickFontAsync() => OpenAsync("Font dosyası ekle", s_font);
 
     public Task<string?> PickProjectAsync() => OpenAsync("Proje aç", s_project);
 

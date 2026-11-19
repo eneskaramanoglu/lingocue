@@ -1,0 +1,181 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LingoCue.App.ViewModels"
+             xmlns:views="using:LingoCue.App.Views"
+             xmlns:proj="using:LingoCue.Core.Projects"
+             xmlns:sub="using:LingoCue.Core.Subtitles"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="900"
+             x:Class="LingoCue.App.Views.StyleEditorView"
+             x:DataType="vm:StyleEditorViewModel">
+
+  <!-- Every control writes straight to the project; the video preview (libass) shows the result. -->
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="10,8" Spacing="10" IsEnabled="{Binding HasProject}">
+
+      <!-- Templates -->
+      <StackPanel Spacing="6">
+        <TextBlock Text="Şablon" FontWeight="SemiBold" />
+        <ComboBox ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplate}" HorizontalAlignment="Stretch">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="proj:StyleTemplate">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="{Binding Name}" />
+                <TextBlock Text="· hazır" Classes="muted" IsVisible="{Binding BuiltIn}" />
+              </StackPanel>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <WrapPanel ItemSpacing="6" LineSpacing="6">
+          <Button Content="Uygula" Classes="accent" Command="{Binding ApplyTemplateCommand}"
+                  ToolTip.Tip="Seçili şablonun görünümünü projeye uygula" />
+          <Button Content="Şablon olarak kaydet…" Command="{Binding SaveTemplateCommand}"
+                  ToolTip.Tip="Şu anki görünümü tüm projelerde kullanmak üzere kaydet" />
+          <Button Content="İçe aktar…" Command="{Binding ImportTemplateCommand}" />
+          <Button Content="Dışa aktar…" Command="{Binding ExportTemplateCommand}" />
+          <Button Content="Sil" Command="{Binding DeleteTemplateCommand}" ToolTip.Tip="Yalnızca kendi şablonlarınız silinebilir" />
+        </WrapPanel>
+      </StackPanel>
+
+      <!-- Text -->
+      <Expander Header="Yazı" IsExpanded="True" HorizontalAlignment="Stretch">
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+          <TextBlock Text="Font" VerticalAlignment="Center" />
+          <DockPanel Grid.Column="1">
+            <Button DockPanel.Dock="Right" Content="Font dosyası ekle…" Command="{Binding AddFontCommand}" Margin="6,0,0,0"
+                    ToolTip.Tip="TTF/OTF dosyasını projenin yanındaki fonts klasörüne kopyalar; önizleme ve video bu fontu kullanır, proje başka bilgisayara taşındığında da çalışır" />
+            <AutoCompleteBox ItemsSource="{Binding Fonts}" Text="{Binding FontName}" FilterMode="ContainsOrdinal"
+                             MinimumPrefixLength="0" MaxDropDownHeight="320" />
+          </DockPanel>
+          <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding FontWarning}" TextWrapping="Wrap"
+                     Classes.muted="{Binding !IsFontWarningSevere}" Classes.issues="{Binding IsFontWarningSevere}"
+                     IsVisible="{Binding FontWarning, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+          <TextBlock Grid.Row="2" Text="Boyut" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding FontSize}" Minimum="8" Maximum="300" Increment="2" FormatString="0.#" />
+
+          <WrapPanel Grid.Row="3" Grid.Column="1" ItemSpacing="12">
+            <CheckBox Content="Kalın" IsChecked="{Binding Bold}" />
+            <CheckBox Content="İtalik" IsChecked="{Binding Italic}" />
+            <CheckBox Content="Altı çizili" IsChecked="{Binding Underline}" />
+          </WrapPanel>
+
+          <TextBlock Grid.Row="4" Text="Harf aralığı" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Value="{Binding Spacing}" Minimum="-10" Maximum="40" Increment="0.5" FormatString="0.#" />
+
+          <CheckBox Grid.Row="5" Grid.Column="1" Content="BÜYÜK HARF (Türkçe kurallarıyla: i → İ)" IsChecked="{Binding UpperCase}" />
+        </Grid>
+      </Expander>
+
+      <!-- Colors and border -->
+      <Expander Header="Renk ve kenarlık" IsExpanded="True" HorizontalAlignment="Stretch">
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+          <TextBlock Text="Yazı rengi" VerticalAlignment="Center" />
+          <ColorPicker Grid.Column="1" Color="{Binding PrimaryColor}" HorizontalAlignment="Left" />
+
+          <TextBlock Grid.Row="1" Text="Kenarlık" VerticalAlignment="Center" />
+          <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="12">
+            <RadioButton GroupName="border" Content="Kontur" IsChecked="{Binding !UseBox}" />
+            <RadioButton GroupName="border" Content="Arka plan kutusu" IsChecked="{Binding UseBox}" />
+          </StackPanel>
+
+          <TextBlock Grid.Row="2" Text="{Binding OutlineLabel}" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding Outline}" Minimum="0" Maximum="50" Increment="0.5" FormatString="0.#" />
+
+          <TextBlock Grid.Row="3" Text="{Binding OutlineColorLabel}" VerticalAlignment="Center" />
+          <ColorPicker Grid.Row="3" Grid.Column="1" Color="{Binding OutlineColor}" HorizontalAlignment="Left" />
+
+          <TextBlock Grid.Row="4" Text="Gölge" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Value="{Binding Shadow}" Minimum="0" Maximum="50" Increment="0.5" FormatString="0.#" />
+
+          <TextBlock Grid.Row="5" Text="Gölge rengi" VerticalAlignment="Center" />
+          <ColorPicker Grid.Row="5" Grid.Column="1" Color="{Binding ShadowColor}" HorizontalAlignment="Left" />
+        </Grid>
+      </Expander>
+
+      <!-- Position: a 3×3 grid laid out like the screen (numpad numbering of ASS). -->
+      <Expander Header="Konum" IsExpanded="True" HorizontalAlignment="Stretch">
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+          <TextBlock Text="Hizalama" VerticalAlignment="Top" Margin="0,6,0,0" />
+          <UniformGrid Grid.Column="1" Columns="3" Rows="3" Width="132" HorizontalAlignment="Left">
+            <RadioButton Classes="align" GroupName="align" Content="↖" ToolTip.Tip="Üst sol" IsChecked="{Binding Alignment, Converter={x:Static views:EqualsConverter.Instance}, ConverterParameter=7}" />
+            <RadioButton Classes="align" GroupName="align" Content="↑" ToolTip.Tip="Üst orta" IsChecked="{Binding Alignment, Converter={x:Static views:EqualsConverter.Instance}, ConverterParameter=8}" />
+            <RadioButton Classes="align" GroupName="align" Content="↗" ToolTip.Tip="Üst sağ" IsChecked="{Binding Alignment, Converter={x:Static views:EqualsConverter.Instance}, ConverterParameter=9}" />
+            <RadioButton Classes="align" GroupName="align" Content="←" ToolTip.Tip="Orta sol" IsChecked="{Binding Alignment, Converter={x:Static views:EqualsConverter.Instance}, ConverterParameter=4}" />
+            <RadioButton Classes="align" GroupName="align" Content="•" ToolTip.Tip="Tam orta" IsChecked="{Binding Alignment, Converter={x:Static views:EqualsConverter.Instance}, ConverterParameter=5}" />
+            <RadioButton Classes="align" GroupName="align" Content="→" ToolTip.Tip="Orta sağ" IsChecked="{Binding Alignment, Converter={x:Static views:EqualsConverter.Instance}, ConverterParameter=6}" />
+            <RadioButton Classes="align" GroupName="align" Content="↙" ToolTip.Tip="Alt sol" IsChecked="{Binding Alignment, Converter={x:Static views:EqualsConverter.Instance}, ConverterParameter=1}" />
+            <RadioButton Classes="align" GroupName="align" Content="↓" ToolTip.Tip="Alt orta (en yaygın)" IsChecked="{Binding Alignment, Converter={x:Static views:EqualsConverter.Instance}, ConverterParameter=2}" />
+            <RadioButton Classes="align" GroupName="align" Content="↘" ToolTip.Tip="Alt sağ" IsChecked="{Binding Alignment, Converter={x:Static views:EqualsConverter.Instance}, ConverterParameter=3}" />
+          </UniformGrid>
+
+          <TextBlock Grid.Row="1" Text="Alt/üst boşluk" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding MarginV}" Minimum="0" Maximum="1500" Increment="5" FormatString="0" />
+
+          <TextBlock Grid.Row="2" Text="Sol boşluk" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding MarginL}" Minimum="0" Maximum="1500" Increment="5" FormatString="0" />
+
+          <TextBlock Grid.Row="3" Text="Sağ boşluk" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding MarginR}" Minimum="0" Maximum="1500" Increment="5" FormatString="0" />
+
+          <CheckBox Grid.Row="4" Grid.Column="1" Content="Güvenli alan kılavuzlarını göster" IsChecked="{Binding ShowSafeArea}"
+                    ToolTip.Tip="Beyaz: aksiyon güvenli alanı (%93), sarı: başlık güvenli alanı (%90). Yalnızca önizlemede görünür, videoya yazılmaz." />
+        </Grid>
+      </Expander>
+
+      <!-- Effects -->
+      <Expander Header="Efektler" HorizontalAlignment="Stretch">
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+          <TextBlock Text="Belirme (ms)" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Column="1" Value="{Binding FadeIn}" Minimum="0" Maximum="5000" Increment="50" FormatString="0" />
+          <TextBlock Grid.Row="1" Text="Kaybolma (ms)" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding FadeOut}" Minimum="0" Maximum="5000" Increment="50" FormatString="0" />
+        </Grid>
+      </Expander>
+
+      <!-- Karaoke -->
+      <Expander Header="Kelime kelime vurgulama (karaoke)" HorizontalAlignment="Stretch">
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+          <TextBlock Text="Mod" VerticalAlignment="Center" />
+          <ComboBox Grid.Column="1" ItemsSource="{Binding KaraokeChoices}" SelectedItem="{Binding SelectedKaraoke}" HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:KaraokeChoice">
+                <TextBlock Text="{Binding Label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Grid.Row="1" Text="Vurgu rengi" VerticalAlignment="Center" />
+          <ColorPicker Grid.Row="1" Grid.Column="1" Color="{Binding HighlightColor}" HorizontalAlignment="Left" IsEnabled="{Binding IsKaraokeOn}" />
+          <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="{Binding KaraokeInfo}" Classes="muted" TextWrapping="Wrap" />
+        </Grid>
+      </Expander>
+
+      <!-- Bilingual -->
+      <Expander Header="İki dilli mod" HorizontalAlignment="Stretch">
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+          <CheckBox Grid.ColumnSpan="2" Content="Seçili izin altında ikinci bir iz göster" IsChecked="{Binding BilingualEnabled}" />
+          <TextBlock Grid.Row="1" Text="İkinci iz" VerticalAlignment="Center" />
+          <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding SecondaryTracks}" SelectedItem="{Binding SecondaryTrack}" HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="sub:SubtitleTrack">
+                <TextBlock>
+                  <Run Text="{Binding Name, Mode=OneWay}" />
+                  <Run Text="{Binding Language, StringFormat=' · {0}', Mode=OneWay}" Foreground="{DynamicResource MutedTextBrush}" />
+                </TextBlock>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Grid.Row="2" Text="Boyut" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding SecondaryFontSize}" Minimum="8" Maximum="300" Increment="2" FormatString="0.#" />
+          <TextBlock Grid.Row="3" Text="Renk" VerticalAlignment="Center" />
+          <ColorPicker Grid.Row="3" Grid.Column="1" Color="{Binding SecondaryColor}" HorizontalAlignment="Left" />
+          <TextBlock Grid.Row="4" Text="Aradaki boşluk" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Value="{Binding Gap}" Minimum="0" Maximum="300" Increment="2" FormatString="0" />
+          <TextBlock Grid.Row="5" Grid.ColumnSpan="2" Text="{Binding BilingualInfo}" Classes="muted" TextWrapping="Wrap"
+                     IsVisible="{Binding BilingualInfo, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        </Grid>
+      </Expander>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

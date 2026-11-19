@@ -78,6 +78,38 @@
     <Setter Property="TextDecorations" Value="Underline" />
   </Style>
 
+  <!-- Compact tab headers for the right panel (Fluent's default is display-sized). -->
+  <Style Selector="TabItem">
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="MinHeight" Value="34" />
+    <Setter Property="Padding" Value="10,0" />
+  </Style>
+
+  <!-- Alignment picker: radio buttons drawn as a 3×3 block of tiles; the checked tile is filled. -->
+  <Style Selector="RadioButton.align">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="MinWidth" Value="40" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="1" CornerRadius="4" Margin="2" Height="36">
+          <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  <Style Selector="RadioButton.align:pointerover">
+    <Setter Property="Background" Value="{DynamicResource PanelBorderBrush}" />
+  </Style>
+
+  <Style Selector="RadioButton.align:checked">
+    <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+    <Setter Property="Foreground" Value="White" />
+  </Style>
+
   <!-- Mark column: ● changed (accent), ! needs review (warning), ✕ LLM failed (error). -->
   <Style Selector="TextBlock.mark">
     <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />

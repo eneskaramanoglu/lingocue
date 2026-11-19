@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using LingoCue.App.Playback;
 using LingoCue.App.Services;
 using LingoCue.Core;
+using LingoCue.Core.Fonts;
 using LingoCue.Core.Formats;
 using LingoCue.Core.Platform;
 using LingoCue.Core.Projects;
@@ -53,6 +54,7 @@ public partial class MainViewModel : ViewModelBase
         SubtitlePreviewService preview,
         PlayerViewModel playerViewModel,
         SubtitleEditorViewModel editor,
+        StyleEditorViewModel styleEditor,
         IPlatformInfo platform,
         IEnumerable<ITranscriptionEngine> engines,
         ApiKeyProvider keys,
@@ -79,6 +81,13 @@ public partial class MainViewModel : ViewModelBase
         Player = playerViewModel;
         Editor = editor;
         Editor.Edited += (_, _) => OnEdited();
+        StyleEditor = styleEditor;
+        StyleEditor.FontAdded += (_, _) => UpdateFontsDirectory();
+        StyleEditor.Changed += (_, _) =>
+        {
+            MarkDirty();
+            RefreshPreview(immediate: false);
+        };
         PlatformText = platform.RuntimeIdentifier;
         SelectedTheme = themeService.Current;
     }
@@ -95,6 +104,15 @@ public partial class MainViewModel : ViewModelBase
     public PlayerViewModel? Player { get; }
 
     public SubtitleEditorViewModel? Editor { get; }
+
+    public StyleEditorViewModel? StyleEditor { get; }
+
+    /// <summary>Right panel tab: 0 = lines, 1 = style.</summary>
+    [ObservableProperty]
+    public partial int SelectedPanel { get; set; }
+
+    [RelayCommand]
+    private void ShowStyle() => SelectedPanel = 1;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Title))]
@@ -131,11 +149,16 @@ public partial class MainViewModel : ViewModelBase
     public partial string StatusText { get; set; } = "Hazır. Başlamak için bir video ya da proje açın veya sürükleyip bırakın.";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasMedia))]
+    [NotifyPropertyChangedFor(nameof(HasMedia), nameof(VideoWidth), nameof(VideoHeight))]
     [NotifyCanExecuteChangedFor(nameof(TranscribeCommand))]
     public partial MediaInfo? CurrentMedia { get; private set; }
 
     public bool HasMedia => CurrentMedia is not null;
+
+    /// <summary>Displayed picture size (for the safe-area guides).</summary>
+    public double VideoWidth => CurrentMedia?.Video?.DisplayWidth ?? 0;
+
+    public double VideoHeight => CurrentMedia?.Video?.DisplayHeight ?? 0;
 
     [ObservableProperty]
     public partial string? ErrorText { get; set; }
@@ -343,6 +366,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         Editor?.Load(track, SourceOf(track));
+        StyleEditor?.Load(Project, track, ProjectPath);
         MarkDirty();
         RefreshPreview(immediate: true);
 
@@ -390,6 +414,8 @@ public partial class MainViewModel : ViewModelBase
         }
 
         ProjectPath = path;
+        UpdateFontsDirectory();
+        StyleEditor?.Load(Project, Project?.ActiveTrack, path);
         IsDirty = false;
         OnPropertyChanged(nameof(DocumentName));
         StatusText = $"Kaydedildi: {path}";
@@ -727,6 +753,7 @@ public partial class MainViewModel : ViewModelBase
 
         Project.ActiveTrackId = value.Id;
         Editor?.Load(value, SourceOf(value));
+        StyleEditor?.Load(Project, value, ProjectPath);
         RefreshPreview(immediate: true);
     }
 
@@ -748,6 +775,7 @@ public partial class MainViewModel : ViewModelBase
 
             SelectedTrack = Project?.ActiveTrack;
             Editor?.Load(Project?.ActiveTrack, SourceOf(Project?.ActiveTrack));
+            StyleEditor?.Load(Project, Project?.ActiveTrack, ProjectPath);
         }
         finally
         {
@@ -757,10 +785,13 @@ public partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasSeveralTracks));
     }
 
+    private void UpdateFontsDirectory() => _player?.SetFontsDirectory(FontCatalog.ProjectFontDirectory(ProjectPath));
+
     private void SetProject(Project project, string? projectPath)
     {
         Project = project;
         ProjectPath = projectPath;
+        UpdateFontsDirectory();
         IsDirty = false;
         if (project.VideoPath is null)
         {
