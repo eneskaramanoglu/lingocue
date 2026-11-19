@@ -54,6 +54,66 @@ public static class SubtitleText
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Applies <paramref name="map"/> to the visible runs of <paramref name="text"/>, leaving ASS
+    /// override blocks and simple HTML tags untouched (e.g. upper-casing without breaking <c>{\i1}</c>).
+    /// </summary>
+    public static string MapVisible(string text, Func<string, string> map)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(map);
+        var sb = new StringBuilder(text.Length);
+        var run = new StringBuilder();
+        var i = 0;
+        while (i < text.Length)
+        {
+            var tagEnd = TagEndAt(text, i);
+            if (tagEnd < 0)
+            {
+                run.Append(text[i]);
+                i++;
+                continue;
+            }
+
+            Flush();
+            sb.Append(text, i, tagEnd - i + 1);
+            i = tagEnd + 1;
+        }
+
+        Flush();
+        return sb.ToString();
+
+        void Flush()
+        {
+            if (run.Length > 0)
+            {
+                sb.Append(map(run.ToString()));
+                run.Clear();
+            }
+        }
+    }
+
+    /// <summary>Index of the closing character when a tag starts at <paramref name="i"/>; otherwise -1.</summary>
+    private static int TagEndAt(string text, int i)
+    {
+        if (text[i] == '{' && i + 1 < text.Length && text[i + 1] == '\\')
+        {
+            var close = text.IndexOf('}', i);
+            return close < 0 ? text.Length - 1 : close;
+        }
+
+        if (text[i] == '<')
+        {
+            var close = text.IndexOf('>', i);
+            if (close > i && IsSimpleTag(text.AsSpan(i + 1, close - i - 1)))
+            {
+                return close;
+            }
+        }
+
+        return -1;
+    }
+
     /// <summary>Characters a viewer reads: no tags, no line breaks.</summary>
     public static int VisibleLength(string text)
         => StripTags(text).Count(c => c is not ('\n' or '\r'));

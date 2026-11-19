@@ -1,5 +1,7 @@
+using System.Globalization;
 using LingoCue.Core.Projects;
 using LingoCue.Core.Subtitles;
+using LingoCue.Core.Text;
 
 namespace LingoCue.Core.Formats;
 
@@ -32,28 +34,69 @@ public static class AssScriptBuilder
         return ((int)Math.Round(ReferenceHeight * (double)videoWidth / videoHeight), ReferenceHeight);
     }
 
+    /// <summary>Name of the main style in generated scripts.</summary>
+    public const string MainStyleName = "Default";
+
     public static SubtitleDocument BuildDocument(Project project, SubtitleTrack track, int videoWidth = 0, int videoHeight = 0)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(track);
         var (x, y) = PlayResFor(videoWidth, videoHeight);
-        var style = project.Style with { Name = "Default" };
+        var presentation = project.Presentation;
+        var main = project.Style with { Name = MainStyleName };
+
+        var events = new List<Cue>();
+        foreach (var cue in track.Cues.Where(c => c.End > c.Start))
+        {
+            // Every cue uses the project style; layer and margins of imported cues are kept.
+            var text = Decorate(cue.Text, presentation, CultureFor(track.Language));
+            events.Add(Event(cue, text, cue.Start, cue.End, cue.Format with { Style = null }));
+        }
 
         return new SubtitleDocument
         {
             ScriptInfo = project.ScriptInfo with { PlayResX = x, PlayResY = y, Title = project.ScriptInfo.Title ?? "LingoCue" },
-            Styles = [style],
-            Cues = [.. track.Cues.Where(c => c.End > c.Start).Select(UseProjectStyle)],
+            Styles = [main],
+            Cues = events,
         };
+    }
 
-        // Until the style editor supports several styles, every cue uses the project style.
-        static Cue UseProjectStyle(Cue cue)
+    /// <summary>Applies upper case and fades to a cue's model text (tags are kept).</summary>
+    internal static string Decorate(string text, PresentationOptions presentation, CultureInfo culture)
+    {
+        if (presentation.UpperCase)
         {
-            var copy = cue.Clone();
-            copy.Format = copy.Format with { Style = null };
-            return copy;
+            text = SubtitleText.MapVisible(text, s => s.ToUpper(culture));
+        }
+
+        return FadeTag(presentation.FadeInMs, presentation.FadeOutMs) + text;
+    }
+
+    internal static string FadeTag(int inMs, int outMs)
+        => inMs > 0 || outMs > 0
+            ? string.Create(CultureInfo.InvariantCulture, $@"{{\fad({Math.Max(0, inMs)},{Math.Max(0, outMs)})}}")
+            : string.Empty;
+
+    /// <summary>Culture for casing a track's text; Turkish rules for <c>tr</c> (i → İ).</summary>
+    internal static CultureInfo CultureFor(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language) || language.StartsWith("tr", StringComparison.OrdinalIgnoreCase))
+        {
+            return TurkishText.Culture;
+        }
+
+        try
+        {
+            return CultureInfo.GetCultureInfo(language);
+        }
+        catch (CultureNotFoundException)
+        {
+            return TurkishText.Culture;
         }
     }
+
+    private static Cue Event(Cue source, string text, TimeSpan start, TimeSpan end, CueFormatData format)
+        => new(source.Id, start, end, text) { Speaker = source.Speaker, Marks = source.Marks, Format = format };
 
     public static string Build(Project project, SubtitleTrack track, int videoWidth = 0, int videoHeight = 0)
         => SubtitleFormats.Ass.Write(BuildDocument(project, track, videoWidth, videoHeight));
