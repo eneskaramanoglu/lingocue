@@ -31,6 +31,8 @@ public interface IDialogService
 
     Task<CorrectOptions?> AskCorrectOptionsAsync(CorrectDialogViewModel viewModel);
 
+    Task<ExportChoice?> AskExportAsync(ExportDialogViewModel viewModel);
+
     /// <summary>Asks for a short text (e.g. a template name); null when cancelled or empty.</summary>
     Task<string?> AskTextAsync(string title, string message, string initial, string confirmText);
 
@@ -54,6 +56,11 @@ internal sealed class DialogService : IDialogService
     public async Task<CorrectOptions?> AskCorrectOptionsAsync(CorrectDialogViewModel viewModel)
         => Owner() is { } owner
             ? await new CorrectDialog { DataContext = viewModel }.ShowDialog<CorrectOptions?>(owner)
+            : null;
+
+    public async Task<ExportChoice?> AskExportAsync(ExportDialogViewModel viewModel)
+        => Owner() is { } owner
+            ? await new ExportDialog { DataContext = viewModel }.ShowDialog<ExportChoice?>(owner)
             : null;
 
     public async Task<string?> AskTextAsync(string title, string message, string initial, string confirmText)

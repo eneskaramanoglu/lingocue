@@ -41,14 +41,14 @@ public partial class MainWindow : Window
     protected override async void OnClosing(WindowClosingEventArgs e)
     {
         base.OnClosing(e);
-        if (_closeConfirmed || ViewModel is not { IsDirty: true } vm)
+        if (_closeConfirmed || ViewModel is not { } vm || (!vm.IsDirty && vm.RenderQueue is not { IsBusy: true }))
         {
             return;
         }
 
         // Ask asynchronously, then close again if the user did not cancel.
         e.Cancel = true;
-        if (await vm.ConfirmDiscardChangesAsync())
+        if (await vm.ConfirmCloseAsync())
         {
             _closeConfirmed = true;
             Close();

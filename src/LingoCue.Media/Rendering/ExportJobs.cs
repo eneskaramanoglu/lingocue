@@ -97,7 +97,7 @@ public static class ExportJobs
         return track.Kind == TrackKind.Source || string.IsNullOrWhiteSpace(track.Name) ? language : $"{language} ({track.Name})";
     }
 
-    internal static IReadOnlyList<string> Warnings(MediaInfo media)
+    public static IReadOnlyList<string> Warnings(MediaInfo media)
         => media.Video is { } video && (video.IsHdr || video.IsHighBitDepth)
             ? ["Kaynak video HDR/10-bit. Çıktı 8-bit SDR H.264 olur; renkler biraz soluk görünebilir."]
             : [];

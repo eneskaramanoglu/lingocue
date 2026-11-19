@@ -26,6 +26,8 @@
     <KeyBinding Gesture="Ctrl+I" Command="{Binding ImportSubtitleCommand}" />
     <KeyBinding Gesture="Meta+I" Command="{Binding ImportSubtitleCommand}" />
     <KeyBinding Gesture="Ctrl+T" Command="{Binding TranscribeCommand}" />
+    <KeyBinding Gesture="Ctrl+E" Command="{Binding ExportCommand}" />
+    <KeyBinding Gesture="Meta+E" Command="{Binding ExportCommand}" />
     <KeyBinding Gesture="Meta+T" Command="{Binding TranscribeCommand}" />
   </Window.KeyBindings>
 
@@ -41,11 +43,7 @@
         <MenuItem Header="_Farklı Kaydet…" InputGesture="Ctrl+Shift+S" Command="{Binding SaveProjectAsCommand}" />
         <Separator />
         <MenuItem Header="Altyazı _İçe Aktar…" InputGesture="Ctrl+I" Command="{Binding ImportSubtitleCommand}" />
-        <MenuItem Header="Altyazı _Dışa Aktar">
-          <MenuItem Header="SRT (Premiere Pro)…" Command="{Binding ExportSubtitleCommand}" CommandParameter="srt" />
-          <MenuItem Header="WebVTT…" Command="{Binding ExportSubtitleCommand}" CommandParameter="vtt" />
-          <MenuItem Header="ASS (stilli)…" Command="{Binding ExportSubtitleCommand}" CommandParameter="ass" />
-        </MenuItem>
+        <MenuItem Header="_Dışa Aktar…" InputGesture="Ctrl+E" Command="{Binding ExportCommand}" />
       </MenuItem>
       <MenuItem Header="_Altyazı">
         <MenuItem Header="_Transkribe Et…" InputGesture="Ctrl+T" Command="{Binding TranscribeCommand}" />
@@ -76,7 +74,7 @@
           <Button Content="Düzelt" Command="{Binding CorrectCommand}" ToolTip.Tip="Yapay zekâ ile tanıma hatalarını düzelt" />
           <Button Content="Çevir" IsEnabled="False" ToolTip.Tip="M7" />
           <Button Content="Stil" Command="{Binding ShowStyleCommand}" ToolTip.Tip="Altyazının görünümü: font, renk, konum, şablonlar, karaoke, iki dilli mod" />
-          <Button Content="Dışa Aktar" IsEnabled="False" ToolTip.Tip="M6 (şimdilik Dosya → Altyazı Dışa Aktar)" />
+          <Button Content="Dışa Aktar" Command="{Binding ExportCommand}" ToolTip.Tip="Altyazı dosyası, altyazısı gömülü video veya açılıp kapanabilen altyazılı video (Ctrl/⌘+E)" />
         </StackPanel>
       </DockPanel>
     </Border>
@@ -90,6 +88,44 @@
                        IsIndeterminate="{Binding IsProgressIndeterminate}" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
           <Button Content="İptal" Command="{Binding CancelJobCommand}" IsVisible="{Binding CanCancel}"
                   Padding="10,2" Focusable="False" />
+
+          <!-- Export queue: a button with a flyout listing the jobs (progress, cancel, show file). -->
+          <Button DataContext="{Binding RenderQueue}" x:DataType="vm:RenderQueueViewModel" IsVisible="{Binding HasJobs}"
+                  Content="{Binding Summary}" Padding="10,2" Focusable="False" x:Name="JobsButton">
+            <Button.Flyout>
+              <Flyout Placement="TopEdgeAlignedRight">
+                <DockPanel Width="460" MaxHeight="420" Margin="4">
+                  <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <Button DockPanel.Dock="Right" Content="Bitenleri temizle" Command="{Binding ClearFinishedCommand}" Padding="8,2" />
+                    <TextBlock Text="Dışa aktarma işleri" FontWeight="SemiBold" VerticalAlignment="Center" />
+                  </DockPanel>
+                  <ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding Jobs}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:RenderJobViewModel">
+                          <Border Classes="panel" Padding="10" Margin="0,0,0,6">
+                            <StackPanel Spacing="4">
+                              <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+                                  <Button Content="Göster" Command="{Binding RevealCommand}" IsVisible="{Binding IsDone}" Padding="8,2" />
+                                  <Button Content="İptal" Command="{Binding CancelCommand}" IsVisible="{Binding IsActive}" Padding="8,2" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding OutputPath}" VerticalAlignment="Center" />
+                              </DockPanel>
+                              <ProgressBar Minimum="0" Maximum="1" Value="{Binding Progress}" IsVisible="{Binding IsActive}" />
+                              <TextBlock Text="{Binding StateText}" Classes="muted" TextWrapping="Wrap" />
+                              <TextBlock Text="{Binding Warning}" Classes="issues" TextWrapping="Wrap"
+                                         IsVisible="{Binding Warning, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            </StackPanel>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </DockPanel>
+              </Flyout>
+            </Button.Flyout>
+          </Button>
           <TextBlock Text="{Binding PlatformText}" Classes="muted" VerticalAlignment="Center" />
           <TextBlock Text="{Binding VersionText}" Classes="muted" VerticalAlignment="Center" />
         </StackPanel>
