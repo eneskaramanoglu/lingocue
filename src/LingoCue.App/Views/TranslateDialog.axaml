@@ -1,0 +1,57 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:LingoCue.App.ViewModels"
+        xmlns:sub="using:LingoCue.Core.Subtitles"
+        x:Class="LingoCue.App.Views.TranslateDialog"
+        x:DataType="vm:TranslateDialogViewModel"
+        Title="Çevir"
+        Width="620" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+
+  <StackPanel Margin="20" Spacing="12">
+    <TextBlock TextWrapping="Wrap"
+               Text="Seçilen iz yapay zekâ ile çevrilir ve yeni bir iz olarak eklenir. Zamanlama birebir kopyalanır; kaynak iz değişmez. Düzenlediğiniz metin esas alınır." />
+
+    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+      <TextBlock Text="Kaynak iz" VerticalAlignment="Center" />
+      <ComboBox Grid.Column="1" ItemsSource="{Binding Sources}" SelectedItem="{Binding Source}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="sub:SubtitleTrack">
+            <TextBlock>
+              <Run Text="{Binding Name, Mode=OneWay}" />
+              <Run Text="{Binding Language, StringFormat=' · {0}', Mode=OneWay}" Foreground="{DynamicResource MutedTextBrush}" />
+            </TextBlock>
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SourceInfo}" Classes="muted" TextWrapping="Wrap" />
+
+      <TextBlock Grid.Row="2" Text="Hedef dil" VerticalAlignment="Center" />
+      <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Languages}" SelectedItem="{Binding Target}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:LanguageChoice">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+    </Grid>
+
+    <TextBlock Text="Kaynak iz zaten bu dilde; başka bir hedef dil seçin." Classes="issues" IsVisible="{Binding SameLanguage}" />
+
+    <CheckBox Content="Önce videonun bağlamını çıkar (özet, ton, konuşmacılar → tutarlı terimler ve zamirler)" IsChecked="{Binding RefreshContext}" />
+    <CheckBox Content="İkinci geçişte gözden geçir (daha doğal ve tutarlı, maliyet ~2 kat)" IsChecked="{Binding Reflect}" />
+
+    <Border Classes="panel" Padding="10">
+      <TextBlock Text="{Binding EstimateText}" TextWrapping="Wrap" />
+    </Border>
+
+    <Border Classes="error" Margin="0" IsVisible="{Binding Problem, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <TextBlock Text="{Binding Problem}" TextWrapping="Wrap" />
+    </Border>
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Başlat" Classes="accent" IsDefault="True" IsEnabled="{Binding CanStart}" Click="OnStart" MinWidth="90" />
+      <Button Content="Vazgeç" IsCancel="True" Click="OnCancel" MinWidth="90" />
+    </StackPanel>
+  </StackPanel>
+</Window>

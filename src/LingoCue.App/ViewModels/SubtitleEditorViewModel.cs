@@ -54,7 +54,7 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
     public string Summary => Cues.Count == 0
         ? "Altyazı yok"
         : $"{Cues.Count} satır · {Cues.Count(c => c.HasError)} hata · {Cues.Count(c => c.HasWarning)} uyarı" +
-          (HasSourceTrack ? $" · {ChangedCount} değişti · {ReviewCount} kontrol bekliyor" : string.Empty);
+          (!HasSourceTrack ? string.Empty : IsTranslation ? $" · {ReviewCount} kontrol bekliyor" : $" · {ChangedCount} değişti · {ReviewCount} kontrol bekliyor");
 
     /// <summary>Reading rules for a track language (English allows a higher reading speed than Turkish).</summary>
     public Func<string?, ReadingRules> RulesFor { get; set; } = _ => ReadingRules.Default;
@@ -73,6 +73,17 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial bool HasSourceTrack { get; private set; }
+
+    /// <summary>The loaded track is a translation (its lines differ from the source by nature).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FilterLabel), nameof(FilterTip))]
+    public partial bool IsTranslation { get; private set; }
+
+    public string FilterLabel => IsTranslation ? "Kontrol bekleyenler" : "Değişenler";
+
+    public string FilterTip => IsTranslation
+        ? "Yalnızca kontrol bekleyen ya da çevrilemeyen satırları göster"
+        : "Yalnızca yapay zekânın değiştirdiği ya da kontrol bekleyen satırları göster";
 
     /// <summary>The grid's rows: the live list, or a snapshot of the interesting lines while filtering.</summary>
     public IEnumerable<CueViewModel> VisibleCues => ShowChangedOnly ? [.. Cues.Where(c => c.IsOfInterest)] : Cues;
@@ -100,6 +111,7 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         _rules = RulesFor(track?.Language);
         _sourceTrack = track is { SourceTrackId: { } sourceId } && sourceTrack?.Id == sourceId ? sourceTrack : null;
         HasSourceTrack = _sourceTrack is not null;
+        IsTranslation = track?.Kind == TrackKind.Translation;
         if (!HasSourceTrack)
         {
             ShowChangedOnly = false;
@@ -126,7 +138,7 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         foreach (var cue in track.Cues)
         {
             var original = originals is not null && cue.SourceCueId is { } sourceCueId && originals.TryGetValue(sourceCueId, out var text) ? text : null;
-            Cues.Add(Attach(new CueViewModel(cue, _rules) { OriginalText = original }));
+            Cues.Add(Attach(new CueViewModel(cue, _rules) { OriginalText = original, CompareToOriginal = !IsTranslation }));
         }
 
         Renumber();

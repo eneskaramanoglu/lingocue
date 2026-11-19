@@ -48,6 +48,7 @@
       <MenuItem Header="_Altyazı">
         <MenuItem Header="_Transkribe Et…" InputGesture="Ctrl+T" Command="{Binding TranscribeCommand}" />
         <MenuItem Header="_Düzelt…" Command="{Binding CorrectCommand}" />
+        <MenuItem Header="Çe_vir…" Command="{Binding TranslateCommand}" />
         <MenuItem Header="_Sözlük ve Bağlam…" Command="{Binding EditGlossaryCommand}" />
       </MenuItem>
       <MenuItem Header="A_yarlar">
@@ -72,7 +73,7 @@
           <Button Content="Transkribe Et" Command="{Binding TranscribeCommand}" Focusable="False"
                   ToolTip.Tip="Konuşmayı tanı ve altyazı oluştur (Ctrl+T / ⌘T)" />
           <Button Content="Düzelt" Command="{Binding CorrectCommand}" ToolTip.Tip="Yapay zekâ ile tanıma hatalarını düzelt" />
-          <Button Content="Çevir" IsEnabled="False" ToolTip.Tip="M7" />
+          <Button Content="Çevir" Command="{Binding TranslateCommand}" ToolTip.Tip="Bir izi yapay zekâ ile başka dile çevirir (yeni iz, aynı zamanlama)" />
           <Button Content="Stil" Command="{Binding ShowStyleCommand}" ToolTip.Tip="Altyazının görünümü: font, renk, konum, şablonlar, karaoke, iki dilli mod" />
           <Button Content="Dışa Aktar" Command="{Binding ExportCommand}" ToolTip.Tip="Altyazı dosyası, altyazısı gömülü video veya açılıp kapanabilen altyazılı video (Ctrl/⌘+E)" />
         </StackPanel>
@@ -228,9 +229,9 @@
           <DockPanel DockPanel.Dock="Top" Margin="8,6">
             <TextBlock DockPanel.Dock="Top" Text="{Binding Summary}" Classes="muted" TextWrapping="Wrap" Margin="0,0,0,4" />
             <WrapPanel HorizontalAlignment="Right" ItemSpacing="6" LineSpacing="4">
-              <CheckBox Content="Değişenler" IsChecked="{Binding ShowChangedOnly}" Focusable="False"
+              <CheckBox Content="{Binding FilterLabel}" IsChecked="{Binding ShowChangedOnly}" Focusable="False"
                         IsVisible="{Binding HasSourceTrack}"
-                        ToolTip.Tip="Yalnızca yapay zekânın değiştirdiği ya da kontrol bekleyen satırları göster" />
+                        ToolTip.Tip="{Binding FilterTip}" />
               <CheckBox Content="Oynatmayı takip et" IsChecked="{Binding FollowPlayback}" Focusable="False" />
               <Button Content="+ Satır" Command="{Binding AddCueCommand}" Focusable="False"
                       ToolTip.Tip="Oynatma konumuna yeni satır ekle" />

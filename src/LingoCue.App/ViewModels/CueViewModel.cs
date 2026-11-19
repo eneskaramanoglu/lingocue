@@ -100,7 +100,10 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
 
     public bool HasOriginal => OriginalText is not null;
 
-    public bool IsChanged => OriginalText is not null && !string.Equals(OriginalText, cue.Text, StringComparison.Ordinal);
+    /// <summary>False for translations: every line differs from its source there, so "changed" says nothing.</summary>
+    public bool CompareToOriginal { get; init; } = true;
+
+    public bool IsChanged => CompareToOriginal && OriginalText is not null && !string.Equals(OriginalText, cue.Text, StringComparison.Ordinal);
 
     public bool NeedsReview => cue.Marks.HasFlag(CueMarks.NeedsReview);
 
