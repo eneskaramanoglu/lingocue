@@ -342,7 +342,7 @@ public partial class MainViewModel : ViewModelBase
             project.Style = AssScriptBuilder.NormalizeStyle(style, result.Document.ScriptInfo?.PlayResY ?? AssScriptBuilder.ReferenceHeight) with { Name = "Default" };
         }
 
-        Editor?.Load(track);
+        Editor?.Load(track, SourceOf(track));
         MarkDirty();
         RefreshPreview(immediate: true);
 
@@ -726,11 +726,14 @@ public partial class MainViewModel : ViewModelBase
         }
 
         Project.ActiveTrackId = value.Id;
-        Editor?.Load(value);
+        Editor?.Load(value, SourceOf(value));
         RefreshPreview(immediate: true);
     }
 
     private bool _syncingTracks;
+
+    private SubtitleTrack? SourceOf(SubtitleTrack? track)
+        => track?.SourceTrackId is { } id ? Project?.Tracks.FirstOrDefault(t => t.Id == id) : null;
 
     private void RefreshTracks()
     {
@@ -744,7 +747,7 @@ public partial class MainViewModel : ViewModelBase
             }
 
             SelectedTrack = Project?.ActiveTrack;
-            Editor?.Load(Project?.ActiveTrack);
+            Editor?.Load(Project?.ActiveTrack, SourceOf(Project?.ActiveTrack));
         }
         finally
         {

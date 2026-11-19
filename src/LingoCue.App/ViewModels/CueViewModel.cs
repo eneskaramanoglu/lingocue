@@ -84,11 +84,70 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
             }
 
             cue.Text = normalized;
+
+            // Editing a flagged line means a person has looked at it.
+            cue.Marks &= ~(CueMarks.NeedsReview | CueMarks.LlmFailed);
             OnPropertyChanged();
             OnPropertyChanged(nameof(OneLineText));
+            OnMarksChanged();
             OnReadingChanged();
             Changed?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    /// <summary>Text of the linked cue in the source track (set for corrected/translated tracks).</summary>
+    public string? OriginalText { get; init; }
+
+    public bool HasOriginal => OriginalText is not null;
+
+    public bool IsChanged => OriginalText is not null && !string.Equals(OriginalText, cue.Text, StringComparison.Ordinal);
+
+    public bool NeedsReview => cue.Marks.HasFlag(CueMarks.NeedsReview);
+
+    public bool LlmFailed => cue.Marks.HasFlag(CueMarks.LlmFailed);
+
+    /// <summary>Shown by the "changed only" filter: edited by the pass or flagged for a person.</summary>
+    public bool IsOfInterest => IsChanged || NeedsReview || LlmFailed;
+
+    /// <summary>One glyph for the mark column: ✕ failed, ! review, ● changed.</summary>
+    public string MarkGlyph => LlmFailed ? "✕" : NeedsReview ? "!" : IsChanged ? "●" : string.Empty;
+
+    public string? MarkTip => LlmFailed ? "Yapay zekâ bu satırı işleyemedi; orijinal metin bırakıldı."
+        : NeedsReview ? "Çok değişti, kontrol edin."
+        : IsChanged ? "Yapay zekâ ya da siz değiştirdiniz."
+        : null;
+
+    /// <summary>Tooltip for the text cell: problems plus the original text when it differs.</summary>
+    public string? TextTip
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (IssuesText.Length > 0)
+            {
+                parts.Add(IssuesText);
+            }
+
+            if (IsChanged)
+            {
+                parts.Add("Orijinal: " + SubtitleText.StripTags(OriginalText!).Replace("\n", " ⏎ ", StringComparison.Ordinal));
+            }
+
+            return parts.Count == 0 ? null : string.Join("\n", parts);
+        }
+    }
+
+    /// <summary>Clears the review/failed marks (the user has looked at the line).</summary>
+    public void ClearMarks()
+    {
+        if ((cue.Marks & (CueMarks.NeedsReview | CueMarks.LlmFailed)) == 0)
+        {
+            return;
+        }
+
+        cue.Marks &= ~(CueMarks.NeedsReview | CueMarks.LlmFailed);
+        OnMarksChanged();
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>Text for the grid cell: formatting tags hidden, line breaks shown as a separator.</summary>
@@ -194,5 +253,17 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
         OnPropertyChanged(nameof(CpsTooHigh));
         OnPropertyChanged(nameof(CpsHigh));
         OnPropertyChanged(nameof(IssuesText));
+        OnPropertyChanged(nameof(TextTip));
+    }
+
+    private void OnMarksChanged()
+    {
+        OnPropertyChanged(nameof(IsChanged));
+        OnPropertyChanged(nameof(NeedsReview));
+        OnPropertyChanged(nameof(LlmFailed));
+        OnPropertyChanged(nameof(IsOfInterest));
+        OnPropertyChanged(nameof(MarkGlyph));
+        OnPropertyChanged(nameof(MarkTip));
+        OnPropertyChanged(nameof(TextTip));
     }
 }
