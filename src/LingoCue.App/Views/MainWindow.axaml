@@ -3,6 +3,7 @@
         xmlns:vm="using:LingoCue.App.ViewModels"
         xmlns:mpv="using:HanumanInstitute.LibMpv.Avalonia"
         xmlns:sub="using:LingoCue.Core.Subtitles"
+        xmlns:views="using:LingoCue.App.Views"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
@@ -74,7 +75,7 @@
                   ToolTip.Tip="Konuşmayı tanı ve altyazı oluştur (Ctrl+T / ⌘T)" />
           <Button Content="Düzelt" Command="{Binding CorrectCommand}" ToolTip.Tip="Yapay zekâ ile tanıma hatalarını düzelt" />
           <Button Content="Çevir" IsEnabled="False" ToolTip.Tip="M7" />
-          <Button Content="Stil" IsEnabled="False" ToolTip.Tip="M5" />
+          <Button Content="Stil" Command="{Binding ShowStyleCommand}" ToolTip.Tip="Altyazının görünümü: font, renk, konum, şablonlar, karaoke, iki dilli mod" />
           <Button Content="Dışa Aktar" IsEnabled="False" ToolTip.Tip="M6 (şimdilik Dosya → Altyazı Dışa Aktar)" />
         </StackPanel>
       </DockPanel>
@@ -165,13 +166,16 @@
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="sub:SubtitleTrack">
                 <TextBlock>
-                  <Run Text="{Binding Name}" />
-                  <Run Text="{Binding Cues.Count, StringFormat=' · {0} satır'}" Foreground="{DynamicResource MutedTextBrush}" />
+                  <Run Text="{Binding Name, Mode=OneWay}" />
+                  <Run Text="{Binding Cues.Count, StringFormat=' · {0} satır', Mode=OneWay}" Foreground="{DynamicResource MutedTextBrush}" />
                 </TextBlock>
               </DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
         </DockPanel>
+        <!-- Lines / Style tabs: the video stays visible while styling. -->
+        <TabControl SelectedIndex="{Binding SelectedPanel}" Padding="0" Margin="0,2,0,0">
+          <TabItem Header="Satırlar">
         <DockPanel DataContext="{Binding Editor}" x:DataType="vm:SubtitleEditorViewModel">
 
           <!-- Header: summary + list actions -->
@@ -229,7 +233,7 @@
                           IsVisible="{Binding SelectedCue.IsFlagged, FallbackValue=False}" />
                 </StackPanel>
                 <TextBlock Classes="muted" TextWrapping="Wrap" VerticalAlignment="Center">
-                  <Run Text="Orijinal: " /><Run Text="{Binding SelectedCue.OriginalText, FallbackValue=''}" />
+                  <Run Text="Orijinal: " /><Run Text="{Binding SelectedCue.OriginalText, FallbackValue='', Mode=OneWay}" />
                 </TextBlock>
               </DockPanel>
             </Grid>
@@ -281,6 +285,11 @@
             </DataGrid.Columns>
           </DataGrid>
         </DockPanel>
+          </TabItem>
+          <TabItem Header="Stil">
+            <views:StyleEditorView DataContext="{Binding StyleEditor}" />
+          </TabItem>
+        </TabControl>
        </DockPanel>
       </Border>
     </Grid>

@@ -94,7 +94,7 @@
         <StackPanel DataContext="{Binding ApiKeys}" x:DataType="vm:ApiKeysViewModel" Spacing="12" Margin="0,12">
           <TextBlock TextWrapping="Wrap" Classes="muted">
             <Run Text="Anahtarlar yalnızca bu bilgisayarın güvenli deposunda saklanır:" />
-            <Run Text="{Binding StoreName}" FontWeight="SemiBold" />
+            <Run Text="{Binding StoreName, Mode=OneWay}" FontWeight="SemiBold" />
             <Run Text=". Proje dosyalarına, ayarlara veya loglara yazılmaz." />
           </TextBlock>
           <TextBlock Text="Google Gemini" FontWeight="SemiBold" />

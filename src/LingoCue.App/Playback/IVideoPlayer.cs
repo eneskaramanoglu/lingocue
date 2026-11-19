@@ -36,5 +36,8 @@ public interface IVideoPlayer : INotifyPropertyChanged
     /// <summary>Loads (or reloads) an external subtitle file, e.g. the generated preview ASS.</summary>
     void LoadSubtitle(string path);
 
+    /// <summary>Extra folder of font files for subtitles (the project's fonts); null for none.</summary>
+    void SetFontsDirectory(string? directory);
+
     void Close();
 }

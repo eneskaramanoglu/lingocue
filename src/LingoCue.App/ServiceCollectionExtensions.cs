@@ -2,7 +2,9 @@ using LingoCue.App.Playback;
 using LingoCue.App.Services;
 using LingoCue.App.ViewModels;
 using LingoCue.App.Views;
+using LingoCue.Core.Fonts;
 using LingoCue.Core.Platform;
+using LingoCue.Core.Projects;
 using LingoCue.Core.Settings;
 using LingoCue.Infrastructure.Security;
 using LingoCue.Infrastructure.Settings;
@@ -59,6 +61,8 @@ internal static class ServiceCollectionExtensions
 
         // Settings and language models
         services.AddSingleton<ISettingsStore, JsonSettingsStore>();
+        services.AddSingleton<IStyleTemplateStore, JsonStyleTemplateStore>();
+        services.AddSingleton<IFontCatalog, FontCatalog>();
         services.AddSingleton<ILlmProvider>(sp => new GeminiProvider(sp.GetRequiredService<ApiKeyProvider>().GetGeminiKey));
         services.AddSingleton<ModelResolver>();
 
@@ -70,6 +74,7 @@ internal static class ServiceCollectionExtensions
 
         services.AddSingleton<PlayerViewModel>();
         services.AddSingleton<SubtitleEditorViewModel>();
+        services.AddSingleton<StyleEditorViewModel>();
         services.AddTransient<MainViewModel>();
         services.AddTransient<MainWindow>();
 

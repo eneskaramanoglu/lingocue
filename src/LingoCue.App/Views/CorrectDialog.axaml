@@ -10,12 +10,12 @@
   <StackPanel Margin="20" Spacing="12">
     <TextBlock TextWrapping="Wrap">
       <Run Text="Yapay zekâ" />
-      <Run Text="{Binding TrackName}" FontWeight="SemiBold" />
+      <Run Text="{Binding TrackName, Mode=OneWay}" FontWeight="SemiBold" />
       <Run Text="izindeki tanıma hatalarını, özel isimleri, noktalamayı ve yazımı düzeltir. Zamanlamaya dokunulmaz; sonuç yeni bir 'Düzeltilmiş' izi olarak eklenir, orijinal iz korunur." />
     </TextBlock>
 
     <TextBlock Classes="muted">
-      <Run Text="{Binding LineCount}" /><Run Text=" satır · " /><Run Text="{Binding LockedCount}" /><Run Text=" kilitli (atlanır) · sözlükte " /><Run Text="{Binding GlossaryCount}" /><Run Text=" terim" />
+      <Run Text="{Binding LineCount, Mode=OneWay}" /><Run Text=" satır · " /><Run Text="{Binding LockedCount, Mode=OneWay}" /><Run Text=" kilitli (atlanır) · sözlükte " /><Run Text="{Binding GlossaryCount, Mode=OneWay}" /><Run Text=" terim" />
     </TextBlock>
 
     <CheckBox Content="Önce videonun bağlamını çıkar (özet, ton, özel isimler → sözlük önerileri)" IsChecked="{Binding RefreshContext}" />

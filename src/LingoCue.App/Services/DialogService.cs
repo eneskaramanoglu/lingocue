@@ -30,6 +30,11 @@ public interface IDialogService
     Task<bool> EditGlossaryAsync(GlossaryViewModel viewModel);
 
     Task<CorrectOptions?> AskCorrectOptionsAsync(CorrectDialogViewModel viewModel);
+
+    /// <summary>Asks for a short text (e.g. a template name); null when cancelled or empty.</summary>
+    Task<string?> AskTextAsync(string title, string message, string initial, string confirmText);
+
+    Task ShowMessageAsync(string title, string message);
 }
 
 /// <summary>Small modal dialogs built in code (Avalonia has no built-in message box).</summary>
@@ -50,6 +55,52 @@ internal sealed class DialogService : IDialogService
         => Owner() is { } owner
             ? await new CorrectDialog { DataContext = viewModel }.ShowDialog<CorrectOptions?>(owner)
             : null;
+
+    public async Task<string?> AskTextAsync(string title, string message, string initial, string confirmText)
+    {
+        if (Owner() is not { } owner)
+        {
+            return null;
+        }
+
+        var dialog = new Window
+        {
+            Title = title,
+            Width = 420,
+            SizeToContent = SizeToContent.Height,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        };
+        var box = new TextBox { Text = initial };
+        var ok = new Button { Content = confirmText, IsDefault = true, MinWidth = 90, HorizontalContentAlignment = HorizontalAlignment.Center };
+        ok.Classes.Add("accent");
+        var cancel = new Button { Content = "Vazgeç", IsCancel = true, MinWidth = 90, HorizontalContentAlignment = HorizontalAlignment.Center };
+        ok.Click += (_, _) => dialog.Close(box.Text);
+        cancel.Click += (_, _) => dialog.Close(null);
+        dialog.Content = new StackPanel
+        {
+            Margin = new Thickness(20),
+            Spacing = 12,
+            Children =
+            {
+                new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
+                box,
+                new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Children = { ok, cancel } },
+            },
+        };
+        dialog.Opened += (_, _) =>
+        {
+            box.Focus();
+            box.SelectAll();
+        };
+
+        var result = await dialog.ShowDialog<string?>(owner);
+        return string.IsNullOrWhiteSpace(result) ? null : result.Trim();
+    }
+
+    public Task ShowMessageAsync(string title, string message)
+        => ShowAsync(title, message, true, ("Tamam", true, true));
 
     private static Window? Owner()
         => Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } w } ? w : null;

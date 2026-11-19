@@ -14,6 +14,7 @@ namespace LingoCue.App.Playback;
 public sealed partial class MpvVideoPlayer(ILogger<MpvVideoPlayer> logger) : ObservableObject, IVideoPlayer
 {
     private MpvContext? _mpv;
+    private string _fontsDirectory = string.Empty;
     private bool _hasSubtitle;
     private string? _pendingFile;
     private string? _pendingSubtitle;
@@ -55,6 +56,10 @@ public sealed partial class MpvVideoPlayer(ILogger<MpvVideoPlayer> logger) : Obs
         TrySetOption(mpv, "osd-level", "0");
         TrySetOption(mpv, "input-default-bindings", "no");
         TrySetOption(mpv, "hwdec", "auto-safe");
+        if (_fontsDirectory.Length > 0)
+        {
+            TrySetOption(mpv, "sub-fonts-dir", _fontsDirectory);
+        }
 
         mpv.TimePos.Changed += OnTimePosChanged;
         mpv.Duration.Changed += OnDurationChanged;
@@ -164,6 +169,24 @@ public sealed partial class MpvVideoPlayer(ILogger<MpvVideoPlayer> logger) : Obs
         {
             RunCommand("sub-add", path, "select");
             _hasSubtitle = true;
+        }
+    }
+
+    public void SetFontsDirectory(string? directory)
+    {
+        // Always applied (even for the same folder): a font file may have just been added to it.
+        var value = directory ?? string.Empty;
+        _fontsDirectory = value;
+        if (_mpv is null)
+        {
+            return;
+        }
+
+        // libass reads the fonts folder when a subtitle decoder starts, so reload the preview track.
+        TrySetOption(_mpv, "sub-fonts-dir", value);
+        if (_hasSubtitle)
+        {
+            RunCommand("sub-reload");
         }
     }
 
