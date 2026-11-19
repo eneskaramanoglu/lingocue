@@ -294,6 +294,19 @@ public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatc
     /// <summary>Rate limits and server-side hiccups worth retrying; everything else surfaces.</summary>
     internal static bool IsTransient(Exception ex)
     {
+        // Google.GenAI reports the HTTP status in its own StatusCode (the HttpRequestException one stays
+        // empty), and a 503 "high demand" message names no status at all.
+        if (ex is Google.GenAI.ServerError)
+        {
+            return true;
+        }
+
+        if (ex is Google.GenAI.ApiException { StatusCode: > 0 } api)
+        {
+            return api.StatusCode is 408 or 429 or >= 500 ||
+                   api.Status is "RESOURCE_EXHAUSTED" or "UNAVAILABLE" or "INTERNAL" or "DEADLINE_EXCEEDED";
+        }
+
         if (ex is HttpRequestException { StatusCode: { } code })
         {
             return code is HttpStatusCode.TooManyRequests or HttpStatusCode.InternalServerError or HttpStatusCode.BadGateway
@@ -308,7 +321,8 @@ public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatc
         var text = ex.Message;
         return text.Contains("429", StringComparison.Ordinal) || text.Contains("RESOURCE_EXHAUSTED", StringComparison.OrdinalIgnoreCase) ||
                text.Contains("503", StringComparison.Ordinal) || text.Contains("UNAVAILABLE", StringComparison.OrdinalIgnoreCase) ||
-               text.Contains("500", StringComparison.Ordinal) || text.Contains("overloaded", StringComparison.OrdinalIgnoreCase);
+               text.Contains("500", StringComparison.Ordinal) || text.Contains("overloaded", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("high demand", StringComparison.OrdinalIgnoreCase) || text.Contains("try again later", StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed record BatchOutcome(IReadOnlyList<LineResult> Results, bool Failed);

@@ -70,7 +70,7 @@ public sealed partial class GeminiTranscribeClient(HttpClient http, ILogger<Gemi
         request.Headers.Add("x-goog-api-key", apiKey);
 
         using var response = await SendWithRetryAsync(request, cancellationToken);
-        var root = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken)).RootElement;
+        var root = JsonElement.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
 
         // Long audio may come back still running: poll the interaction until it completes.
         var waited = TimeSpan.Zero;
@@ -86,7 +86,7 @@ public sealed partial class GeminiTranscribeClient(HttpClient http, ILogger<Gemi
             using var poll = new HttpRequestMessage(HttpMethod.Get, new Uri(BaseAddress, "v1beta/" + name.TrimStart('/')));
             poll.Headers.Add("x-goog-api-key", apiKey);
             using var pollResponse = await SendWithRetryAsync(poll, cancellationToken);
-            root = JsonDocument.Parse(await pollResponse.Content.ReadAsStringAsync(cancellationToken)).RootElement;
+            root = JsonElement.Parse(await pollResponse.Content.ReadAsStringAsync(cancellationToken));
         }
 
         if (GeminiTranscriptParser.Status(root) is "failed" or "cancelled")

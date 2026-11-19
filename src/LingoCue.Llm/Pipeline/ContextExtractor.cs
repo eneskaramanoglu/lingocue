@@ -16,7 +16,7 @@ public sealed class ContextExtractor(IChatClient client)
     /// <summary>Roughly 60k tokens; longer transcripts are sampled from start, middle and end.</summary>
     private const int MaxTranscriptChars = 200_000;
 
-    private static readonly JsonElement s_schema = JsonDocument.Parse("""
+    private static readonly JsonElement s_schema = JsonElement.Parse("""
         {
           "type": "object",
           "properties": {
@@ -40,7 +40,7 @@ public sealed class ContextExtractor(IChatClient client)
           },
           "required": ["summary", "tone", "address", "speakers", "terms"]
         }
-        """).RootElement.Clone();
+        """);
 
     public async Task<ContextResult> ExtractAsync(
         IReadOnlyList<LineItem> lines, string sourceLanguage, IReadOnlyList<GlossaryEntry> existingGlossary, CancellationToken cancellationToken = default)

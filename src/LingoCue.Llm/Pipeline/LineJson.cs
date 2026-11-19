@@ -6,7 +6,7 @@ namespace LingoCue.Llm.Pipeline;
 /// <summary>JSON contract for line batches: <c>{"lines":[{"id":1,"text":"…"}]}</c>.</summary>
 internal static class LineJson
 {
-    public static JsonElement Schema { get; } = JsonDocument.Parse("""
+    public static JsonElement Schema { get; } = JsonElement.Parse("""
         {
           "type": "object",
           "properties": {
@@ -24,7 +24,7 @@ internal static class LineJson
           },
           "required": ["lines"]
         }
-        """).RootElement.Clone();
+        """);
 
     public static string Serialize(IEnumerable<(int Id, string Text, string? Speaker)> lines)
         => Serialize(lines.Select(l => (l.Id, l.Text, l.Speaker, (int?)null)));
