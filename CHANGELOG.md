@@ -6,9 +6,38 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+- **Düzelt** (toolbar, Altyazı menu): an AI pass over the active track that fixes recognition
+  errors, proper names, punctuation and spelling by Turkish (TDK) rules. Timing is never touched;
+  the result is a new **Düzeltilmiş** track and the source track stays as it was. Lines are sent in
+  batches of 30 with neighbouring lines as context, answers are checked (JSON schema, ids, line
+  count, locked glossary terms) and retried with the problems listed; lines that still fail keep the
+  original text and are flagged. Optional second "reflect" pass and shortening of lines above the
+  reading-speed limit. Progress and **İptal** in the status bar; the result reports changed,
+  needs-review and failed lines, tokens and the estimated cost.
+- Before starting, the dialog shows the model, a token and cost estimate, and whether the model
+  has a free tier.
+- **Context pass**: one call summarises the video (topic, tone, sen/siz, speakers) and suggests proper
+  names and terms for the glossary.
+- **Altyazı → Sözlük ve Bağlam**: per-project glossary (term, preferred spelling, kind, note, locked)
+  and context, editable; suggestions are marked until accepted.
+- **Ayarlar → Tercihler**: default transcription engine, Whisper model and language; LLM fast and
+  quality models (automatic = newest stable Flash / newest Pro not older than Flash, picked from the
+  provider's live model list), batch size, parallel requests, reflect, shortening, circumflex
+  spelling; reading rules; API keys. Settings are stored in `settings.json` in the app-data folder
+  (no secrets). A note explains that Google may use free-tier content to improve its products.
+- Editor: a mark column shows changed (●), needs-review (!) and failed (✕) lines of a corrected track;
+  the original text is shown in the tooltip and under the editor, with **Orijinale dön** and
+  **Kontrol edildi**; **Değişenler** lists only those lines. Editing a flagged line clears its flag.
+- Gemini provider over `Google.GenAI` (`IChatClient`), with a price table and transient-error backoff;
+  translation pipeline infrastructure (UI comes in M7).
+
 ### Changed
 - Whisper is the default transcription engine again (no API cost while developing and testing);
   Gemini 3.5 Transcribe stays selectable in the dialog.
+- **Ayarlar → API Anahtarları** moved into **Tercihler** as a tab.
+- CI and release use the `macos-15` runner image; a release is published even when one platform's
+  package is missing, so it can be added later.
 
 ## [0.4.0] - 2026-11-18
 

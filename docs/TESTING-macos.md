@@ -23,6 +23,32 @@ dotnet run --project src/LingoCue.App
 
 Logs are written to `~/Library/Logs/LingoCue/`.
 
+## v0.5.0 — AI correction
+
+Needs a project with a transcribed (or imported) Turkish track and a Gemini key. A short track
+(20–50 lines) keeps the cost near zero; the free tier is enough.
+
+- [ ] **Ayarlar → Tercihler…** (⌘,): four tabs (Genel, Dil modeli (LLM), Altyazı kuralları,
+      API anahtarları). On Dil modeli, **Modelleri yenile** says "… model bulundu" and the lists show
+      gemini-… text models (no image/TTS models). Change "İstek başına satır", **Kaydet**, reopen: the
+      value is kept; `~/Library/Application Support/LingoCue/settings.json` contains it and no key.
+- [ ] Altyazı kuralları: lower "En fazla CPS", **Kaydet**: the editor's CPS colours update at once.
+- [ ] **Düzelt** (toolbar): the dialog shows line count, model (e.g. gemini-3.8-flash) and a token/cost
+      estimate. **Başlat**: status bar shows "Bağlam çıkarılıyor", then batches "n/m"; **İptal** stops
+      it and leaves the tracks unchanged.
+- [ ] Run to the end: a track "Düzeltilmiş" is added and selected; the status bar lists changed /
+      review / failed counts and tokens. Rows show ● (changed), ! (review), ✕ (failed); hovering the
+      text shows "Orijinal: …".
+- [ ] Select a changed row: "Orijinal: …" appears under the editor; **Orijinale dön** restores it;
+      **Kontrol edildi** clears the ! mark. **Değişenler** shows only marked rows.
+- [ ] Timing check: start/end times of every row equal the source track's (pick a few rows).
+- [ ] **Altyazı → Sözlük ve Bağlam…**: the context (summary, tone, address) is filled; suggested
+      names are listed. Lock a term with a spelling (e.g. Ankara'dan), run Düzelt again: the new
+      track "Düzeltilmiş 2" uses that spelling.
+- [ ] Delete the key in Tercihler → API anahtarları: Düzelt shows the "API anahtarı" instruction and
+      **Başlat** is disabled.
+- [ ] Save, close, reopen: glossary, context and both tracks are kept.
+
 ## v0.4.0 — Transcription
 
 Needs a video with Turkish speech (any phone recording; 1–3 minutes is enough).

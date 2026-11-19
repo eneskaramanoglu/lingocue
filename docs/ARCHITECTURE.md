@@ -129,6 +129,36 @@ media ──ffmpeg──► 16 kHz mono WAV ──► Whisper.net (CUDA → Vulk
 - API keys live in `ISecretStore` (Windows Credential Manager via advapi32, macOS Keychain via
   Security.framework); `ApiKeyProvider` lets `GEMINI_API_KEY` override for tests/CI.
 
+## Language model passes (M4)
+
+```
+track cues ──► LineItem(id, text, duration, speaker, locked)
+                 │
+  ContextExtractor (1 call) ──► ProjectContext + glossary suggestions (merged, marked "suggested")
+                 │
+  LineBatchRunner: batches of 30, ≤2 in parallel, 4 previous / 2 next lines as context
+     prompt = task rules + context + glossary + {"lines":[{id,text}]}   ── JSON schema output
+     validate: ids, count, empty, line limit, locked glossary terms  ──► retry with the problems
+     transient 429/5xx ──► backoff 2/5/15/45 s;  last attempt: keep valid lines, rest = Failed
+     optional reflect pass (source + drafts) and shorten pass (lines above max CPS)
+                 │
+  TrackPassRunner ──► new track (Corrected / Translation), cues cloned with the same timing,
+                      SourceCueId links, NeedsReview / LlmFailed marks
+```
+
+- `ILlmProvider` (Llm) lists models, prices them and creates a `Microsoft.Extensions.AI.IChatClient`;
+  `GeminiProvider` wraps `Google.GenAI`. The pipeline only sees `IChatClient`, so tests run against a
+  scripted fake client and another provider can be added without touching the pipeline.
+- Model names are never hard-coded: `ModelCatalog` filters the live list to text models and picks
+  the newest stable Flash (fast) and the newest Pro not older than that Flash (quality);
+  `ModelResolver` caches the list and honours explicit choices from settings.
+- Tasks (`CorrectionTask`, `TranslationTask`, `ShortenTask`) own the instructions and the per-line
+  validation; a correction that changes more than 60 % of a line is kept but marked NeedsReview.
+- Settings (`AppSettings`, Core) are stored by `JsonSettingsStore` (Infrastructure) in the app-data
+  folder; secrets stay in `ISecretStore`. Glossary and context are part of the project file.
+- The editor links a derived track to its source through `SourceTrackId`/`SourceCueId` to show the
+  original text and the changed-only filter.
+
 ## Preview equals output
 
 The ASS style model is the single source of truth. `AssScriptBuilder` produces the script for both
