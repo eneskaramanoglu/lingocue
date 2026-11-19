@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using LingoCue.Media.Audio;
 using LingoCue.Media.Processes;
 using LingoCue.Media.Tools;
@@ -73,14 +74,48 @@ public interface IVideoRenderer
     /// </summary>
     Task RenderAsync(FfmpegCommand command, TimeSpan duration, IProgress<RenderProgress>? progress = null, CancellationToken cancellationToken = default);
 
-    /// <summary>Hardware encoders that actually work on this machine (a one-frame test encode each).</summary>
-    Task<IReadOnlyList<VideoEncoder>> AvailableHardwareEncodersAsync(CancellationToken cancellationToken = default);
+    /// <summary>Whether each hardware encoder works on this machine (a one-frame test encode each).</summary>
+    Task<IReadOnlyList<HardwareEncoderStatus>> HardwareEncodersAsync(CancellationToken cancellationToken = default);
+}
+
+/// <param name="Present">The encoder exists in this FFmpeg build and on this kind of machine.</param>
+/// <param name="Problem">Why a present encoder cannot be used, in Turkish for the UI (e.g. an old driver).</param>
+public sealed record HardwareEncoderStatus(VideoEncoder Encoder, bool Available, bool Present, string? Problem)
+{
+    public static HardwareEncoderStatus FromProbe(VideoEncoder encoder, int exitCode, string stderr)
+    {
+        ArgumentNullException.ThrowIfNull(stderr);
+        if (exitCode == 0)
+        {
+            return new(encoder, true, true, null);
+        }
+
+        // Not compiled into this FFmpeg (e.g. VideoToolbox on Windows): simply not offered.
+        if (stderr.Contains("Unknown encoder", StringComparison.OrdinalIgnoreCase) ||
+            stderr.Contains("Encoder not found", StringComparison.OrdinalIgnoreCase))
+        {
+            return new(encoder, false, false, null);
+        }
+
+        var driver = Regex.Match(stderr, @"minimum required Nvidia driver for nvenc is (?<v>[\d.]+)", RegexOptions.IgnoreCase);
+        if (driver.Success)
+        {
+            return new(encoder, false, true, $"NVIDIA sürücüsü eski: NVENC için en az {driver.Groups["v"].Value} sürümü gerekiyor. Sürücüyü güncelleyin (nvidia.com/drivers veya GeForce Experience).");
+        }
+
+        // No NVIDIA GPU / no capable device: NVENC is compiled into most Windows builds anyway.
+        return stderr.Contains("No capable devices found", StringComparison.OrdinalIgnoreCase) ||
+               stderr.Contains("Cannot load nvcuda", StringComparison.OrdinalIgnoreCase) ||
+               stderr.Contains("cuInit", StringComparison.OrdinalIgnoreCase)
+            ? new(encoder, false, false, null)
+            : new(encoder, false, true, "Donanım kodlayıcı açılamadı; CPU (x264) kullanılacak.");
+    }
 }
 
 public sealed class VideoRenderer(IMediaToolLocator locator, IProcessRunner runner) : IVideoRenderer
 {
     private readonly Lock _probeGate = new();
-    private Task<IReadOnlyList<VideoEncoder>>? _hardware;
+    private Task<IReadOnlyList<HardwareEncoderStatus>>? _hardware;
 
     public async Task RenderAsync(FfmpegCommand command, TimeSpan duration, IProgress<RenderProgress>? progress = null, CancellationToken cancellationToken = default)
     {
@@ -117,7 +152,7 @@ public sealed class VideoRenderer(IMediaToolLocator locator, IProcessRunner runn
         progress?.Report(new RenderProgress(1, null, TimeSpan.Zero));
     }
 
-    public Task<IReadOnlyList<VideoEncoder>> AvailableHardwareEncodersAsync(CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<HardwareEncoderStatus>> HardwareEncodersAsync(CancellationToken cancellationToken = default)
     {
         // Probed once per app run; callers that cancel just stop waiting.
         lock (_probeGate)
@@ -128,10 +163,10 @@ public sealed class VideoRenderer(IMediaToolLocator locator, IProcessRunner runn
         return _hardware.WaitAsync(cancellationToken);
     }
 
-    private async Task<IReadOnlyList<VideoEncoder>> ProbeHardwareAsync()
+    private async Task<IReadOnlyList<HardwareEncoderStatus>> ProbeHardwareAsync()
     {
         var tools = locator.Locate();
-        var found = new List<VideoEncoder>();
+        var statuses = new List<HardwareEncoderStatus>();
         foreach (var encoder in new[] { VideoEncoder.Nvenc, VideoEncoder.VideoToolbox })
         {
             // Listed encoders are not enough (NVENC is compiled in even without an NVIDIA GPU):
@@ -142,13 +177,10 @@ public sealed class VideoRenderer(IMediaToolLocator locator, IProcessRunner runn
                 "-frames:v", "1", .. FfmpegCommands.VideoEncoderArguments(encoder, 19), "-f", "null", "-",
             ];
             var result = await runner.RunAsync(tools.FfmpegPath, args);
-            if (result.ExitCode == 0)
-            {
-                found.Add(encoder);
-            }
+            statuses.Add(HardwareEncoderStatus.FromProbe(encoder, result.ExitCode, result.StandardError));
         }
 
-        return found;
+        return statuses;
     }
 
     /// <summary><c>film.mp4</c> → <c>film.lingocue-partial.mp4</c> (same folder, so the final move is a rename).</summary>

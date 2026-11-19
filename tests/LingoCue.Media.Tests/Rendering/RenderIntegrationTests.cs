@@ -179,8 +179,10 @@ public sealed class RenderIntegrationTests(TestMedia media) : IClassFixture<Test
         var ct = TestContext.Current.CancellationToken;
         var (renderer, probe, _, _) = Create();
 
-        var available = await renderer.AvailableHardwareEncodersAsync(ct);
-        (await renderer.AvailableHardwareEncodersAsync(ct)).ShouldBeSameAs(available); // cached
+        var statuses = await renderer.HardwareEncodersAsync(ct);
+        (await renderer.HardwareEncodersAsync(ct)).ShouldBeSameAs(statuses); // cached
+        statuses.Select(s => s.Encoder).ShouldBe([VideoEncoder.Nvenc, VideoEncoder.VideoToolbox]);
+        var available = statuses.Where(s => s.Available).Select(s => s.Encoder).ToList();
 
         var source = await probe.ProbeAsync(media.LandscapeClip, ct);
         foreach (var encoder in available)

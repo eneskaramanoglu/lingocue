@@ -106,6 +106,37 @@ public class FfmpegCommandsTests
     }
 
     [Fact]
+    public void Old_nvidia_driver_is_explained()
+    {
+        // Real output on a machine with an NVIDIA GPU and a driver older than FFmpeg's NVENC SDK.
+        const string stderr = """
+            [h264_nvenc @ 000001a30f837300] Driver does not support the required nvenc API version. Required: 13.1 Found: 13.0
+            [h264_nvenc @ 000001a30f837300] The minimum required Nvidia driver for nvenc is 610.00 or newer
+            """;
+
+        var status = HardwareEncoderStatus.FromProbe(VideoEncoder.Nvenc, 1, stderr);
+
+        status.Available.ShouldBeFalse();
+        status.Present.ShouldBeTrue();
+        status.Problem!.ShouldContain("610.00");
+    }
+
+    [Theory]
+    [InlineData("Unknown encoder 'h264_videotoolbox'")]
+    [InlineData("[h264_nvenc] Cannot load nvcuda.dll")]
+    [InlineData("[h264_nvenc] No capable devices found")]
+    public void Encoders_this_machine_does_not_have_are_not_offered(string stderr)
+    {
+        var status = HardwareEncoderStatus.FromProbe(VideoEncoder.Nvenc, 1, stderr);
+        status.Present.ShouldBeFalse();
+        status.Problem.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Working_encoder_is_available()
+        => HardwareEncoderStatus.FromProbe(VideoEncoder.Nvenc, 0, string.Empty).ShouldBe(new HardwareEncoderStatus(VideoEncoder.Nvenc, true, true, null));
+
+    [Fact]
     public void High_bit_depth_and_hdr_are_detected()
     {
         var hdr = new VideoStreamInfo(0, "hevc", 3840, 2160, 30, 0, "yuv420p10le", "arib-std-b67");
