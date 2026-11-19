@@ -149,11 +149,16 @@ public partial class MainViewModel : ViewModelBase
     public partial string StatusText { get; set; } = "Hazır. Başlamak için bir video ya da proje açın veya sürükleyip bırakın.";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasMedia))]
+    [NotifyPropertyChangedFor(nameof(HasMedia), nameof(VideoWidth), nameof(VideoHeight))]
     [NotifyCanExecuteChangedFor(nameof(TranscribeCommand))]
     public partial MediaInfo? CurrentMedia { get; private set; }
 
     public bool HasMedia => CurrentMedia is not null;
+
+    /// <summary>Displayed picture size (for the safe-area guides).</summary>
+    public double VideoWidth => CurrentMedia?.Video?.DisplayWidth ?? 0;
+
+    public double VideoHeight => CurrentMedia?.Video?.DisplayHeight ?? 0;
 
     [ObservableProperty]
     public partial string? ErrorText { get; set; }

@@ -96,7 +96,7 @@
 
       <!-- Position: a 3×3 grid laid out like the screen (numpad numbering of ASS). -->
       <Expander Header="Konum" IsExpanded="True" HorizontalAlignment="Stretch">
-        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
           <TextBlock Text="Hizalama" VerticalAlignment="Top" Margin="0,6,0,0" />
           <UniformGrid Grid.Column="1" Columns="3" Rows="3" Width="132" HorizontalAlignment="Left">
             <RadioButton Classes="align" GroupName="align" Content="↖" ToolTip.Tip="Üst sol" IsChecked="{Binding Alignment, Converter={x:Static views:EqualsConverter.Instance}, ConverterParameter=7}" />
@@ -118,6 +118,9 @@
 
           <TextBlock Grid.Row="3" Text="Sağ boşluk" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding MarginR}" Minimum="0" Maximum="1500" Increment="5" FormatString="0" />
+
+          <CheckBox Grid.Row="4" Grid.Column="1" Content="Güvenli alan kılavuzlarını göster" IsChecked="{Binding ShowSafeArea}"
+                    ToolTip.Tip="Beyaz: aksiyon güvenli alanı (%93), sarı: başlık güvenli alanı (%90). Yalnızca önizlemede görünür, videoya yazılmaz." />
         </Grid>
       </Expander>
 

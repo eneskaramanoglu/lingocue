@@ -111,6 +111,15 @@
         <Border Grid.Row="0" Classes="panel video" ClipToBounds="True">
           <Panel>
             <mpv:MpvView MpvContext="{Binding Player.Mpv}" Renderer="OpenGl" IsVisible="{Binding HasMedia}" />
+            <!-- Guides only (drawn by Avalonia over the picture); subtitles come from libass. -->
+            <views:SafeAreaOverlay VideoWidth="{Binding VideoWidth}" VideoHeight="{Binding VideoHeight}">
+              <views:SafeAreaOverlay.IsVisible>
+                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                  <Binding Path="HasMedia" />
+                  <Binding Path="StyleEditor.ShowSafeArea" FallbackValue="False" />
+                </MultiBinding>
+              </views:SafeAreaOverlay.IsVisible>
+            </views:SafeAreaOverlay>
             <TextBlock Classes="placeholder" IsVisible="{Binding !HasMedia}"
                        Text="Video Aç ile bir video seçin ya da buraya sürükleyin (MP4, MOV, MKV).&#x0a;Altyazı (SRT, VTT, ASS) ve .lingocue projeleri de sürüklenebilir." />
           </Panel>

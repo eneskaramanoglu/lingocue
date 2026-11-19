@@ -141,6 +141,10 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
     [ObservableProperty]
     public partial decimal MarginR { get; set; } = 60;
 
+    /// <summary>Show safe-area guides over the video (preview aid only, not saved).</summary>
+    [ObservableProperty]
+    public partial bool ShowSafeArea { get; set; }
+
     // ---- Effects
     [ObservableProperty]
     public partial decimal FadeIn { get; set; }
