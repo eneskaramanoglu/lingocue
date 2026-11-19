@@ -89,6 +89,10 @@ public sealed class ProcessRunner : IProcessRunner
         catch (OperationCanceledException)
         {
             TryKill(process);
+
+            // Wait for the process to really exit so files it was writing are closed before the
+            // caller cleans them up (otherwise a cancelled export could leave a partial file).
+            process.WaitForExit(TimeSpan.FromSeconds(10));
             throw;
         }
 

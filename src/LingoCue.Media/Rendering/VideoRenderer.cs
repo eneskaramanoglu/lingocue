@@ -195,19 +195,18 @@ public sealed class VideoRenderer(IMediaToolLocator locator, IProcessRunner runn
 
     private static void TryDelete(string path)
     {
-        try
+        // A killed FFmpeg may hold the file for a moment (antivirus scanners too): retry briefly.
+        for (var attempt = 0; attempt < 10 && File.Exists(path); attempt++)
         {
-            if (File.Exists(path))
+            try
             {
                 File.Delete(path);
+                return;
             }
-        }
-        catch (IOException)
-        {
-            // Still open by a dying process; it is a .lingocue-partial file and harmless.
-        }
-        catch (UnauthorizedAccessException)
-        {
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Thread.Sleep(100);
+            }
         }
     }
 }
