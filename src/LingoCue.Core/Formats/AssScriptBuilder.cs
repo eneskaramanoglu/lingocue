@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using LingoCue.Core.Projects;
 using LingoCue.Core.Subtitles;
 using LingoCue.Core.Text;
@@ -45,12 +46,12 @@ public static class AssScriptBuilder
         var presentation = project.Presentation;
         var main = project.Style with { Name = MainStyleName };
 
+        var culture = CultureFor(track.Language);
         var events = new List<Cue>();
         foreach (var cue in track.Cues.Where(c => c.End > c.Start))
         {
             // Every cue uses the project style; layer and margins of imported cues are kept.
-            var text = Decorate(cue.Text, presentation, CultureFor(track.Language));
-            events.Add(Event(cue, text, cue.Start, cue.End, cue.Format with { Style = null }));
+            AddEvents(events, cue, cue.Format with { Style = null }, presentation, main, culture);
         }
 
         return new SubtitleDocument
@@ -60,6 +61,99 @@ public static class AssScriptBuilder
             Cues = events,
         };
     }
+
+    /// <summary>Events for one cue: plain, karaoke fill (one event) or active word (one event per word).</summary>
+    private static void AddEvents(List<Cue> events, Cue cue, CueFormatData format, PresentationOptions presentation, SubtitleStyle style, CultureInfo culture)
+    {
+        var karaoke = presentation.Karaoke;
+        var timed = karaoke.Mode == KaraokeMode.Off ? null : KaraokeTiming.Align(cue);
+        if (timed is null)
+        {
+            events.Add(Event(cue, Decorate(cue.Text, presentation, culture), cue.Start, cue.End, format));
+            return;
+        }
+
+        if (karaoke.Mode == KaraokeMode.Fill)
+        {
+            events.Add(Event(cue, Decorate(FillText(cue, timed, karaoke.HighlightColor, style.PrimaryColor), presentation, culture), cue.Start, cue.End, format));
+            return;
+        }
+
+        // Active word: the text before the first word, then one event per word until the next one.
+        var segments = new List<(TimeSpan Start, TimeSpan End, int Active)>();
+        if (timed[0].Start > cue.Start)
+        {
+            segments.Add((cue.Start, timed[0].Start, -1));
+        }
+
+        for (var k = 0; k < timed.Count; k++)
+        {
+            var end = k + 1 < timed.Count ? timed[k + 1].Start : cue.End;
+            if (end > timed[k].Start)
+            {
+                segments.Add((timed[k].Start, end, k));
+            }
+        }
+
+        for (var s = 0; s < segments.Count; s++)
+        {
+            var (start, end, active) = segments[s];
+            var fades = presentation with
+            {
+                FadeInMs = s == 0 ? presentation.FadeInMs : 0,
+                FadeOutMs = s == segments.Count - 1 ? presentation.FadeOutMs : 0,
+            };
+            var text = ActiveWordText(timed, active, karaoke.HighlightColor, style.PrimaryColor);
+            events.Add(Event(cue, Decorate(text, fades, culture), start, end, format));
+        }
+    }
+
+    /// <summary><c>\kf</c> karaoke: unspoken words in the style color, spoken ones in the highlight.</summary>
+    internal static string FillText(Cue cue, IReadOnlyList<TimedToken> timed, AssColor highlight, AssColor primary)
+    {
+        // \kf sweeps from the secondary color (\2c, not yet spoken) to the primary color (\1c, spoken).
+        var sb = new StringBuilder();
+        sb.Append(CultureInfo.InvariantCulture, $@"{{\1c{highlight.ToAssOverride()}\2c{primary.ToAssOverride()}}}");
+        var elapsed = Centiseconds(timed[0].Start - cue.Start);
+        if (elapsed > 0)
+        {
+            sb.Append(CultureInfo.InvariantCulture, $@"{{\k{elapsed}}}");
+        }
+
+        for (var k = 0; k < timed.Count; k++)
+        {
+            var end = Centiseconds((k + 1 < timed.Count ? timed[k + 1].Start : cue.End) - cue.Start);
+            sb.Append(timed[k].Separator);
+            sb.Append(CultureInfo.InvariantCulture, $@"{{\kf{Math.Max(0, end - elapsed)}}}");
+            sb.Append(timed[k].Text);
+            elapsed = Math.Max(elapsed, end);
+        }
+
+        return sb.ToString();
+    }
+
+    internal static string ActiveWordText(IReadOnlyList<TimedToken> timed, int active, AssColor highlight, AssColor primary)
+    {
+        var sb = new StringBuilder();
+        for (var k = 0; k < timed.Count; k++)
+        {
+            sb.Append(timed[k].Separator);
+            if (k == active)
+            {
+                sb.Append(@"{\1c").Append(highlight.ToAssOverride()).Append('}')
+                  .Append(timed[k].Text)
+                  .Append(@"{\1c").Append(primary.ToAssOverride()).Append('}');
+            }
+            else
+            {
+                sb.Append(timed[k].Text);
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    private static int Centiseconds(TimeSpan t) => (int)Math.Round(t.TotalMilliseconds / 10, MidpointRounding.AwayFromZero);
 
     /// <summary>Applies upper case and fades to a cue's model text (tags are kept).</summary>
     internal static string Decorate(string text, PresentationOptions presentation, CultureInfo culture)
