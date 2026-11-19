@@ -23,6 +23,30 @@ dotnet run --project src/LingoCue.App
 
 Logs are written to `~/Library/Logs/LingoCue/`.
 
+## v0.7.0 — Export
+
+Needs a project with a video and at least one track; for soft subtitles ideally two tracks (e.g.
+Turkish + an imported English SRT). Use a short video (under a minute) to keep renders quick.
+
+- [ ] **Dışa Aktar** (toolbar or ⌘E) opens the dialog with three choices.
+- [ ] **Altyazı dosyası**, SRT, "Premiere Pro uyumlu" on, one track: the save dialog suggests
+      `<video>.tr.srt`; the file opens in TextEdit with ğ ş ı İ intact. With two tracks a folder is asked
+      and two files appear.
+- [ ] ASS: the file opens in IINA/VLC next to the video and looks like the preview.
+- [ ] **Videoya göm**: the encoder list shows "Apple donanımı (VideoToolbox)" (Apple Silicon). Start:
+      "İşler (1)" appears bottom right; open it: progress, speed (e.g. 4.0x) and time left move;
+      the job ends with "Bitti" and **Göster** opens Finder with the file selected.
+- [ ] Play the MP4 in QuickTime: subtitles look like the preview (font, colors, position; karaoke
+      and bilingual if they are on). Audio is in sync over the whole video.
+- [ ] Repeat with "İşlemci (x264)": slower, smaller file, same look.
+- [ ] Start a render and **İptal** in İşler: "İptal edildi", and no `.lingocue-partial` file remains
+      in the target folder.
+- [ ] Use a font added with "Font dosyası ekle" (v0.6.0): the burned-in video uses it.
+- [ ] **Açılıp kapanabilen altyazılı video**, MP4, two tracks: QuickTime's subtitle menu lists
+      "Türkçe" and "English (…)"; switching works. MKV: open in IINA/VLC, the ASS track is styled.
+- [ ] A video recorded on an iPhone in HDR: the dialog warns about HDR/10-bit; the render works.
+- [ ] Quit the app during a render: it asks first; choosing "İptal et ve kapat" closes it.
+
 ## v0.6.0 — Style
 
 Needs a project with a video and a transcribed Turkish track (word timings come from Transkribe Et);
