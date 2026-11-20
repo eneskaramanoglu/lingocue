@@ -136,6 +136,16 @@ public class TrackPassRunnerTests
     }
 
     [Fact]
+    public void Korean_targets_get_speech_level_and_spacing_rules()
+    {
+        var korean = new TranslationTask().SystemPrompt(new TaskContext(new ProjectContext(), [], "tr", "ko"));
+        korean.ShouldContain("해요체");
+        korean.ShouldContain("Hangul");
+        new TranslationTask().SystemPrompt(new TaskContext(new ProjectContext(), [], "tr", "en")).ShouldNotContain("해요체");
+        new ShortenTask().SystemPrompt(new TaskContext(new ProjectContext(), [], "tr", "ko")).ShouldContain("punctuation as 0.5");
+    }
+
+    [Fact]
     public async Task Translation_uses_target_glossary_and_clears_word_timings()
     {
         var (project, source) = CreateProject();

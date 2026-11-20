@@ -131,6 +131,10 @@ public abstract class LineTaskBase : ILineTask
         "es" => "Spanish",
         "ar" => "Arabic",
         "ru" => "Russian",
+        "ko" => "Korean",
+        "ja" => "Japanese",
+        "it" => "Italian",
+        "az" => "Azerbaijani",
         _ => code,
     };
 }

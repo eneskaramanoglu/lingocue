@@ -49,6 +49,10 @@ public static class LanguageCodes
         "es" => "Español",
         "ar" => "العربية",
         "ru" => "Русский",
+        "ko" => "한국어",
+        "ja" => "日本語",
+        "it" => "Italiano",
+        "az" => "Azərbaycanca",
         null or "" => "Altyazı",
         var other => other,
     };

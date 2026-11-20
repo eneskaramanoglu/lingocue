@@ -827,18 +827,33 @@ public partial class MainViewModel : ViewModelBase
         }
 
         var choice = await _dialogs.AskTranslateOptionsAsync(new TranslateDialogViewModel(_resolver, _settings.Current, project));
-        if (choice is not null)
+        if (choice is null)
         {
-            await RunTrackPassAsync(project, choice.Source, TrackPassKind.Translation, choice.ModelId, choice.Reflect, choice.RefreshContext, choice.TargetLanguage);
+            return;
+        }
+
+        // One run per language, in order; the video context is extracted at most once; a failure or cancel stops the rest.
+        var count = choice.TargetLanguages.Count;
+        for (var i = 0; i < count; i++)
+        {
+            var label = count > 1 ? $"{Core.Text.LanguageCodes.DisplayName(choice.TargetLanguages[i])} {i + 1}/{count}" : null;
+            if (!await RunTrackPassAsync(project, choice.Source, TrackPassKind.Translation, choice.ModelId, choice.Reflect,
+                    choice.RefreshContext && i == 0, choice.TargetLanguages[i], label))
+            {
+                break;
+            }
         }
     }
 
-    private async Task RunTrackPassAsync(
-        Project project, SubtitleTrack source, TrackPassKind kind, string modelId, bool reflect, bool refreshContext, string? targetLanguage)
+    /// <param name="runLabel">Shown in the status while several runs are queued (e.g. "Korece 2/2").</param>
+    /// <returns>True when the run finished and its track was added.</returns>
+    private async Task<bool> RunTrackPassAsync(
+        Project project, SubtitleTrack source, TrackPassKind kind, string modelId, bool reflect, bool refreshContext, string? targetLanguage,
+        string? runLabel = null)
     {
         if (_resolver is null || _settings is null || _loggers is null)
         {
-            return;
+            return false;
         }
 
         var settings = _settings.Current;
@@ -864,7 +879,7 @@ public partial class MainViewModel : ViewModelBase
         var progress = new Progress<PipelineProgress>(p =>
         {
             Progress = p.Fraction;
-            StatusText = $"{(kind == TrackPassKind.Correction ? "Düzeltiliyor" : "Çevriliyor")} ({modelId}) · {p.Stage} {p.Done}/{p.Total}";
+            StatusText = $"{(kind == TrackPassKind.Correction ? "Düzeltiliyor" : "Çevriliyor")}{(runLabel is null ? string.Empty : $" · {runLabel}")} ({modelId}) · {p.Stage} {p.Done}/{p.Total}";
         });
 
         try
@@ -872,6 +887,7 @@ public partial class MainViewModel : ViewModelBase
             using var client = _resolver.Provider.CreateChatClient(modelId);
             var result = await new TrackPassRunner(client, _loggers).RunAsync(request, progress, cts.Token);
             AddPassTrack(project, result, modelId, kind);
+            return true;
         }
         catch (OperationCanceledException)
         {
@@ -898,6 +914,8 @@ public partial class MainViewModel : ViewModelBase
             IsBusy = false;
             Progress = 0;
         }
+
+        return false;
     }
 
     private void AddPassTrack(Project project, TrackPassResult result, string modelId, TrackPassKind kind)

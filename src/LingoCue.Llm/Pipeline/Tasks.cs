@@ -84,6 +84,7 @@ public sealed class TranslationTask : LineTaskBase
               speech recognition heard in the source audio; it may contain recognition errors. Use it only to
               resolve ambiguity, never to overrule "text".
             {PronounRule(context)}
+            {TargetRules(context)}
             Video context:
             {ContextBlock(context.Project)}
             Glossary:
@@ -104,6 +105,22 @@ public sealed class TranslationTask : LineTaskBase
                 truly unknown, prefer wording that needs no gendered pronoun (name, role, or "they").
               """
             : string.Empty;
+
+    /// <summary>Conventions of the target language that models get wrong without being told.</summary>
+    internal static string TargetRules(TaskContext context)
+        => IsKorean(context.TargetLanguage)
+            ? """
+              - Korean subtitles: use the polite informal style (해요체) for dialogue by default. Use 합니다체 for
+                narration, presentations or a formal "Form of address", and 반말 only when the context shows close
+                friends or family talking. Keep the same speech level between the same people.
+              - Write people's and places' names in Hangul with a consistent standard transliteration (follow the
+                glossary when it gives a form); keep brand names that are normally written in Latin letters.
+              - Follow standard Korean spacing (띄어쓰기). Keep lines short: about 16 Korean characters per line,
+                where Latin letters, digits, spaces and punctuation count half.
+              """
+            : string.Empty;
+
+    internal static bool IsKorean(string? language) => language is not null && language.StartsWith("ko", StringComparison.OrdinalIgnoreCase);
 
     public override string ReflectPrompt(TaskContext context)
         => SystemPrompt(context) + """
@@ -140,7 +157,9 @@ public sealed class ShortenTask : LineTaskBase
             You condense {language} subtitles that are too long to read in their display time. For every
             line, keep the essential meaning and the speaker's voice, drop redundancy and filler, prefer
             shorter synonyms. Never change facts, names or numbers. Keep the language {language}.
-            Each line's "maxChars" is a hard limit for its visible characters (line breaks excluded).
+            Each line's "maxChars" is a hard limit for its visible characters (line breaks excluded).{(TranslationTask.IsKorean(context.TargetLanguage ?? context.SourceLanguage)
+                ? " Count Hangul as 1 and Latin letters, digits, spaces and punctuation as 0.5."
+                : string.Empty)}
             Answer with JSON only.
             """;
     }

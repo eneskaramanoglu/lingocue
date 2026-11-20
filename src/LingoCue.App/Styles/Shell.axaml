@@ -365,6 +365,27 @@
     <Setter Property="Padding" Value="20,12" />
   </Style>
 
+  <!-- Toggle chips (multi-select, e.g. target languages). -->
+  <Style Selector="ToggleButton.chiptoggle">
+    <Setter Property="CornerRadius" Value="14" />
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="12,3" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource StrongBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="ToggleButton.chiptoggle:checked /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SelectedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.chiptoggle:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SelectedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
+
   <!-- Choice cards: a radio button drawn as a selectable card (export kinds). -->
   <Style Selector="RadioButton.choice">
     <Setter Property="Cursor" Value="Hand" />
