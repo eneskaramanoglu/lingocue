@@ -240,7 +240,95 @@
     </Border>
 
     <!-- Main area: video + transport + timeline on the left, cue table + editor on the right. -->
-    <Grid Margin="8" ColumnDefinitions="5*,Auto,4*">
+    <Panel>
+    <!-- Welcome screen (no project open): drop zone, recent files as cards, readiness checks. -->
+    <ScrollViewer IsVisible="{Binding !HasProject}">
+      <StackPanel MaxWidth="1040" Margin="40,48,40,32" Spacing="26">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Hoş geldin" FontSize="28" FontWeight="Bold" />
+          <TextBlock Text="Bir video aç, konuşmayı yazıya dök, düzelt, çevir ve altyazılı olarak dışa aktar." Classes="muted" FontSize="14" />
+        </StackPanel>
+
+        <!-- Drop zone: the whole window accepts drops; this only shows where. -->
+        <Panel Height="230">
+          <Rectangle RadiusX="16" RadiusY="16" Fill="{DynamicResource ChromeBackgroundBrush}"
+                     Stroke="{DynamicResource StrongBorderBrush}" StrokeThickness="1.5" StrokeDashArray="5,4" />
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+            <Border Width="56" Height="56" CornerRadius="16" Background="{DynamicResource AccentSoftBrush}" HorizontalAlignment="Center">
+              <PathIcon Data="{StaticResource IconVideo}" Width="26" Height="26" Foreground="{DynamicResource AccentBrush}" />
+            </Border>
+            <TextBlock Text="Video ya da proje dosyasını buraya sürükle" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+            <TextBlock Text="MP4, MOV, MKV · SRT, VTT, ASS · .lingocue" Classes="muted" HorizontalAlignment="Center" />
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" Margin="0,4,0,0">
+              <Button Classes="accent" Content="Video aç" Command="{Binding OpenVideoCommand}" />
+              <Button Content="Proje aç" Command="{Binding OpenProjectCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Panel>
+
+        <Grid ColumnDefinitions="2*,24,*">
+          <StackPanel Spacing="12">
+            <TextBlock Text="SON AÇILANLAR" Classes="section" />
+            <TextBlock Text="Henüz açılmış bir dosya yok." Classes="muted" IsVisible="{Binding !HasRecentFiles}" />
+            <ItemsControl ItemsSource="{Binding RecentFiles}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <UniformGrid Columns="2" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:RecentFileItem">
+                  <Button Classes="card" Command="{Binding Open}" CommandParameter="{Binding Path}" ToolTip.Tip="{Binding Path}">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                      <Border Width="40" Height="40" CornerRadius="9" Background="{DynamicResource AccentSoftBrush}">
+                        <Panel>
+                          <PathIcon Data="{StaticResource IconFolder}" Foreground="{DynamicResource AccentBrush}" IsVisible="{Binding IsProject}" />
+                          <PathIcon Data="{StaticResource IconVideo}" Foreground="{DynamicResource AccentBrush}" IsVisible="{Binding !IsProject}" />
+                        </Panel>
+                      </Border>
+                      <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Classes="muted small" TextTrimming="CharacterEllipsis">
+                          <Run Text="{Binding Kind, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding ShortFolder, Mode=OneWay}" />
+                        </TextBlock>
+                      </StackPanel>
+                    </Grid>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+
+          <StackPanel Grid.Column="2" Spacing="12">
+            <TextBlock Text="HAZIRLIK" Classes="section" />
+            <Border Classes="panel" Padding="14,4">
+              <ItemsControl ItemsSource="{Binding Readiness}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ReadinessItem">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,9">
+                      <Panel Width="20" Height="20" VerticalAlignment="Top">
+                        <Border CornerRadius="10" Classes="chip ok" Padding="0" IsVisible="{Binding IsReady}">
+                          <PathIcon Data="{StaticResource IconCheck}" Width="12" Height="12" Foreground="{DynamicResource OkForegroundBrush}" />
+                        </Border>
+                        <Border CornerRadius="10" Classes="chip warn" Padding="0" IsVisible="{Binding !IsReady}">
+                          <TextBlock Text="!" />
+                        </Border>
+                      </Panel>
+                      <StackPanel Grid.Column="1" Spacing="1">
+                        <TextBlock Text="{Binding Label}" />
+                        <TextBlock Text="{Binding Detail}" Classes="muted small" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+          </StackPanel>
+        </Grid>
+      </StackPanel>
+    </ScrollViewer>
+
+    <Grid Margin="12" ColumnDefinitions="5*,Auto,4*" IsVisible="{Binding HasProject}">
       <Grid Grid.Column="0" RowDefinitions="*,Auto,Auto,110">
         <Border Grid.Row="0" Classes="panel video" ClipToBounds="True">
           <Panel>
@@ -491,5 +579,6 @@
        </DockPanel>
       </Border>
     </Grid>
+    </Panel>
   </DockPanel>
 </Window>

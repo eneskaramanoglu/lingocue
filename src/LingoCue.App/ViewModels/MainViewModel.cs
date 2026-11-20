@@ -46,6 +46,7 @@ public partial class MainViewModel : ViewModelBase
     private readonly ILoggerFactory? _loggers;
     private readonly ILogger<MainViewModel> _logger;
     private CancellationTokenSource? _jobCts;
+    private readonly IMediaToolLocator? _toolLocator;
     private string? _lastEngineId;
 
     public MainViewModel(
@@ -70,7 +71,8 @@ public partial class MainViewModel : ViewModelBase
         ISettingsStore settings,
         ModelResolver resolver,
         ILoggerFactory loggers,
-        ILogger<MainViewModel> logger)
+        ILogger<MainViewModel> logger,
+        IMediaToolLocator? toolLocator = null)
     {
         _themeService = themeService;
         _files = files;
@@ -105,6 +107,8 @@ public partial class MainViewModel : ViewModelBase
         };
         PlatformText = platform.RuntimeIdentifier;
         LoadRecentFiles();
+        _toolLocator = toolLocator;
+        RefreshReadiness();
         SelectedTheme = themeService.Current;
     }
 
@@ -634,6 +638,7 @@ public partial class MainViewModel : ViewModelBase
             await _dialogs.ShowSettingsAsync(new SettingsViewModel(_settings, _resolver, _engines, new ApiKeysViewModel(_keys, _secretStore, _platform))))
         {
             Editor?.Refresh();
+            RefreshReadiness();
             StatusText = "Ayarlar kaydedildi.";
         }
     }
@@ -1081,6 +1086,34 @@ public partial class MainViewModel : ViewModelBase
         IsDirty = true;
         OnPropertyChanged(nameof(DocumentName));
         ScheduleHistoryRecord(coalesceKey);
+    }
+
+    // ---------------------------------------------------------------- welcome screen
+
+    /// <summary>The welcome screen's "Hazırlık" list: what the main features need and whether it is there.</summary>
+    public System.Collections.ObjectModel.ObservableCollection<ReadinessItem> Readiness { get; } = [];
+
+    private void RefreshReadiness()
+    {
+        Readiness.Clear();
+        if (_toolLocator is not null)
+        {
+            var ffmpeg = _toolLocator.TryLocate(out _);
+            Readiness.Add(new ReadinessItem("FFmpeg", ffmpeg ? "bulundu" : "kurulu değil — video açmak için gerekli", ffmpeg));
+        }
+
+        if (_keys is not null)
+        {
+            var key = _keys.HasGeminiKey;
+            Readiness.Add(new ReadinessItem("Gemini anahtarı", key ? "kayıtlı" : "yok — düzeltme ve çeviri için", key));
+        }
+
+        if (_settings is not null && _engines.OfType<Transcription.Whisper.WhisperNetEngine>().FirstOrDefault() is { } whisper)
+        {
+            var model = _settings.Current.Transcription.WhisperModel;
+            var ready = whisper.IsModelDownloaded(model);
+            Readiness.Add(new ReadinessItem("Whisper modeli", ready ? model : "ilk transkripsiyonda iner (~1 GB)", ready));
+        }
     }
 
     // ---------------------------------------------------------------- recent files

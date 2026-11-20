@@ -219,6 +219,14 @@
     <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
     <Setter Property="Opacity" Value="0.9" />
   </Style>
+  <!-- Disabled: quiet buttons lose their fill; the accent button fades instead of turning grey. -->
+  <Style Selector="Button.accent:disabled">
+    <Setter Property="Opacity" Value="0.45" />
+  </Style>
+  <Style Selector="Button.icon:disabled /template/ ContentPresenter#PART_ContentPresenter, Button.step:disabled /template/ ContentPresenter#PART_ContentPresenter, Button.ghost:disabled /template/ ContentPresenter#PART_ContentPresenter, Button.transport:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
   <Style Selector="Button.danger">
     <Setter Property="Foreground" Value="{DynamicResource ErrorForegroundBrush}" />
     <Setter Property="Background" Value="Transparent" />
@@ -267,6 +275,17 @@
   </Style>
   <Style Selector="TabControl.segmented TabItem /template/ Border#PART_SelectedPipe">
     <Setter Property="IsVisible" Value="False" />
+  </Style>
+
+  <!-- Clickable card (welcome screen's recent files). -->
+  <Style Selector="Button.card">
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="Padding" Value="12" />
+    <Setter Property="Margin" Value="0,0,12,12" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
   </Style>
 
   <!-- App bar -->

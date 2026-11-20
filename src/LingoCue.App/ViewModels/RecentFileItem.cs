@@ -2,12 +2,21 @@ using System.Windows.Input;
 
 namespace LingoCue.App.ViewModels;
 
-/// <summary>One entry of Dosya → Son açılanlar: the file name, its folder as a hint, and the open command.</summary>
+/// <summary>One recent file: Dosya → Son açılanlar and the welcome screen's cards.</summary>
 public sealed record RecentFileItem(string Path, ICommand Open)
 {
     private const int MaxFolderLength = 32;
 
-    public string Header => $"{System.IO.Path.GetFileName(Path)}  —  {ShortFolder}";
+    public string Header => $"{FileName}  —  {ShortFolder}";
+
+    public string FileName => System.IO.Path.GetFileName(Path);
+
+    public bool IsProject => string.Equals(System.IO.Path.GetExtension(Path), Core.AppInfo.ProjectFileExtension, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>"Proje" for a .lingocue file, otherwise "Video".</summary>
+    public string Kind => IsProject
+        ? "Proje"
+        : "Video";
 
     /// <summary>The folder, cut from the left when long (the end of the path tells folders apart).</summary>
     public string ShortFolder
@@ -19,3 +28,6 @@ public sealed record RecentFileItem(string Path, ICommand Open)
         }
     }
 }
+
+/// <summary>A line of the welcome screen's readiness list.</summary>
+public sealed record ReadinessItem(string Label, string Detail, bool IsReady);
