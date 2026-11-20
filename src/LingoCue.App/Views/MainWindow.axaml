@@ -178,13 +178,15 @@
     </Border>
 
     <!-- Status bar with progress + cancel for long-running jobs. -->
-    <Border DockPanel.Dock="Bottom" Padding="10,4" BorderThickness="0,1,0,0"
-            BorderBrush="{DynamicResource PanelBorderBrush}">
+    <Border DockPanel.Dock="Bottom" Classes="chrome" Padding="14,4" BorderThickness="0,1,0,0" MinHeight="32">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10">
-          <ProgressBar Width="180" Minimum="0" Maximum="1" Value="{Binding Progress}"
-                       IsIndeterminate="{Binding IsProgressIndeterminate}" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
-          <Button Content="İptal" Command="{Binding CancelJobCommand}" IsVisible="{Binding CanCancel}"
+          <!-- Progress pill: a thin bar in a rounded accent tint while a job runs. -->
+          <Border Classes="chip accent" Padding="10,0" Height="22" IsVisible="{Binding IsBusy}" VerticalAlignment="Center">
+          <ProgressBar Width="110" MinWidth="0" Height="4" MinHeight="4" CornerRadius="2" Minimum="0" Maximum="1" Value="{Binding Progress}"
+                       IsIndeterminate="{Binding IsProgressIndeterminate}" VerticalAlignment="Center" />
+          </Border>
+          <Button Classes="small" Content="İptal" Command="{Binding CancelJobCommand}" IsVisible="{Binding CanCancel}"
                   Padding="10,2" Focusable="False" />
 
           <!-- Export queue: a button with a flyout listing the jobs (progress, cancel, show file). -->
@@ -224,10 +226,10 @@
               </Flyout>
             </Button.Flyout>
           </Button>
-          <TextBlock Text="{Binding PlatformText}" Classes="muted" VerticalAlignment="Center" />
-          <TextBlock Text="{Binding VersionText}" Classes="muted" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding PlatformText}" Classes="muted small" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding VersionText}" Classes="muted small" VerticalAlignment="Center" />
         </StackPanel>
-        <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Classes="small" Foreground="{DynamicResource SecondaryTextBrush}" />
       </DockPanel>
     </Border>
 
@@ -344,7 +346,7 @@
             </views:SafeAreaOverlay>
             <!-- Resolution chip over the picture. -->
             <Border Classes="overlay" IsVisible="{Binding HasMedia}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12">
-              <TextBlock Text="{Binding MediaSummary}" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" />
+              <TextBlock Text="{Binding MediaSummary}" FontSize="11" Foreground="#E6E8EC" />
             </Border>
             <TextBlock Classes="placeholder" IsVisible="{Binding !HasMedia}"
                        Text="Video Aç ile bir video seçin ya da buraya sürükleyin (MP4, MOV, MKV).&#x0a;Altyazı (SRT, VTT, ASS) ve .lingocue projeleri de sürüklenebilir." />
