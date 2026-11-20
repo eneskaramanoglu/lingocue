@@ -8,9 +8,22 @@
         Width="620" SizeToContent="Height" CanResize="False"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
 
-  <StackPanel Margin="20" Spacing="12">
-    <TextBlock TextWrapping="Wrap"
-               Text="Seçilen iz yapay zekâ ile çevrilir ve yeni bir iz olarak eklenir. Zamanlama birebir kopyalanır; kaynak iz değişmez. Düzenlediğiniz metin esas alınır." />
+  <DockPanel>
+  <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*" ColumnSpacing="12" Margin="20,18,20,4">
+    <Border Classes="dlgicon"><PathIcon Data="{StaticResource IconTranslate}" /></Border>
+    <StackPanel Grid.Column="1" Spacing="2">
+      <TextBlock Text="Çevir" Classes="h1" />
+      <TextBlock TextWrapping="Wrap" Classes="muted small"
+                 Text="Seçilen iz yeni bir iz olarak çevrilir; zamanlama birebir kopyalanır, kaynak iz değişmez. Düzenlediğin metin esas alınır." />
+    </StackPanel>
+  </Grid>
+  <Border DockPanel.Dock="Bottom" Classes="dlgfooter">
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Vazgeç" IsCancel="True" Click="OnCancel" MinWidth="90" />
+      <Button Content="Çevir" Classes="accent" IsDefault="True" IsEnabled="{Binding CanStart}" Click="OnStart" MinWidth="90" />
+    </StackPanel>
+  </Border>
+  <StackPanel Margin="20,12,20,18" Spacing="12">
 
     <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
       <TextBlock Text="Kaynak iz" VerticalAlignment="Center" />
@@ -41,17 +54,13 @@
     <CheckBox Content="Önce videonun bağlamını çıkar (özet, ton, konuşmacılar → tutarlı terimler ve zamirler)" IsChecked="{Binding RefreshContext}" />
     <CheckBox Content="İkinci geçişte gözden geçir (daha doğal ve tutarlı, maliyet ~2 kat)" IsChecked="{Binding Reflect}" />
 
-    <Border Classes="panel" Padding="10">
+    <Border Classes="well">
       <TextBlock Text="{Binding EstimateText}" TextWrapping="Wrap" />
     </Border>
 
     <Border Classes="error" Margin="0" IsVisible="{Binding Problem, Converter={x:Static ObjectConverters.IsNotNull}}">
       <TextBlock Text="{Binding Problem}" TextWrapping="Wrap" />
     </Border>
-
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-      <Button Content="Başlat" Classes="accent" IsDefault="True" IsEnabled="{Binding CanStart}" Click="OnStart" MinWidth="90" />
-      <Button Content="Vazgeç" IsCancel="True" Click="OnCancel" MinWidth="90" />
-    </StackPanel>
   </StackPanel>
+  </DockPanel>
 </Window>

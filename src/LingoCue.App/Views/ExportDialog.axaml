@@ -8,25 +8,50 @@
         Width="640" SizeToContent="Height" CanResize="False"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
 
-  <!-- Three kinds of export; each shows only its own options. -->
-  <StackPanel Margin="20" Spacing="12">
-    <StackPanel Spacing="6">
-      <RadioButton GroupName="kind" IsChecked="{Binding IsSubtitleFiles}"
-                   Content="Altyazı dosyası (SRT / VTT / ASS) — Premiere Pro'ya veya YouTube'a yüklemek için" />
-      <RadioButton GroupName="kind" IsChecked="{Binding IsBurnIn}" IsEnabled="{Binding CanBurnIn}"
-                   Content="Videoya göm (MP4) — altyazı görüntünün parçası olur, önizlemedeki gibi" />
-      <RadioButton GroupName="kind" IsChecked="{Binding IsSoftSub}" IsEnabled="{Binding HasVideo}"
-                   Content="Açılıp kapanabilen altyazılı video (MP4 / MKV) — video yeniden kodlanmaz, hızlıdır" />
+  <DockPanel>
+  <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*" ColumnSpacing="12" Margin="20,18,20,4">
+    <Border Classes="dlgicon"><PathIcon Data="{StaticResource IconDownload}" /></Border>
+    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+      <TextBlock Text="Dışa aktar" Classes="h1" />
+      <TextBlock Text="Ne üretmek istediğini seç." Classes="muted small" />
     </StackPanel>
+  </Grid>
+  <Border DockPanel.Dock="Bottom" Classes="dlgfooter">
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Vazgeç" IsCancel="True" Click="OnCancel" MinWidth="90" />
+      <Button Content="{Binding StartLabel}" Classes="accent" IsDefault="True" IsEnabled="{Binding CanStart}" Click="OnStart" MinWidth="110" />
+    </StackPanel>
+  </Border>
+
+  <!-- Three kinds of export as choice cards; each shows only its own options below. -->
+  <StackPanel Margin="20,12,20,18" Spacing="12">
+    <UniformGrid Columns="3" ColumnSpacing="10">
+      <RadioButton Classes="choice" GroupName="kind" IsChecked="{Binding IsSubtitleFiles}">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Altyazı dosyası" FontWeight="SemiBold" />
+          <TextBlock Text="SRT, VTT, ASS. Premiere Pro veya YouTube için." Classes="muted small" TextWrapping="Wrap" />
+        </StackPanel>
+      </RadioButton>
+      <RadioButton Classes="choice" GroupName="kind" IsChecked="{Binding IsBurnIn}" IsEnabled="{Binding CanBurnIn}">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Videoya göm" FontWeight="SemiBold" />
+          <TextBlock Text="Altyazı görüntünün parçası olur, önizlemedeki gibi. MP4." Classes="muted small" TextWrapping="Wrap" />
+        </StackPanel>
+      </RadioButton>
+      <RadioButton Classes="choice" GroupName="kind" IsChecked="{Binding IsSoftSub}" IsEnabled="{Binding HasVideo}">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Açılır-kapanır" FontWeight="SemiBold" />
+          <TextBlock Text="Video yeniden kodlanmaz, hızlıdır. MP4 veya MKV." Classes="muted small" TextWrapping="Wrap" />
+        </StackPanel>
+      </RadioButton>
+    </UniformGrid>
 
     <TextBlock Text="{Binding BurnInProblem}" Classes="issues" TextWrapping="Wrap"
                IsVisible="{Binding BurnInProblem, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
-    <Separator />
-
     <!-- Track list for subtitle files and soft subtitles -->
     <StackPanel Spacing="6" IsVisible="{Binding !IsBurnIn}">
-      <TextBlock Text="İzler" FontWeight="SemiBold" />
+      <TextBlock Text="İZLER" Classes="section" />
       <ItemsControl ItemsSource="{Binding Tracks}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:TrackChoice">
@@ -98,9 +123,6 @@
       <TextBlock Text="{Binding StyleWarning}" TextWrapping="Wrap" />
     </Border>
 
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-      <Button Content="{Binding StartLabel}" Classes="accent" IsDefault="True" IsEnabled="{Binding CanStart}" Click="OnStart" MinWidth="110" />
-      <Button Content="Vazgeç" IsCancel="True" Click="OnCancel" MinWidth="90" />
-    </StackPanel>
   </StackPanel>
+  </DockPanel>
 </Window>

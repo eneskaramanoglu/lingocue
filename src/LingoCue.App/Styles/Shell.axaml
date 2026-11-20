@@ -345,6 +345,52 @@
   </Style>
   <Style Selector="Border.tile.ok TextBlock"><Setter Property="Foreground" Value="{DynamicResource OkForegroundBrush}" /></Style>
 
+  <!-- Dialogs: an accent icon tile next to the title, a footer bar for the buttons. -->
+  <Style Selector="Border.dlgicon">
+    <Setter Property="Width" Value="36" />
+    <Setter Property="Height" Value="36" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="VerticalAlignment" Value="Top" />
+    <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+  </Style>
+  <Style Selector="Border.dlgicon > PathIcon">
+    <Setter Property="Width" Value="18" />
+    <Setter Property="Height" Value="18" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+  </Style>
+  <Style Selector="Border.dlgfooter">
+    <Setter Property="Background" Value="{DynamicResource ChromeBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+    <Setter Property="Padding" Value="20,12" />
+  </Style>
+
+  <!-- Choice cards: a radio button drawn as a selectable card (export kinds). -->
+  <Style Selector="RadioButton.choice">
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="VerticalAlignment" Value="Stretch" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="card" Background="{DynamicResource SunkenBackgroundBrush}" BorderBrush="{DynamicResource StrongBorderBrush}"
+                BorderThickness="1" CornerRadius="12" Padding="14">
+          <ContentPresenter Content="{TemplateBinding Content}" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="RadioButton.choice:pointerover /template/ Border#card">
+    <Setter Property="BorderBrush" Value="{DynamicResource MutedTextBrush}" />
+  </Style>
+  <Style Selector="RadioButton.choice:checked /template/ Border#card">
+    <Setter Property="Background" Value="{DynamicResource SelectedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="BorderThickness" Value="1.5" />
+  </Style>
+  <Style Selector="RadioButton.choice:disabled">
+    <Setter Property="Opacity" Value="0.45" />
+  </Style>
+
   <!-- Clickable card (welcome screen's recent files). -->
   <Style Selector="Button.card">
     <Setter Property="HorizontalAlignment" Value="Stretch" />
