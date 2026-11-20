@@ -35,6 +35,32 @@ public sealed record ReadingRules
     /// <summary>Hard limit; above this the cue is flagged as an error.</summary>
     public double MaxCps { get; init; } = 21;
 
+    /// <summary>How visible characters are counted for line length and reading speed.</summary>
+    public LengthCounting Counting { get; init; } = LengthCounting.Characters;
+
+    /// <summary>Visible length of a text (tags and line breaks excluded), counted per <see cref="Counting"/>.</summary>
+    public double TextLength(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        return SubtitleText.StripTags(text).Split('\n').Sum(line => SubtitleText.WeightedLength(line.TrimEnd('\r'), Counting));
+    }
+
+    /// <summary>Length of the longest visible line.</summary>
+    public double LongestLine(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        return SubtitleText.StripTags(text).Split('\n').Max(line => SubtitleText.WeightedLength(line.TrimEnd('\r'), Counting));
+    }
+
+    /// <summary>Characters per second of a text shown for <paramref name="duration"/>.</summary>
+    public double Cps(string text, TimeSpan duration) => duration.TotalSeconds > 0 ? TextLength(text) / duration.TotalSeconds : 0;
+
+    public double Cps(Cue cue)
+    {
+        ArgumentNullException.ThrowIfNull(cue);
+        return Cps(cue.Text, cue.Duration);
+    }
+
     public CueIssues Evaluate(Cue cue)
     {
         ArgumentNullException.ThrowIfNull(cue);
@@ -45,7 +71,7 @@ public sealed record ReadingRules
             issues |= CueIssues.Empty;
         }
 
-        var cps = cue.CharactersPerSecond;
+        var cps = Cps(cue);
         if (cps > MaxCps)
         {
             issues |= CueIssues.ReadingSpeedTooHigh;
@@ -55,7 +81,7 @@ public sealed record ReadingRules
             issues |= CueIssues.ReadingSpeedHigh;
         }
 
-        if (SubtitleText.LongestLineLength(cue.Text) > MaxCharsPerLine)
+        if (LongestLine(cue.Text) > MaxCharsPerLine)
         {
             issues |= CueIssues.LineTooLong;
         }
@@ -76,4 +102,17 @@ public sealed record ReadingRules
 
         return issues;
     }
+}
+
+/// <summary>How subtitle characters are counted.</summary>
+public enum LengthCounting
+{
+    /// <summary>Every visible character counts 1 (Latin, Cyrillic, Arabic scripts).</summary>
+    Characters,
+
+    /// <summary>
+    /// Netflix's Korean rule: Hangul and other wide characters count 1; Latin letters, digits, spaces
+    /// and punctuation count 0.5.
+    /// </summary>
+    HalfWidthLatin,
 }

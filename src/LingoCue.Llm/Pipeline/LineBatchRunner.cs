@@ -83,7 +83,7 @@ public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatc
         {
             var overlong = work
                 .Select(l => (Source: l, Current: results.TryGetValue(l.Id, out var r) ? r : null))
-                .Where(x => x.Current is { Status: not LineStatus.Failed } && Cps(x.Current.Text, x.Source.Duration) > options.Rules.MaxCps)
+                .Where(x => x.Current is { Status: not LineStatus.Failed } && options.Rules.Cps(x.Current.Text, x.Source.Duration) > options.Rules.MaxCps)
                 .Select(x => x.Source with { Text = x.Current!.Text, MaxChars = ShortenTask.MaxChars(x.Source, options.Rules) })
                 .ToList();
             if (overlong.Count > 0)
@@ -109,9 +109,6 @@ public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatc
         LogFinished(task.Name, ordered.Count, changed, failedBatches, totals.InputTokens, totals.OutputTokens);
         return new PipelineResult(ordered, usage.Value, failedBatches);
     }
-
-    private static double Cps(string text, TimeSpan duration)
-        => duration.TotalSeconds > 0 ? Core.Subtitles.SubtitleText.VisibleLength(text) / duration.TotalSeconds : 0;
 
     private static async Task ForEachBatchAsync(IReadOnlyList<LineItem[]> batches, PipelineOptions options, Func<LineItem[], Task> body, CancellationToken cancellationToken)
     {

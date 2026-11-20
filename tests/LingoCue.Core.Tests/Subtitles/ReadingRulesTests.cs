@@ -33,6 +33,34 @@ public class ReadingRulesTests
     [Fact]
     public void Tags_do_not_count_toward_line_length()
         => ReadingRules.Default.Evaluate(Make(5, "<i>" + new string('a', 42) + "</i>")).HasFlag(CueIssues.LineTooLong).ShouldBeFalse();
+
+    [Fact]
+    public void Korean_counts_latin_spaces_and_punctuation_as_half()
+    {
+        var korean = Core.Settings.ReadingRulesSettings.KoreanRules(ReadingRules.Default);
+
+        korean.TextLength("안녕하세요").ShouldBe(5);
+        korean.TextLength("안녕, OK!").ShouldBe(2 + 0.5 + 0.5 + 1 + 0.5);  // 안녕 + "," + " " + "OK" + "!"
+        korean.TextLength("첫 줄\n둘째").ShouldBe(2.5 + 2);                // 첫 + space + 줄; the line break is not counted
+        korean.LongestLine("<i>가나다라마바사아자차카타파하가나</i>").ShouldBe(16);
+    }
+
+    [Fact]
+    public void Korean_rules_use_16_chars_per_line_and_12_cps()
+    {
+        var korean = new Core.Settings.ReadingRulesSettings().ToRules("ko");
+
+        korean.MaxCharsPerLine.ShouldBe(16);
+        korean.MaxCps.ShouldBe(12);
+        korean.Counting.ShouldBe(LengthCounting.HalfWidthLatin);
+        korean.Evaluate(Make(5, new string('가', 17))).HasFlag(CueIssues.LineTooLong).ShouldBeTrue();
+        korean.Evaluate(Make(5, new string('가', 16))).HasFlag(CueIssues.LineTooLong).ShouldBeFalse();
+        korean.Evaluate(Make(1, new string('가', 13))).HasFlag(CueIssues.ReadingSpeedTooHigh).ShouldBeTrue();
+
+        // The same 30 Latin letters are fine in Korean counting (15) but too long for 16 chars in Turkish counting.
+        korean.Evaluate(Make(5, new string('a', 30))).HasFlag(CueIssues.LineTooLong).ShouldBeFalse();
+        new Core.Settings.ReadingRulesSettings().ToRules("tr").Counting.ShouldBe(LengthCounting.Characters);
+    }
 }
 
 public class AssScriptBuilderTests

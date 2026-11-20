@@ -118,6 +118,27 @@ public static class SubtitleText
     public static int VisibleLength(string text)
         => StripTags(text).Count(c => c is not ('\n' or '\r'));
 
+    /// <summary>
+    /// Length of one plain line (no tags, no line breaks). With <see cref="LengthCounting.HalfWidthLatin"/>
+    /// ASCII letters, digits, spaces and punctuation count half.
+    /// </summary>
+    public static double WeightedLength(string line, LengthCounting counting)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+        if (counting == LengthCounting.Characters)
+        {
+            return line.Length;
+        }
+
+        var length = 0.0;
+        foreach (var c in line)
+        {
+            length += c < 0x80 ? 0.5 : 1;
+        }
+
+        return length;
+    }
+
     /// <summary>Length of the longest visible line.</summary>
     public static int LongestLineLength(string text)
         => StripTags(text).Split('\n').Max(l => l.Length);

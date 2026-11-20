@@ -176,7 +176,7 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
         }
     }
 
-    public string CpsText => cue.CharactersPerSecond.ToString("0.0", s_tr);
+    public string CpsText => rules.Cps(cue).ToString("0.0", s_tr);
 
     public CueIssues Issues => rules.Evaluate(cue);
 

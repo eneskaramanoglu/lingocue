@@ -1,3 +1,4 @@
+using System.Globalization;
 using LingoCue.Core.Subtitles;
 
 namespace LingoCue.Llm.Pipeline;
@@ -149,9 +150,9 @@ public sealed class ShortenTask : LineTaskBase
     public override string? Validate(LineItem source, string output, TaskContext context, PipelineOptions options)
     {
         var limit = MaxChars(source, options.Rules);
-        var length = SubtitleText.VisibleLength(output);
+        var length = options.Rules.TextLength(output);
         return length > limit + 3
-            ? $"Line {source.Id} has {length} characters; shorten it to at most {limit}."
+            ? string.Create(CultureInfo.InvariantCulture, $"Line {source.Id} has {length:0.#} characters; shorten it to at most {limit}.")
             : base.Validate(source, output, context, options);
     }
 
