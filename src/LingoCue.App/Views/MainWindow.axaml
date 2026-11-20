@@ -52,6 +52,7 @@
               <Setter Property="Header" Value="{Binding Header}" />
               <Setter Property="Command" Value="{Binding Open}" />
               <Setter Property="CommandParameter" Value="{Binding Path}" />
+              <Setter Property="ToolTip.Tip" Value="{Binding Path}" />
             </Style>
           </MenuItem.Styles>
         </MenuItem>
@@ -348,7 +349,8 @@
             </Grid>
           </Border>
 
-          <DataGrid x:Name="CueGrid" ItemsSource="{Binding VisibleCues}" SelectedItem="{Binding SelectedCue}"
+          <!-- SelectedItem is synced in code-behind: an unloaded tab would otherwise write "no selection" back. -->
+          <DataGrid x:Name="CueGrid" ItemsSource="{Binding VisibleCues}"
                     IsReadOnly="True" SelectionMode="Single" CanUserSortColumns="False" CanUserReorderColumns="False"
                     GridLinesVisibility="Horizontal" HeadersVisibility="Column" RowHeight="28" FontSize="13">
             <DataGrid.Columns>

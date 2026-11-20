@@ -23,7 +23,7 @@ public partial class MainWindow : Window
 
         CueGrid.SelectionChanged += (_, _) =>
         {
-            if (CueGrid.SelectedItem is { } item)
+            if (CueGrid.SelectedItem is { } item && CueGrid.IsLoaded)
             {
                 CueGrid.ScrollIntoView(item, null);
             }
@@ -36,6 +36,8 @@ public partial class MainWindow : Window
         DataContext = viewModel;
         if (viewModel.Editor is { } editor)
         {
+            SyncGridSelection(editor);
+
             // Ctrl+B splits at the caret when the text box has focus.
             editor.TextCaret = () => CueTextBox.IsFocused ? CueTextBox.CaretIndex : null;
 
@@ -49,6 +51,48 @@ public partial class MainWindow : Window
     }
 
     private MainViewModel? ViewModel => DataContext as MainViewModel;
+
+    /// <summary>
+    /// Keeps the grid's selection and <see cref="SubtitleEditorViewModel.SelectedCue"/> in step. Not a
+    /// two-way binding: when another tab is shown the grid is unloaded and clears its selection, which
+    /// must not clear the line selected in the editor (the timeline and the Kontrol tab use it).
+    /// </summary>
+    private void SyncGridSelection(SubtitleEditorViewModel editor)
+    {
+        var syncing = false;
+        void Push()
+        {
+            if (!ReferenceEquals(CueGrid.SelectedItem, editor.SelectedCue))
+            {
+                syncing = true;
+                try
+                {
+                    CueGrid.SelectedItem = editor.SelectedCue;
+                }
+                finally
+                {
+                    syncing = false;
+                }
+            }
+        }
+
+        editor.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(SubtitleEditorViewModel.SelectedCue) or nameof(SubtitleEditorViewModel.VisibleCues))
+            {
+                Push();
+            }
+        };
+        CueGrid.SelectionChanged += (_, _) =>
+        {
+            // Only a row the user picked counts; "nothing selected" comes from unloading or a list reset.
+            if (!syncing && CueGrid.SelectedItem is CueViewModel row && !ReferenceEquals(row, editor.SelectedCue))
+            {
+                editor.SelectedCue = row;
+            }
+        };
+        CueGrid.AttachedToVisualTree += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(Push);
+    }
 
     protected override async void OnClosing(WindowClosingEventArgs e)
     {

@@ -29,16 +29,19 @@
     </DockPanel>
 
     <ScrollViewer>
-      <StackPanel>
+      <!-- One shared key column, so all groups line up. -->
+      <StackPanel Grid.IsSharedSizeScope="True">
         <TextBlock Classes="group" Text="Oynatma" Margin="0,0,0,4" />
-        <Grid Classes="keys" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+        <Grid Classes="keys" RowDefinitions="Auto,Auto,Auto">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="key" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
           <TextBlock Classes="key" Text="Boşluk" /><TextBlock Grid.Column="1" Text="Oynat / duraklat" />
           <TextBlock Grid.Row="1" Classes="key" Text="← / →" /><TextBlock Grid.Row="1" Grid.Column="1" Text="5 sn geri / ileri" />
           <TextBlock Grid.Row="2" Classes="key" Text="Shift+← / →" /><TextBlock Grid.Row="2" Grid.Column="1" Text="Bir kare geri / ileri" />
         </Grid>
 
         <TextBlock Classes="group" Text="Satırlar" />
-        <Grid Classes="keys" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <Grid Classes="keys" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="key" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
           <TextBlock Classes="key" Text="Alt+← / →" /><TextBlock Grid.Column="1" Text="Seçili satırı 100 ms geri / ileri kaydır" />
           <TextBlock Grid.Row="1" Classes="key" Text="Alt+Shift+← / →" /><TextBlock Grid.Row="1" Grid.Column="1" Text="Yalnızca başlangıcı 100 ms kaydır" />
           <TextBlock Grid.Row="2" Classes="key" Text="[  /  ]" /><TextBlock Grid.Row="2" Grid.Column="1" Text="Başlangıcı / bitişi oynatma konumuna al" />
@@ -49,7 +52,8 @@
         </Grid>
 
         <TextBlock Classes="group" Text="Düzen ve dosya" />
-        <Grid Classes="keys" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <Grid Classes="keys" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="key" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
           <TextBlock Classes="key" Text="Ctrl+Z" /><TextBlock Grid.Column="1" Text="Geri al" />
           <TextBlock Grid.Row="1" Classes="key" Text="Ctrl+Y / Ctrl+Shift+Z" /><TextBlock Grid.Row="1" Grid.Column="1" Text="Yinele" />
           <TextBlock Grid.Row="2" Classes="key" Text="Ctrl+F" /><TextBlock Grid.Row="2" Grid.Column="1" Text="Bul ve değiştir (Enter: sonraki, Shift+Enter: önceki, Esc: kapat)" />
@@ -61,7 +65,8 @@
         </Grid>
 
         <TextBlock Classes="group" Text="Zaman çizelgesi (fare)" />
-        <Grid Classes="keys" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+        <Grid Classes="keys" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="key" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
           <TextBlock Classes="key" Text="Tıkla / sürükle (boşta)" /><TextBlock Grid.Column="1" Text="O ana git" />
           <TextBlock Grid.Row="1" Classes="key" Text="Bloğu sürükle" /><TextBlock Grid.Row="1" Grid.Column="1" Text="Satırı zamanda kaydır (komşulara binmez)" />
           <TextBlock Grid.Row="2" Classes="key" Text="Kenarı sürükle" /><TextBlock Grid.Row="2" Grid.Column="1" Text="Başlangıç veya bitişi değiştir" />
