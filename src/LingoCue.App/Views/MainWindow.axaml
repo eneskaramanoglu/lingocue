@@ -4,6 +4,7 @@
         xmlns:mpv="using:HanumanInstitute.LibMpv.Avalonia"
         xmlns:sub="using:LingoCue.Core.Subtitles"
         xmlns:views="using:LingoCue.App.Views"
+        xmlns:services="using:LingoCue.App.Services"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
@@ -40,8 +41,16 @@
 
   <DockPanel>
 
-    <!-- Menu -->
-    <Menu DockPanel.Dock="Top">
+    <!-- App bar: logo + compact menu + document on the left, the Transkribe → Düzelt → Çevir workflow
+         in the middle, undo/redo, settings and the one primary action (Dışa aktar) on the right. -->
+    <Border DockPanel.Dock="Top" Classes="chrome" Height="52" BorderThickness="0,0,0,1" Padding="14,0,12,0">
+     <Grid ColumnDefinitions="*,Auto,*">
+      <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+        <Border Width="26" Height="26" CornerRadius="7" Background="{DynamicResource AccentBrush}">
+          <PathIcon Data="{StaticResource IconLogo}" Width="15" Height="15" Foreground="{DynamicResource OnAccentBrush}" />
+        </Border>
+        <TextBlock Text="LingoCue" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+    <Menu Classes="appmenu" VerticalAlignment="Center">
       <MenuItem Header="_Dosya">
         <MenuItem Header="_Video Aç…" InputGesture="Ctrl+O" Command="{Binding OpenVideoCommand}" />
         <MenuItem Header="_Proje Aç…" Command="{Binding OpenProjectCommand}" />
@@ -85,47 +94,99 @@
         <Separator />
         <MenuItem Header="_İzler…" Command="{Binding ManageTracksCommand}" />
         <MenuItem Header="_Sözlük ve Bağlam…" Command="{Binding EditGlossaryCommand}" />
+        <MenuItem Header="S_til" Command="{Binding ShowStyleCommand}" />
       </MenuItem>
       <MenuItem Header="A_yarlar">
         <MenuItem Header="_Tercihler…" InputGesture="Ctrl+OemComma" Command="{Binding PreferencesCommand}" />
+        <MenuItem Header="Te_ma">
+          <MenuItem Header="Sistem" Command="{Binding SetThemeCommand}" CommandParameter="{x:Static services:AppTheme.System}" />
+          <MenuItem Header="Açık" Command="{Binding SetThemeCommand}" CommandParameter="{x:Static services:AppTheme.Light}" />
+          <MenuItem Header="Koyu" Command="{Binding SetThemeCommand}" CommandParameter="{x:Static services:AppTheme.Dark}" />
+        </MenuItem>
       </MenuItem>
       <MenuItem Header="_Yardım">
         <MenuItem Header="_Klavye kısayolları…" Click="OnShowShortcuts" />
       </MenuItem>
     </Menu>
+        <!-- Document name; the dot means unsaved changes. -->
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsVisible="{Binding HasProject}">
+          <TextBlock Text="/" Classes="muted" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding DocumentName}" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"
+                     MaxWidth="260" TextTrimming="CharacterEllipsis" />
+          <Ellipse Width="7" Height="7" Fill="{DynamicResource DirtyDotBrush}" IsVisible="{Binding IsDirty}"
+                   VerticalAlignment="Center" ToolTip.Tip="Kaydedilmemiş değişiklik var" />
+        </StackPanel>
+      </StackPanel>
 
-    <!-- Toolbar: actions are enabled milestone by milestone. -->
-    <Border DockPanel.Dock="Top" Padding="8,6" BorderThickness="0,1,0,1"
-            BorderBrush="{DynamicResource PanelBorderBrush}">
-      <DockPanel>
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <TextBlock Text="Tema" VerticalAlignment="Center" Classes="muted" />
-          <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}" MinWidth="110" Focusable="False" />
+      <!-- Workflow: one connected group; a finished step shows a green check. -->
+      <Border Grid.Column="1" Classes="workflow" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" Spacing="2">
+          <Button Classes="step" Command="{Binding TranscribeCommand}" Focusable="False"
+                  ToolTip.Tip="Konuşmayı tanı ve altyazı oluştur (Ctrl+T / ⌘T)">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <Panel>
+                <PathIcon Data="{StaticResource IconMic}" Width="14" Height="14" IsVisible="{Binding !IsTranscribed}" />
+                <PathIcon Data="{StaticResource IconCheck}" Width="14" Height="14" Classes="done" IsVisible="{Binding IsTranscribed}" />
+              </Panel>
+              <TextBlock Text="Transkribe" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <PathIcon Data="{StaticResource IconChevronRight}" Width="14" Height="14" Classes="joiner" />
+          <Button Classes="step" Command="{Binding CorrectCommand}" Focusable="False"
+                  ToolTip.Tip="Yapay zekâ ile tanıma hatalarını düzelt">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <Panel>
+                <PathIcon Data="{StaticResource IconWand}" Width="14" Height="14" IsVisible="{Binding !IsCorrected}" />
+                <PathIcon Data="{StaticResource IconCheck}" Width="14" Height="14" Classes="done" IsVisible="{Binding IsCorrected}" />
+              </Panel>
+              <TextBlock Text="Düzelt" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <PathIcon Data="{StaticResource IconChevronRight}" Width="14" Height="14" Classes="joiner" />
+          <Button Classes="step" Command="{Binding TranslateCommand}" Focusable="False"
+                  ToolTip.Tip="Bir izi yapay zekâ ile başka dile çevirir (yeni iz, aynı zamanlama)">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <Panel>
+                <PathIcon Data="{StaticResource IconTranslate}" Width="14" Height="14" IsVisible="{Binding !IsTranslated}" />
+                <PathIcon Data="{StaticResource IconCheck}" Width="14" Height="14" Classes="done" IsVisible="{Binding IsTranslated}" />
+              </Panel>
+              <TextBlock Text="Çevir" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
         </StackPanel>
-        <StackPanel Orientation="Horizontal" Spacing="6">
-          <Button Content="Video Aç" Command="{Binding OpenVideoCommand}" Focusable="False"
-                  ToolTip.Tip="Video aç (Ctrl+O / ⌘O)" />
-          <Button Content="Kaydet" Command="{Binding SaveProjectCommand}" Focusable="False"
-                  ToolTip.Tip="Projeyi kaydet (Ctrl+S / ⌘S)" />
-          <Separator Width="1" Margin="4,2" />
-          <Button Content="Transkribe Et" Command="{Binding TranscribeCommand}" Focusable="False"
-                  ToolTip.Tip="Konuşmayı tanı ve altyazı oluştur (Ctrl+T / ⌘T)" />
-          <Button Content="Düzelt" Command="{Binding CorrectCommand}" ToolTip.Tip="Yapay zekâ ile tanıma hatalarını düzelt" />
-          <Button Content="Çevir" Command="{Binding TranslateCommand}" ToolTip.Tip="Bir izi yapay zekâ ile başka dile çevirir (yeni iz, aynı zamanlama)" />
-          <Button Content="Stil" Command="{Binding ShowStyleCommand}" ToolTip.Tip="Altyazının görünümü: font, renk, konum, şablonlar, karaoke, iki dilli mod" />
-          <Button Content="Dışa Aktar" Command="{Binding ExportCommand}" ToolTip.Tip="Altyazı dosyası, altyazısı gömülü video veya açılıp kapanabilen altyazılı video (Ctrl/⌘+E)" />
-        </StackPanel>
-      </DockPanel>
+      </Border>
+
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+        <Button Classes="icon" Command="{Binding UndoCommand}" Focusable="False" ToolTip.Tip="Geri al (Ctrl+Z / ⌘Z)">
+          <PathIcon Data="{StaticResource IconUndo}" />
+        </Button>
+        <Button Classes="icon" Command="{Binding RedoCommand}" Focusable="False" ToolTip.Tip="Yinele (Ctrl+Y / ⌘⇧Z)">
+          <PathIcon Data="{StaticResource IconRedo}" />
+        </Button>
+        <Button Classes="icon" Command="{Binding PreferencesCommand}" Focusable="False" ToolTip.Tip="Tercihler">
+          <PathIcon Data="{StaticResource IconCog}" />
+        </Button>
+        <Button Classes="accent" Command="{Binding ExportCommand}" Focusable="False" Margin="4,0,0,0"
+                ToolTip.Tip="Altyazı dosyası, altyazısı gömülü video veya açılıp kapanabilen altyazılı video (Ctrl/⌘+E)">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <PathIcon Data="{StaticResource IconDownload}" Width="15" Height="15" />
+            <TextBlock Text="Dışa aktar" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
+     </Grid>
     </Border>
 
     <!-- Status bar with progress + cancel for long-running jobs. -->
-    <Border DockPanel.Dock="Bottom" Padding="10,4" BorderThickness="0,1,0,0"
-            BorderBrush="{DynamicResource PanelBorderBrush}">
+    <Border DockPanel.Dock="Bottom" Classes="chrome" Padding="14,4" BorderThickness="0,1,0,0" MinHeight="32">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10">
-          <ProgressBar Width="180" Minimum="0" Maximum="1" Value="{Binding Progress}"
-                       IsIndeterminate="{Binding IsProgressIndeterminate}" IsVisible="{Binding IsBusy}" VerticalAlignment="Center" />
-          <Button Content="İptal" Command="{Binding CancelJobCommand}" IsVisible="{Binding CanCancel}"
+          <!-- Progress pill: a thin bar in a rounded accent tint while a job runs. -->
+          <Border Classes="chip accent" Padding="10,0" Height="22" IsVisible="{Binding IsBusy}" VerticalAlignment="Center">
+          <ProgressBar Width="110" MinWidth="0" Height="4" MinHeight="4" CornerRadius="2" Minimum="0" Maximum="1" Value="{Binding Progress}"
+                       IsIndeterminate="{Binding IsProgressIndeterminate}" VerticalAlignment="Center" />
+          </Border>
+          <Button Classes="small" Content="İptal" Command="{Binding CancelJobCommand}" IsVisible="{Binding CanCancel}"
                   Padding="10,2" Focusable="False" />
 
           <!-- Export queue: a button with a flyout listing the jobs (progress, cancel, show file). -->
@@ -165,10 +226,10 @@
               </Flyout>
             </Button.Flyout>
           </Button>
-          <TextBlock Text="{Binding PlatformText}" Classes="muted" VerticalAlignment="Center" />
-          <TextBlock Text="{Binding VersionText}" Classes="muted" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding PlatformText}" Classes="muted small" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding VersionText}" Classes="muted small" VerticalAlignment="Center" />
         </StackPanel>
-        <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Classes="small" Foreground="{DynamicResource SecondaryTextBrush}" />
       </DockPanel>
     </Border>
 
@@ -181,8 +242,96 @@
     </Border>
 
     <!-- Main area: video + transport + timeline on the left, cue table + editor on the right. -->
-    <Grid Margin="8" ColumnDefinitions="5*,Auto,4*">
-      <Grid Grid.Column="0" RowDefinitions="*,Auto,Auto,110">
+    <Panel>
+    <!-- Welcome screen (no project open): drop zone, recent files as cards, readiness checks. -->
+    <ScrollViewer IsVisible="{Binding !HasProject}">
+      <StackPanel MaxWidth="1040" Margin="40,48,40,32" Spacing="26">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Hoş geldin" FontSize="28" FontWeight="Bold" />
+          <TextBlock Text="Bir video aç, konuşmayı yazıya dök, düzelt, çevir ve altyazılı olarak dışa aktar." Classes="muted" FontSize="14" />
+        </StackPanel>
+
+        <!-- Drop zone: the whole window accepts drops; this only shows where. -->
+        <Panel Height="230">
+          <Rectangle RadiusX="16" RadiusY="16" Fill="{DynamicResource ChromeBackgroundBrush}"
+                     Stroke="{DynamicResource StrongBorderBrush}" StrokeThickness="1.5" StrokeDashArray="5,4" />
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+            <Border Width="56" Height="56" CornerRadius="16" Background="{DynamicResource AccentSoftBrush}" HorizontalAlignment="Center">
+              <PathIcon Data="{StaticResource IconVideo}" Width="26" Height="26" Foreground="{DynamicResource AccentBrush}" />
+            </Border>
+            <TextBlock Text="Video ya da proje dosyasını buraya sürükle" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+            <TextBlock Text="MP4, MOV, MKV · SRT, VTT, ASS · .lingocue" Classes="muted" HorizontalAlignment="Center" />
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" Margin="0,4,0,0">
+              <Button Classes="accent" Content="Video aç" Command="{Binding OpenVideoCommand}" />
+              <Button Content="Proje aç" Command="{Binding OpenProjectCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Panel>
+
+        <Grid ColumnDefinitions="2*,24,*">
+          <StackPanel Spacing="12">
+            <TextBlock Text="SON AÇILANLAR" Classes="section" />
+            <TextBlock Text="Henüz açılmış bir dosya yok." Classes="muted" IsVisible="{Binding !HasRecentFiles}" />
+            <ItemsControl ItemsSource="{Binding RecentFiles}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <UniformGrid Columns="2" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:RecentFileItem">
+                  <Button Classes="card" Command="{Binding Open}" CommandParameter="{Binding Path}" ToolTip.Tip="{Binding Path}">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                      <Border Width="40" Height="40" CornerRadius="9" Background="{DynamicResource AccentSoftBrush}">
+                        <Panel>
+                          <PathIcon Data="{StaticResource IconFolder}" Foreground="{DynamicResource AccentBrush}" IsVisible="{Binding IsProject}" />
+                          <PathIcon Data="{StaticResource IconVideo}" Foreground="{DynamicResource AccentBrush}" IsVisible="{Binding !IsProject}" />
+                        </Panel>
+                      </Border>
+                      <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Classes="muted small" TextTrimming="CharacterEllipsis">
+                          <Run Text="{Binding Kind, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding ShortFolder, Mode=OneWay}" />
+                        </TextBlock>
+                      </StackPanel>
+                    </Grid>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+
+          <StackPanel Grid.Column="2" Spacing="12">
+            <TextBlock Text="HAZIRLIK" Classes="section" />
+            <Border Classes="panel" Padding="14,4">
+              <ItemsControl ItemsSource="{Binding Readiness}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ReadinessItem">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,9">
+                      <Panel Width="20" Height="20" VerticalAlignment="Top">
+                        <Border CornerRadius="10" Classes="chip ok" Padding="0" IsVisible="{Binding IsReady}">
+                          <PathIcon Data="{StaticResource IconCheck}" Width="12" Height="12" Foreground="{DynamicResource OkForegroundBrush}" />
+                        </Border>
+                        <Border CornerRadius="10" Classes="chip warn" Padding="0" IsVisible="{Binding !IsReady}">
+                          <TextBlock Text="!" />
+                        </Border>
+                      </Panel>
+                      <StackPanel Grid.Column="1" Spacing="1">
+                        <TextBlock Text="{Binding Label}" />
+                        <TextBlock Text="{Binding Detail}" Classes="muted small" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+          </StackPanel>
+        </Grid>
+      </StackPanel>
+    </ScrollViewer>
+
+    <Grid Margin="12" ColumnDefinitions="5*,Auto,4*" IsVisible="{Binding HasProject}">
+      <Grid Grid.Column="0" RowDefinitions="*,Auto,Auto,160">
         <Border Grid.Row="0" Classes="panel video" ClipToBounds="True">
           <Panel>
             <mpv:MpvView MpvContext="{Binding Player.Mpv}" Renderer="OpenGl" IsVisible="{Binding HasMedia}" />
@@ -195,13 +344,18 @@
                 </MultiBinding>
               </views:SafeAreaOverlay.IsVisible>
             </views:SafeAreaOverlay>
+            <!-- Resolution chip over the picture. -->
+            <Border Classes="overlay" IsVisible="{Binding HasMedia}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12">
+              <TextBlock Text="{Binding MediaSummary}" FontSize="11" Foreground="#E6E8EC" />
+            </Border>
             <TextBlock Classes="placeholder" IsVisible="{Binding !HasMedia}"
                        Text="Video Aç ile bir video seçin ya da buraya sürükleyin (MP4, MOV, MKV).&#x0a;Altyazı (SRT, VTT, ASS) ve .lingocue projeleri de sürüklenebilir." />
           </Panel>
         </Border>
 
         <!-- Transport -->
-        <DockPanel Grid.Row="1" Margin="0,6,0,0" DataContext="{Binding Player}" x:DataType="vm:PlayerViewModel"
+        <Border Grid.Row="1" Classes="panel" Margin="0,10,0,0" Padding="10,5">
+        <DockPanel DataContext="{Binding Player}" x:DataType="vm:PlayerViewModel"
                    IsEnabled="{Binding IsLoaded}">
           <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="4">
             <Button Classes="transport" Command="{Binding JumpBackCommand}" ToolTip.Tip="5 sn geri (←)">
@@ -229,8 +383,9 @@
             <TextBlock Text="{Binding DurationText}" FontFamily="{DynamicResource MonoFont}" Classes="muted" />
           </StackPanel>
           <Slider Minimum="0" Maximum="{Binding DurationSeconds}" Value="{Binding PositionSeconds}"
-                  Margin="8,0" VerticalAlignment="Center" Focusable="False" />
+                  Margin="12,0" VerticalAlignment="Center" Focusable="False" Classes="seek" />
         </DockPanel>
+        </Border>
 
         <GridSplitter Grid.Row="2" Height="6" Background="Transparent" ResizeDirection="Rows" />
         <!-- Timeline: drawn in code (TimelineControl); tooltip lists the mouse actions. -->
@@ -242,54 +397,60 @@
 
       <GridSplitter Grid.Column="1" Width="6" Background="Transparent" ResizeDirection="Columns" />
 
-      <!-- Cue list + editor -->
-      <Border Grid.Column="2" Classes="panel" Padding="0">
+      <!-- Right panel: track row, segmented tabs (Satırlar / Stil / Kontrol). -->
+      <Border Grid.Column="2" Classes="panel" Padding="0" ClipToBounds="True">
        <DockPanel>
         <!-- Track selector; "İzler…" opens track management. -->
-        <DockPanel DockPanel.Dock="Top" Margin="8,6,8,0" IsVisible="{Binding HasProject}">
-          <Button DockPanel.Dock="Right" Content="İzler…" Command="{Binding ManageTracksCommand}" Margin="6,0,0,0" Focusable="False"
+        <DockPanel DockPanel.Dock="Top" Margin="12,12,12,0" IsVisible="{Binding HasProject}">
+          <Button DockPanel.Dock="Right" Content="İzler…" Command="{Binding ManageTracksCommand}" Margin="8,0,0,0" Focusable="False"
                   ToolTip.Tip="İzleri yönet: ad, dil, sıra, çoğalt, sil, zamanlamayı kaynaktan al" />
-          <TextBlock Text="İz" VerticalAlignment="Center" Margin="0,0,8,0" Classes="muted" />
-          <ComboBox ItemsSource="{Binding Tracks}" SelectedItem="{Binding SelectedTrack}" HorizontalAlignment="Stretch" Focusable="False">
+          <ComboBox ItemsSource="{Binding Tracks}" SelectedItem="{Binding SelectedTrack}" HorizontalAlignment="Stretch" Focusable="False"
+                    ToolTip.Tip="Düzenlenen iz">
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="sub:SubtitleTrack">
                 <TextBlock>
                   <Run Text="{Binding Name, Mode=OneWay}" />
+                  <Run Text="{Binding Language, StringFormat=' · {0}', Mode=OneWay}" Foreground="{DynamicResource MutedTextBrush}" />
                   <Run Text="{Binding Cues.Count, StringFormat=' · {0} satır', Mode=OneWay}" Foreground="{DynamicResource MutedTextBrush}" />
                 </TextBlock>
               </DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
         </DockPanel>
-        <!-- Lines / Style tabs: the video stays visible while styling. -->
-        <TabControl SelectedIndex="{Binding SelectedPanel}" Padding="0" Margin="0,2,0,0">
+        <!-- Lines / Style / QA tabs: the video stays visible while styling. -->
+        <TabControl Classes="segmented" SelectedIndex="{Binding SelectedPanel}">
           <TabItem Header="Satırlar">
         <DockPanel DataContext="{Binding Editor}" x:DataType="vm:SubtitleEditorViewModel">
 
-          <!-- Header: summary + list actions -->
-          <!-- Summary on its own line; the actions wrap so nothing is cut off in a narrow panel. -->
-          <DockPanel DockPanel.Dock="Top" Margin="8,6">
-            <TextBlock DockPanel.Dock="Top" Text="{Binding Summary}" Classes="muted" TextWrapping="Wrap" Margin="0,0,0,4" />
-            <WrapPanel HorizontalAlignment="Right" ItemSpacing="6" LineSpacing="4">
-              <CheckBox Content="{Binding FilterLabel}" IsChecked="{Binding ShowChangedOnly}" Focusable="False"
-                        IsVisible="{Binding HasSourceTrack}"
-                        ToolTip.Tip="{Binding FilterTip}" />
-              <CheckBox Content="Oynatmayı takip et" IsChecked="{Binding FollowPlayback}" Focusable="False" />
-              <Button Content="+ Satır" Command="{Binding AddCueCommand}" Focusable="False"
-                      ToolTip.Tip="Oynatma konumuna yeni satır ekle" />
-              <Button Content="Sil" Command="{Binding DeleteCueCommand}" Focusable="False"
+          <!-- Summary and list actions; the actions wrap in a narrow panel. -->
+          <StackPanel DockPanel.Dock="Top" Margin="12,10,12,8" Spacing="8">
+            <DockPanel>
+              <CheckBox DockPanel.Dock="Right" Content="Oynatmayı takip et" IsChecked="{Binding FollowPlayback}" Focusable="False" />
+              <TextBlock Text="{Binding Summary}" Classes="muted small" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+            <WrapPanel ItemSpacing="6" LineSpacing="6">
+              <Button Classes="small" Content="+ Satır" Command="{Binding AddCueCommand}" Focusable="False"
+                      ToolTip.Tip="Oynatma konumuna yeni satır ekle (Ctrl+Enter)" />
+              <Button Classes="small" Content="Böl" Command="{Binding SplitCueCommand}" Focusable="False"
+                      ToolTip.Tip="Seçili satırı böl (Ctrl+B)" />
+              <Button Classes="small" Content="Birleştir" Command="{Binding MergeWithNextCommand}" Focusable="False"
+                      ToolTip.Tip="Sonraki satırla birleştir (Ctrl+M)" />
+              <Button Classes="small danger" Content="Sil" Command="{Binding DeleteCueCommand}" Focusable="False"
                       ToolTip.Tip="Seçili satırı sil" />
+              <CheckBox Content="{Binding FilterLabel}" IsChecked="{Binding ShowChangedOnly}" Focusable="False"
+                        IsVisible="{Binding HasSourceTrack}" Margin="6,0,0,0"
+                        ToolTip.Tip="{Binding FilterTip}" />
             </WrapPanel>
-          </DockPanel>
+          </StackPanel>
 
           <!-- Find / replace bar (Ctrl/⌘+F); Enter in the search box finds the next match. -->
-          <Border DockPanel.Dock="Top" Classes="panel" Margin="8,0,8,6" Padding="8" IsVisible="{Binding IsFindOpen}">
+          <Border DockPanel.Dock="Top" Classes="well" Margin="12,0,12,8" IsVisible="{Binding IsFindOpen}">
             <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="6" RowSpacing="6">
               <TextBox x:Name="FindBox" Text="{Binding FindText}" PlaceholderText="Bul (Türkçe büyük/küçük harf kurallarıyla)" />
               <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                <Button Content="↑" Command="{Binding FindPreviousCommand}" ToolTip.Tip="Önceki (Shift+Enter)" Focusable="False" />
-                <Button Content="↓" Command="{Binding FindNextCommand}" ToolTip.Tip="Sonraki (Enter)" Focusable="False" />
-                <Button Content="✕" Command="{Binding CloseFindCommand}" ToolTip.Tip="Kapat (Esc)" Focusable="False" />
+                <Button Classes="icon" Content="↑" Command="{Binding FindPreviousCommand}" ToolTip.Tip="Önceki (Shift+Enter)" Focusable="False" />
+                <Button Classes="icon" Content="↓" Command="{Binding FindNextCommand}" ToolTip.Tip="Sonraki (Enter)" Focusable="False" />
+                <Button Classes="icon" Content="✕" Command="{Binding CloseFindCommand}" ToolTip.Tip="Kapat (Esc)" Focusable="False" />
               </StackPanel>
               <TextBox Grid.Row="1" Text="{Binding ReplaceText}" PlaceholderText="Değiştir" />
               <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
@@ -304,124 +465,149 @@
             </Grid>
           </Border>
 
-          <!-- Editor for the selected cue -->
-          <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource PanelBorderBrush}"
-                  Padding="8" IsEnabled="{Binding HasSelection}">
-            <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto,*" >
-              <TextBlock Grid.Row="0" Grid.Column="0" Text="Başlangıç" VerticalAlignment="Center" Margin="0,0,6,0" />
-              <DockPanel Grid.Row="0" Grid.Column="1" Margin="0,0,12,0">
-                <Button DockPanel.Dock="Right" Content="⏱" Command="{Binding SetStartToPlayheadCommand}" Focusable="False"
-                        ToolTip.Tip="Başlangıcı oynatma konumuna ayarla" Margin="4,0,0,0" />
-                <TextBox Text="{Binding SelectedCue.StartInput, UpdateSourceTrigger=LostFocus, FallbackValue=''}"
-                         FontFamily="{DynamicResource MonoFont}" x:Name="StartBox" />
-              </DockPanel>
-              <TextBlock Grid.Row="0" Grid.Column="2" Text="Bitiş" VerticalAlignment="Center" Margin="0,0,6,0" />
-              <DockPanel Grid.Row="0" Grid.Column="3">
-                <Button DockPanel.Dock="Right" Content="⏱" Command="{Binding SetEndToPlayheadCommand}" Focusable="False"
-                        ToolTip.Tip="Bitişi oynatma konumuna ayarla" Margin="4,0,0,0" />
-                <TextBox Text="{Binding SelectedCue.EndInput, UpdateSourceTrigger=LostFocus, FallbackValue=''}"
-                         FontFamily="{DynamicResource MonoFont}" />
-              </DockPanel>
+          <!-- Edit card for the selected line. -->
+          <Border DockPanel.Dock="Bottom" Classes="chrome" BorderThickness="0,1,0,0" Padding="12" IsEnabled="{Binding HasSelection}">
+            <StackPanel Spacing="8">
+              <Grid ColumnDefinitions="*,12,*">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Başlangıç" Classes="muted small" />
+                  <DockPanel>
+                    <Button DockPanel.Dock="Right" Classes="icon" Command="{Binding SetStartToPlayheadCommand}" Focusable="False"
+                            ToolTip.Tip="Başlangıcı oynatma konumuna al ([)" Margin="4,0,0,0">
+                      <PathIcon Data="{StaticResource IconClock}" />
+                    </Button>
+                    <TextBox Classes="mono" Text="{Binding SelectedCue.StartInput, UpdateSourceTrigger=LostFocus, FallbackValue=''}" x:Name="StartBox" />
+                  </DockPanel>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="4">
+                  <TextBlock Text="Bitiş" Classes="muted small" />
+                  <DockPanel>
+                    <Button DockPanel.Dock="Right" Classes="icon" Command="{Binding SetEndToPlayheadCommand}" Focusable="False"
+                            ToolTip.Tip="Bitişi oynatma konumuna al (])" Margin="4,0,0,0">
+                      <PathIcon Data="{StaticResource IconClock}" />
+                    </Button>
+                    <TextBox Classes="mono" Text="{Binding SelectedCue.EndInput, UpdateSourceTrigger=LostFocus, FallbackValue=''}" />
+                  </DockPanel>
+                </StackPanel>
+              </Grid>
 
-              <TextBox Grid.Row="1" Grid.ColumnSpan="4" Margin="0,8,0,0" MinHeight="64"
-                       Text="{Binding SelectedCue.Text, FallbackValue=''}"
+              <TextBox MinHeight="64" Text="{Binding SelectedCue.Text, FallbackValue=''}"
                        AcceptsReturn="True" TextWrapping="Wrap" x:Name="CueTextBox"
                        PlaceholderText="Altyazı metni (Enter ile yeni satır)" />
 
-              <TextBlock Grid.Row="2" Grid.Column="0" Text="Konuşmacı" VerticalAlignment="Center" Margin="0,8,6,0" />
-              <TextBox Grid.Row="2" Grid.Column="1" Margin="0,8,12,0" Text="{Binding SelectedCue.Speaker, FallbackValue=''}" />
-              <TextBlock Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" Margin="0,8,0,0" VerticalAlignment="Center"
-                         Text="{Binding SelectedCue.IssuesText, FallbackValue=''}" Classes="issues" TextWrapping="Wrap" />
+              <Grid ColumnDefinitions="Auto,160,*" ColumnSpacing="8">
+                <TextBlock Text="Konuşmacı" Classes="muted small" VerticalAlignment="Center" />
+                <TextBox Grid.Column="1" Text="{Binding SelectedCue.Speaker, FallbackValue=''}" />
+                <TextBlock Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" TextAlignment="Right"
+                           Text="{Binding SelectedCue.IssuesText, FallbackValue=''}" Classes="issues" TextWrapping="Wrap" />
+              </Grid>
 
               <!-- Original text from the source track, for corrected/translated tracks. -->
-              <DockPanel Grid.Row="3" Grid.ColumnSpan="4" Margin="0,8,0,0"
-                         IsVisible="{Binding SelectedCue.HasOriginal, FallbackValue=False}">
+              <DockPanel IsVisible="{Binding SelectedCue.HasOriginal, FallbackValue=False}">
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
-                  <Button Content="Orijinale dön" Command="{Binding RevertToOriginalCommand}" Focusable="False"
+                  <Button Classes="small" Content="Orijinale dön" Command="{Binding RevertToOriginalCommand}" Focusable="False"
                           IsEnabled="{Binding SelectedCue.IsChanged, FallbackValue=False}" />
-                  <Button Content="Kontrol edildi" Command="{Binding MarkReviewedCommand}" Focusable="False"
+                  <Button Classes="small" Content="Kontrol edildi" Command="{Binding MarkReviewedCommand}" Focusable="False"
                           IsVisible="{Binding SelectedCue.IsFlagged, FallbackValue=False}" />
                 </StackPanel>
-                <TextBlock Classes="muted" TextWrapping="Wrap" VerticalAlignment="Center">
-                  <Run Text="Orijinal: " /><Run Text="{Binding SelectedCue.OriginalText, FallbackValue='', Mode=OneWay}" />
+                <TextBlock Classes="muted small" TextWrapping="Wrap" VerticalAlignment="Center">
+                  <Run Text="Orijinal: " /><Run Text="{Binding SelectedCue.OriginalText, FallbackValue='', Mode=OneWay}" Foreground="{DynamicResource SecondaryTextBrush}" />
                 </TextBlock>
               </DockPanel>
-            </Grid>
+            </StackPanel>
           </Border>
 
-          <!-- SelectedItem is synced in code-behind: an unloaded tab would otherwise write "no selection" back. -->
-          <DataGrid x:Name="CueGrid" ItemsSource="{Binding VisibleCues}"
-                    IsReadOnly="True" SelectionMode="Single" CanUserSortColumns="False" CanUserReorderColumns="False"
-                    GridLinesVisibility="Horizontal" HeadersVisibility="Column" RowHeight="28" FontSize="13">
-            <DataGrid.Columns>
-              <DataGridTemplateColumn Header="#" Width="44">
-                <DataGridTemplateColumn.CellTemplate>
-                  <DataTemplate x:DataType="vm:CueViewModel">
-                    <Panel>
-                      <Border Classes="current" IsVisible="{Binding IsCurrent}" />
-                      <TextBlock Text="{Binding Number}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,6,0" />
-                    </Panel>
-                  </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-              </DataGridTemplateColumn>
-              <DataGridTextColumn Header="Başlangıç" Binding="{Binding StartText}" Width="136" FontFamily="{DynamicResource MonoFont}" />
-              <DataGridTextColumn Header="Bitiş" Binding="{Binding EndText}" Width="136" FontFamily="{DynamicResource MonoFont}" />
-              <DataGridTextColumn Header="Süre" Binding="{Binding DurationText}" Width="62" />
-              <DataGridTemplateColumn Header="CPS" Width="62">
-                <DataGridTemplateColumn.CellTemplate>
-                  <DataTemplate x:DataType="vm:CueViewModel">
-                    <Border Classes.cpsHigh="{Binding CpsHigh}" Classes.cpsTooHigh="{Binding CpsTooHigh}" Padding="6,0">
-                      <TextBlock Text="{Binding CpsText}" VerticalAlignment="Center" HorizontalAlignment="Right" />
-                    </Border>
-                  </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-              </DataGridTemplateColumn>
-              <DataGridTemplateColumn Header="" Width="26">
-                <DataGridTemplateColumn.CellTemplate>
-                  <DataTemplate x:DataType="vm:CueViewModel">
+          <!-- The lines. SelectedItem is synced in code-behind: an unloaded tab would otherwise write "no selection" back. -->
+          <ListBox x:Name="CueGrid" Classes="cues" ItemsSource="{Binding VisibleCues}" SelectionMode="Single"
+                   BorderThickness="0,1,0,0" BorderBrush="{DynamicResource PanelBorderBrush}">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:CueViewModel">
+                <Grid ColumnDefinitions="3,40,*,Auto">
+                  <Border Background="{DynamicResource AccentBrush}" IsVisible="{Binding $parent[ListBoxItem].IsSelected}" />
+                  <TextBlock Grid.Column="1" Text="{Binding Number}" Classes="num" Classes.current="{Binding IsCurrent}"
+                             HorizontalAlignment="Right" Margin="0,10,0,0" />
+                  <StackPanel Grid.Column="2" Margin="12,8,8,8" Spacing="3">
+                    <TextBlock Classes="mono muted" FontSize="11">
+                      <Run Text="{Binding StartText, Mode=OneWay}" /><Run Text=" → " /><Run Text="{Binding EndText, Mode=OneWay}" /><Run Text="   " /><Run Text="{Binding DurationText, Mode=OneWay}" /><Run Text=" sn" />
+                    </TextBlock>
+                    <TextBlock Text="{Binding OneLineText}" TextTrimming="CharacterEllipsis"
+                               Classes.hasError="{Binding HasError}" ToolTip.Tip="{Binding TextTip}" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" Margin="0,0,12,0" VerticalAlignment="Center">
                     <TextBlock Text="{Binding MarkGlyph}" ToolTip.Tip="{Binding MarkTip}" Classes="mark"
                                Classes.review="{Binding NeedsReview}" Classes.failed="{Binding LlmFailed}" />
-                  </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-              </DataGridTemplateColumn>
-              <DataGridTemplateColumn Header="Metin" Width="*">
-                <DataGridTemplateColumn.CellTemplate>
-                  <DataTemplate x:DataType="vm:CueViewModel">
-                    <TextBlock Text="{Binding OneLineText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="6,0"
-                               Classes.hasError="{Binding HasError}" ToolTip.Tip="{Binding TextTip}" />
-                  </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-              </DataGridTemplateColumn>
-              <DataGridTextColumn Header="Konuşmacı" Binding="{Binding Speaker}" Width="104" />
-            </DataGrid.Columns>
-          </DataGrid>
+                    <Border Classes="chip" Classes.ok="{Binding CpsOk}" Classes.warn="{Binding CpsHigh}" Classes.err="{Binding CpsTooHigh}"
+                            MinWidth="46" ToolTip.Tip="Okuma hızı (karakter/sn)">
+                      <TextBlock Text="{Binding CpsText}" />
+                    </Border>
+                  </StackPanel>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
         </DockPanel>
           </TabItem>
           <TabItem Header="Stil">
             <views:StyleEditorView DataContext="{Binding StyleEditor}" />
           </TabItem>
           <!-- QA: every rule problem of the track; picking one selects the line and seeks there. -->
-          <TabItem Header="Kontrol">
-            <DockPanel DataContext="{Binding Quality}" x:DataType="vm:QualityViewModel" Margin="8,6">
-              <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,6">
-                <TextBlock Text="{Binding Summary}" Classes="muted" />
-                <WrapPanel ItemSpacing="6" LineSpacing="4">
-                  <Button Content="Çakışmaları gider" Command="{Binding FixOverlapsCommand}" Focusable="False"
-                          ToolTip.Tip="Üst üste binen satırları bir sonrakinin hemen öncesinde bitirir" />
-                  <Button Content="Okuma hızı için süreyi uzat" Command="{Binding ExtendForReadingSpeedCommand}" Focusable="False"
-                          ToolTip.Tip="Hızlı okunan satırları, sonraki satıra değmeden hedef okuma hızına kadar uzatır" />
-                </WrapPanel>
-                <TextBlock Text="{Binding FixStatus}" Classes="muted" TextWrapping="Wrap"
+          <TabItem>
+            <TabItem.Header>
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="Kontrol" VerticalAlignment="Center" />
+                <Border Classes="chip warn" Padding="6,0" IsVisible="{Binding Quality.HasIssues, FallbackValue=False}">
+                  <TextBlock Text="{Binding Quality.IssueCount, FallbackValue=''}" />
+                </Border>
+              </StackPanel>
+            </TabItem.Header>
+            <DockPanel DataContext="{Binding Quality}" x:DataType="vm:QualityViewModel">
+              <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="12,10,12,10">
+                <Grid ColumnDefinitions="*,8,*,8,*">
+                  <Border Classes="tile err">
+                    <StackPanel><TextBlock Text="{Binding ErrorCount}" Classes="tilevalue" /><TextBlock Text="hata" Classes="small" /></StackPanel>
+                  </Border>
+                  <Border Grid.Column="2" Classes="tile warn">
+                    <StackPanel><TextBlock Text="{Binding WarningCount}" Classes="tilevalue" /><TextBlock Text="uyarı" Classes="small" /></StackPanel>
+                  </Border>
+                  <Border Grid.Column="4" Classes="tile ok">
+                    <StackPanel><TextBlock Text="{Binding CleanCount}" Classes="tilevalue" /><TextBlock Text="sorunsuz satır" Classes="small" /></StackPanel>
+                  </Border>
+                </Grid>
+                <Grid ColumnDefinitions="*,8,*">
+                  <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding FixOverlapsCommand}" Focusable="False"
+                          ToolTip.Tip="Üst üste binen satırları bir sonrakinin hemen öncesinde bitirir">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <PathIcon Data="{StaticResource IconWrench}" Width="14" Height="14" />
+                      <TextBlock Text="Çakışmaları gider" />
+                    </StackPanel>
+                  </Button>
+                  <Button Grid.Column="2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding ExtendForReadingSpeedCommand}" Focusable="False"
+                          ToolTip.Tip="Hızlı okunan satırları, sonraki satıra değmeden hedef okuma hızına kadar uzatır">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <PathIcon Data="{StaticResource IconClock}" Width="14" Height="14" />
+                      <TextBlock Text="Okuma hızı için uzat" />
+                    </StackPanel>
+                  </Button>
+                </Grid>
+                <TextBlock Text="{Binding FixStatus}" Classes="muted small" TextWrapping="Wrap"
                            IsVisible="{Binding FixStatus, Converter={x:Static ObjectConverters.IsNotNull}}" />
               </StackPanel>
-              <ListBox ItemsSource="{Binding Issues}" SelectedItem="{Binding SelectedIssue}">
+              <ListBox Classes="cues" ItemsSource="{Binding Issues}" SelectedItem="{Binding SelectedIssue}"
+                       BorderThickness="0,1,0,0" BorderBrush="{DynamicResource PanelBorderBrush}">
                 <ListBox.ItemTemplate>
                   <DataTemplate x:DataType="vm:QaIssueItem">
-                    <Grid ColumnDefinitions="20,52,110,*">
-                      <TextBlock Text="{Binding Glyph}" Classes="mark" Classes.failed="{Binding IsError}" Classes.review="{Binding !IsError}" />
-                      <TextBlock Grid.Column="1" Text="{Binding NumberText}" Classes="muted" />
-                      <TextBlock Grid.Column="2" Text="{Binding TimeText}" FontFamily="{DynamicResource MonoFont}" Classes="muted" />
-                      <TextBlock Grid.Column="3" Text="{Binding Issue.Message}" TextWrapping="Wrap" />
+                    <Grid ColumnDefinitions="3,Auto,*" Margin="0">
+                      <Border Background="{DynamicResource AccentBrush}" IsVisible="{Binding $parent[ListBoxItem].IsSelected}" />
+                      <Border Grid.Column="1" Classes="chip" Classes.err="{Binding IsError}" Classes.warn="{Binding !IsError}"
+                              Width="22" Height="22" CornerRadius="11" Padding="0" Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Glyph}" />
+                      </Border>
+                      <StackPanel Grid.Column="2" Margin="12,9" Spacing="2">
+                        <TextBlock Text="{Binding Issue.Message}" TextWrapping="Wrap" />
+                        <TextBlock Classes="muted small">
+                          <Run Text="Satır " /><Run Text="{Binding Issue.Number, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding TimeText, Mode=OneWay}" FontFamily="{DynamicResource MonoFont}" />
+                        </TextBlock>
+                      </StackPanel>
                     </Grid>
                   </DataTemplate>
                 </ListBox.ItemTemplate>
@@ -432,5 +618,6 @@
        </DockPanel>
       </Border>
     </Grid>
+    </Panel>
   </DockPanel>
 </Window>

@@ -10,13 +10,35 @@
              x:Class="LingoCue.App.Views.StyleEditorView"
              x:DataType="vm:StyleEditorViewModel">
 
+  <!-- Sections are expanders drawn as cards; field labels are muted so the values stand out. -->
+  <UserControl.Styles>
+    <Style Selector="Expander">
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Background" Value="{DynamicResource SunkenBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource StrongBorderBrush}" />
+    </Style>
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader">
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Expander Grid > TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="Expander Grid > TextBlock.issues">
+      <Setter Property="Foreground" Value="{DynamicResource WarningForegroundBrush}" />
+    </Style>
+    <Style Selector="NumericUpDown">
+      <Setter Property="Background" Value="{DynamicResource SunkenBackgroundBrush}" />
+    </Style>
+  </UserControl.Styles>
+
   <!-- Every control writes straight to the project; the video preview (libass) shows the result. -->
   <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-    <StackPanel Margin="10,8" Spacing="10" IsEnabled="{Binding HasProject}">
+    <StackPanel Margin="12,10,12,16" Spacing="10" IsEnabled="{Binding HasProject}">
 
       <!-- Templates -->
       <StackPanel Spacing="6">
-        <TextBlock Text="Şablon" FontWeight="SemiBold" />
+        <TextBlock Text="ŞABLON" Classes="section" />
         <ComboBox ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplate}" HorizontalAlignment="Stretch">
           <ComboBox.ItemTemplate>
             <DataTemplate x:DataType="proj:StyleTemplate">
@@ -28,13 +50,13 @@
           </ComboBox.ItemTemplate>
         </ComboBox>
         <WrapPanel ItemSpacing="6" LineSpacing="6">
-          <Button Content="Uygula" Classes="accent" Command="{Binding ApplyTemplateCommand}"
+          <Button Content="Uygula" Classes="small accent" Command="{Binding ApplyTemplateCommand}"
                   ToolTip.Tip="Seçili şablonun görünümünü projeye uygula" />
-          <Button Content="Şablon olarak kaydet…" Command="{Binding SaveTemplateCommand}"
+          <Button Classes="small" Content="Şablon olarak kaydet…" Command="{Binding SaveTemplateCommand}"
                   ToolTip.Tip="Şu anki görünümü tüm projelerde kullanmak üzere kaydet" />
-          <Button Content="İçe aktar…" Command="{Binding ImportTemplateCommand}" />
-          <Button Content="Dışa aktar…" Command="{Binding ExportTemplateCommand}" />
-          <Button Content="Sil" Command="{Binding DeleteTemplateCommand}" ToolTip.Tip="Yalnızca kendi şablonlarınız silinebilir" />
+          <Button Classes="small" Content="İçe aktar…" Command="{Binding ImportTemplateCommand}" />
+          <Button Classes="small" Content="Dışa aktar…" Command="{Binding ExportTemplateCommand}" />
+          <Button Classes="small danger" Content="Sil" Command="{Binding DeleteTemplateCommand}" ToolTip.Tip="Yalnızca kendi şablonlarınız silinebilir" />
         </WrapPanel>
       </StackPanel>
 
@@ -43,7 +65,7 @@
         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
           <TextBlock Text="Font" VerticalAlignment="Center" />
           <DockPanel Grid.Column="1">
-            <Button DockPanel.Dock="Right" Content="Font dosyası ekle…" Command="{Binding AddFontCommand}" Margin="6,0,0,0"
+            <Button DockPanel.Dock="Right" Classes="small" Content="Font dosyası ekle…" Command="{Binding AddFontCommand}" Margin="6,0,0,0"
                     ToolTip.Tip="TTF/OTF dosyasını projenin yanındaki fonts klasörüne kopyalar; önizleme ve video bu fontu kullanır, proje başka bilgisayara taşındığında da çalışır" />
             <AutoCompleteBox ItemsSource="{Binding Fonts}" Text="{Binding FontName}" FilterMode="ContainsOrdinal"
                              MinimumPrefixLength="0" MaxDropDownHeight="320" />

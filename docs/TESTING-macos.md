@@ -23,6 +23,24 @@ dotnet run --project src/LingoCue.App
 
 Logs are written to `~/Library/Logs/LingoCue/`.
 
+## v0.10.0 — New look
+
+A visual update only; every feature works as in v0.9.0. Check both themes (Ayarlar → Tema).
+
+- [ ] Start without a file: the welcome screen shows the drop zone, recent files as cards and the
+      readiness list. Clicking a card opens it; dropping a video on the window still works.
+- [ ] App bar: the menu opens from the bar; the document name gets an orange dot after an edit and
+      loses it after ⌘S. Transkribe/Düzelt/Çevir show a green check once that track exists.
+      The ⌘ shortcuts still work (⌘Z, ⌘F, ⌘E, ⌘T).
+- [ ] Lines list: rows show time range, text and a colored CPS label. ↑/↓ moves the selection,
+      the edit card follows, the video seeks. Switching to Stil or Kontrol and back keeps the line.
+- [ ] Kontrol: tiles show error/warning/clean counts; the tab header shows the problem count.
+- [ ] Dialogs (Transkribe, Düzelt, Çevir, Dışa Aktar, Tercihler): icon header, Vazgeç before the
+      main button; Esc closes, Enter starts. Dışa Aktar: the three kind cards select correctly.
+- [ ] Ayarlar → Tema → Açık / Koyu / Sistem: every screen stays readable, including the label
+      over the video and the timeline.
+- [ ] Note: the macOS menu stays inside the window (not the system menu bar) in this version.
+
 ## v0.9.0 — Editor polish
 
 Needs a video with speech and a project with lines (any earlier version's project works). On macOS

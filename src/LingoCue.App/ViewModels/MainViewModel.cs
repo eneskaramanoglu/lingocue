@@ -46,6 +46,7 @@ public partial class MainViewModel : ViewModelBase
     private readonly ILoggerFactory? _loggers;
     private readonly ILogger<MainViewModel> _logger;
     private CancellationTokenSource? _jobCts;
+    private readonly IMediaToolLocator? _toolLocator;
     private string? _lastEngineId;
 
     public MainViewModel(
@@ -70,7 +71,8 @@ public partial class MainViewModel : ViewModelBase
         ISettingsStore settings,
         ModelResolver resolver,
         ILoggerFactory loggers,
-        ILogger<MainViewModel> logger)
+        ILogger<MainViewModel> logger,
+        IMediaToolLocator? toolLocator = null)
     {
         _themeService = themeService;
         _files = files;
@@ -105,6 +107,8 @@ public partial class MainViewModel : ViewModelBase
         };
         PlatformText = platform.RuntimeIdentifier;
         LoadRecentFiles();
+        _toolLocator = toolLocator;
+        RefreshReadiness();
         SelectedTheme = themeService.Current;
     }
 
@@ -172,7 +176,7 @@ public partial class MainViewModel : ViewModelBase
     public partial string StatusText { get; set; } = "Hazır. Başlamak için bir video ya da proje açın veya sürükleyip bırakın.";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasMedia), nameof(VideoWidth), nameof(VideoHeight))]
+    [NotifyPropertyChangedFor(nameof(HasMedia), nameof(VideoWidth), nameof(VideoHeight), nameof(MediaSummary))]
     [NotifyCanExecuteChangedFor(nameof(TranscribeCommand))]
     public partial MediaInfo? CurrentMedia { get; private set; }
 
@@ -182,6 +186,11 @@ public partial class MainViewModel : ViewModelBase
     public double VideoWidth => CurrentMedia?.Video?.DisplayWidth ?? 0;
 
     public double VideoHeight => CurrentMedia?.Video?.DisplayHeight ?? 0;
+
+    /// <summary>"1920×1080 · 25 fps" for the chip over the video.</summary>
+    public string? MediaSummary => CurrentMedia?.Video is { } v
+        ? string.Create(CultureInfo.GetCultureInfo("tr-TR"), $"{v.DisplayWidth}×{v.DisplayHeight} · {v.FrameRate:0.##} fps")
+        : null;
 
     [ObservableProperty]
     public partial string? ErrorText { get; set; }
@@ -634,6 +643,7 @@ public partial class MainViewModel : ViewModelBase
             await _dialogs.ShowSettingsAsync(new SettingsViewModel(_settings, _resolver, _engines, new ApiKeysViewModel(_keys, _secretStore, _platform))))
         {
             Editor?.Refresh();
+            RefreshReadiness();
             StatusText = "Ayarlar kaydedildi.";
         }
     }
@@ -986,7 +996,23 @@ public partial class MainViewModel : ViewModelBase
         }
 
         OnPropertyChanged(nameof(HasSeveralTracks));
+        OnPropertyChanged(nameof(IsTranscribed));
+        OnPropertyChanged(nameof(IsCorrected));
+        OnPropertyChanged(nameof(IsTranslated));
     }
+
+    // ---------------------------------------------------------------- workflow (app bar)
+
+    /// <summary>The project has lines from speech recognition or an imported file (Transkribe step done).</summary>
+    public bool IsTranscribed => Project?.Tracks.Any(t => t.Kind == TrackKind.Source && t.Cues.Count > 0) == true;
+
+    public bool IsCorrected => Project?.Tracks.Any(t => t.Kind == TrackKind.Corrected) == true;
+
+    public bool IsTranslated => Project?.Tracks.Any(t => t.Kind == TrackKind.Translation) == true;
+
+    /// <summary>Ayarlar → Tema.</summary>
+    [RelayCommand]
+    private void SetTheme(AppTheme theme) => SelectedTheme = theme;
 
     private void UpdateFontsDirectory() => _player?.SetFontsDirectory(FontCatalog.ProjectFontDirectory(ProjectPath));
 
@@ -1065,6 +1091,34 @@ public partial class MainViewModel : ViewModelBase
         IsDirty = true;
         OnPropertyChanged(nameof(DocumentName));
         ScheduleHistoryRecord(coalesceKey);
+    }
+
+    // ---------------------------------------------------------------- welcome screen
+
+    /// <summary>The welcome screen's "Hazırlık" list: what the main features need and whether it is there.</summary>
+    public System.Collections.ObjectModel.ObservableCollection<ReadinessItem> Readiness { get; } = [];
+
+    private void RefreshReadiness()
+    {
+        Readiness.Clear();
+        if (_toolLocator is not null)
+        {
+            var ffmpeg = _toolLocator.TryLocate(out _);
+            Readiness.Add(new ReadinessItem("FFmpeg", ffmpeg ? "bulundu" : "kurulu değil — video açmak için gerekli", ffmpeg));
+        }
+
+        if (_keys is not null)
+        {
+            var key = _keys.HasGeminiKey;
+            Readiness.Add(new ReadinessItem("Gemini anahtarı", key ? "kayıtlı" : "yok — düzeltme ve çeviri için", key));
+        }
+
+        if (_settings is not null && _engines.OfType<Transcription.Whisper.WhisperNetEngine>().FirstOrDefault() is { } whisper)
+        {
+            var model = _settings.Current.Transcription.WhisperModel;
+            var ready = whisper.IsModelDownloaded(model);
+            Readiness.Add(new ReadinessItem("Whisper modeli", ready ? model : "ilk transkripsiyonda iner (~1 GB)", ready));
+        }
     }
 
     // ---------------------------------------------------------------- recent files

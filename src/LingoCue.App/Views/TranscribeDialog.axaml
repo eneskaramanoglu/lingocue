@@ -8,9 +8,23 @@
         Width="560" SizeToContent="Height" CanResize="False"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
 
-  <StackPanel Margin="20" Spacing="12">
-    <TextBlock Text="Videodaki konuşmayı kelime zamanlarıyla tanıyıp okunur altyazı satırlarına böler. Sonuç yeni bir 'Kaynak' izi olarak eklenir."
-               TextWrapping="Wrap" Classes="muted" />
+  <!-- Dialog layout used by all dialogs: icon header, body, footer bar with Vazgeç and the primary action. -->
+  <DockPanel>
+  <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*" ColumnSpacing="12" Margin="20,18,20,4">
+    <Border Classes="dlgicon"><PathIcon Data="{StaticResource IconMic}" /></Border>
+    <StackPanel Grid.Column="1" Spacing="2">
+      <TextBlock Text="Transkribe et" Classes="h1" />
+      <TextBlock Text="Konuşma kelime zamanlarıyla tanınır ve okunur satırlara bölünür; sonuç yeni bir “Kaynak” izi olur."
+                 TextWrapping="Wrap" Classes="muted small" />
+    </StackPanel>
+  </Grid>
+  <Border DockPanel.Dock="Bottom" Classes="dlgfooter">
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Vazgeç" IsCancel="True" Click="OnCancel" MinWidth="90" />
+      <Button Content="Başlat" Classes="accent" IsDefault="True" IsEnabled="{Binding CanStart}" Click="OnStart" MinWidth="90" />
+    </StackPanel>
+  </Border>
+  <StackPanel Margin="20,12,20,18" Spacing="12">
 
     <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
       <TextBlock Grid.Row="0" Text="Motor" VerticalAlignment="Center" />
@@ -58,9 +72,6 @@
       <TextBlock Text="{Binding CachedRunText}" TextWrapping="Wrap" Classes="muted" />
     </StackPanel>
 
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-      <Button Content="Başlat" Classes="accent" IsDefault="True" IsEnabled="{Binding CanStart}" Click="OnStart" MinWidth="90" />
-      <Button Content="Vazgeç" IsCancel="True" Click="OnCancel" MinWidth="90" />
-    </StackPanel>
   </StackPanel>
+  </DockPanel>
 </Window>

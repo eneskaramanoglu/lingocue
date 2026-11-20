@@ -7,32 +7,49 @@
         Width="600" SizeToContent="Height" CanResize="False"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
 
-  <StackPanel Margin="20" Spacing="12">
-    <TextBlock TextWrapping="Wrap">
-      <Run Text="Yapay zekâ" />
-      <Run Text="{Binding TrackName, Mode=OneWay}" FontWeight="SemiBold" />
-      <Run Text="izindeki tanıma hatalarını, özel isimleri, noktalamayı ve yazımı düzeltir. Zamanlamaya dokunulmaz; sonuç yeni bir 'Düzeltilmiş' izi olarak eklenir, orijinal iz korunur." />
-    </TextBlock>
+  <DockPanel>
+  <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*" ColumnSpacing="12" Margin="20,18,20,4">
+    <Border Classes="dlgicon"><PathIcon Data="{StaticResource IconWand}" /></Border>
+    <StackPanel Grid.Column="1" Spacing="2">
+      <TextBlock Text="Yapay zekâ ile düzelt" Classes="h1" />
+      <TextBlock TextWrapping="Wrap" Classes="muted small">
+        <Run Text="{Binding TrackName, Mode=OneWay}" FontWeight="SemiBold" />
+        <Run Text="izindeki tanıma hataları, özel isimler, noktalama ve yazım düzeltilir. Zamanlamaya dokunulmaz; sonuç yeni bir “Düzeltilmiş” izi olur, orijinal iz korunur." />
+      </TextBlock>
+    </StackPanel>
+  </Grid>
+  <Border DockPanel.Dock="Bottom" Classes="dlgfooter">
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Content="Vazgeç" IsCancel="True" Click="OnCancel" MinWidth="90" />
+      <Button Content="Başlat" Classes="accent" IsDefault="True" IsEnabled="{Binding CanStart}" Click="OnStart" MinWidth="90" />
+    </StackPanel>
+  </Border>
+  <StackPanel Margin="20,12,20,18" Spacing="12">
+    <!-- Counts as tiles. -->
+    <Grid ColumnDefinitions="*,8,*,8,*">
+      <Border Classes="well">
+        <StackPanel><TextBlock Text="{Binding LineCount}" Classes="tilevalue" FontSize="18" /><TextBlock Text="satır" Classes="muted small" /></StackPanel>
+      </Border>
+      <Border Grid.Column="2" Classes="well">
+        <StackPanel><TextBlock Text="{Binding LockedCount}" Classes="tilevalue" FontSize="18" /><TextBlock Text="kilitli, atlanır" Classes="muted small" /></StackPanel>
+      </Border>
+      <Border Grid.Column="4" Classes="well">
+        <StackPanel><TextBlock Text="{Binding GlossaryCount}" Classes="tilevalue" FontSize="18" /><TextBlock Text="sözlük terimi" Classes="muted small" /></StackPanel>
+      </Border>
+    </Grid>
 
-    <TextBlock Classes="muted">
-      <Run Text="{Binding LineCount, Mode=OneWay}" /><Run Text=" satır · " /><Run Text="{Binding LockedCount, Mode=OneWay}" /><Run Text=" kilitli (atlanır) · sözlükte " /><Run Text="{Binding GlossaryCount, Mode=OneWay}" /><Run Text=" terim" />
-    </TextBlock>
-
+    <TextBlock Text="SEÇENEKLER" Classes="section" />
     <CheckBox Content="Önce videonun bağlamını çıkar (özet, ton, özel isimler → sözlük önerileri)" IsChecked="{Binding RefreshContext}" />
     <CheckBox Content="Kalite modu modelini kullan" IsChecked="{Binding UseQualityModel}" />
     <CheckBox Content="İkinci geçişte gözden geçir (daha iyi, maliyet ~2 kat)" IsChecked="{Binding Reflect}" />
 
-    <Border Classes="panel" Padding="10">
+    <Border Classes="well">
       <TextBlock Text="{Binding EstimateText}" TextWrapping="Wrap" />
     </Border>
 
     <Border Classes="error" Margin="0" IsVisible="{Binding Problem, Converter={x:Static ObjectConverters.IsNotNull}}">
       <TextBlock Text="{Binding Problem}" TextWrapping="Wrap" />
     </Border>
-
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-      <Button Content="Başlat" Classes="accent" IsDefault="True" IsEnabled="{Binding CanStart}" Click="OnStart" MinWidth="90" />
-      <Button Content="Vazgeç" IsCancel="True" Click="OnCancel" MinWidth="90" />
-    </StackPanel>
   </StackPanel>
+  </DockPanel>
 </Window>

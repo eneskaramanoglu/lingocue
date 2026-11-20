@@ -25,7 +25,7 @@ public partial class MainWindow : Window
         {
             if (CueGrid.SelectedItem is { } item && CueGrid.IsLoaded)
             {
-                CueGrid.ScrollIntoView(item, null);
+                CueGrid.ScrollIntoView(item);
             }
         };
     }

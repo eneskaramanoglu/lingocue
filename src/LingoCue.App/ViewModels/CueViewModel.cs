@@ -186,7 +186,10 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
 
     public bool CpsTooHigh => Issues.HasFlag(CueIssues.ReadingSpeedTooHigh);
 
-    public bool CpsHigh => Issues.HasFlag(CueIssues.ReadingSpeedHigh);
+    public bool CpsHigh => !CpsTooHigh && Issues.HasFlag(CueIssues.ReadingSpeedHigh);
+
+    /// <summary>Reading speed within the target (green chip).</summary>
+    public bool CpsOk => !CpsTooHigh && !CpsHigh;
 
     /// <summary>Human-readable list of problems for the tooltip/editor.</summary>
     public string IssuesText
@@ -286,6 +289,7 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
         OnPropertyChanged(nameof(HasWarning));
         OnPropertyChanged(nameof(CpsTooHigh));
         OnPropertyChanged(nameof(CpsHigh));
+        OnPropertyChanged(nameof(CpsOk));
         OnPropertyChanged(nameof(IssuesText));
         OnPropertyChanged(nameof(TextTip));
     }
