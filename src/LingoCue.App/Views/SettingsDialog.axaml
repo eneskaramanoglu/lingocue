@@ -41,6 +41,34 @@
       <TabItem Header="Dil modeli (LLM)">
         <ScrollViewer>
           <StackPanel Spacing="10" Margin="0,12">
+            <!-- Default engine; Düzelt and Çevir can switch per run. -->
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+              <TextBlock Text="Varsayılan motor" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding LlmEngines}" SelectedItem="{Binding DefaultLlmEngine}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:EngineChoice">
+                    <TextBlock Text="{Binding Label}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+            </Grid>
+            <Border Classes="well">
+              <StackPanel Spacing="8">
+                <TextBlock Text="YEREL MODEL (OLLAMA)" Classes="section" />
+                <TextBlock Classes="muted small" TextWrapping="Wrap"
+                           Text="Ücretsizdir, içerik bilgisayardan çıkmaz ve hız sınırı yoktur. Ollama'yı kurun (Windows: winget install Ollama.Ollama · macOS: brew install ollama), bir model indirin (ör. ollama pull gemma3:12b) ve buradan seçin. 8 GB ve üzeri ekran kartı belleği önerilir." />
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="8">
+                  <TextBlock Text="Adres" VerticalAlignment="Center" />
+                  <TextBox Grid.Column="1" Text="{Binding OllamaUrl}" />
+                  <Button Grid.Column="2" Content="Bağlan ve listele" Command="{Binding RefreshLocalModelsCommand}" />
+                  <TextBlock Grid.Row="1" Text="Model" VerticalAlignment="Center" />
+                  <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding LocalModels}" SelectedItem="{Binding LocalModel}" />
+                </Grid>
+                <TextBlock Text="{Binding LocalStatus}" Classes="muted small" TextWrapping="Wrap"
+                           IsVisible="{Binding LocalStatus, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              </StackPanel>
+            </Border>
+            <TextBlock Text="GEMINI (BULUT)" Classes="section" Margin="0,6,0,0" />
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16" RowDefinitions="Auto,Auto" RowSpacing="10">
               <TextBlock Text="Günlük model" VerticalAlignment="Center" />
               <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding FastModels}" SelectedItem="{Binding SelectedFast}" />

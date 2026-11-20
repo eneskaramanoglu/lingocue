@@ -38,6 +38,18 @@
       </Border>
     </Grid>
 
+    <!-- Engine: Gemini in the cloud or a local Ollama model. -->
+    <DockPanel>
+      <TextBlock Text="Motor" Classes="muted" VerticalAlignment="Center" Margin="0,0,12,0" />
+      <ComboBox ItemsSource="{Binding Engines}" SelectedItem="{Binding Engine}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:EngineChoice">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+    </DockPanel>
+
     <TextBlock Text="SEÇENEKLER" Classes="section" />
     <CheckBox Content="Önce videonun bağlamını çıkar (özet, ton, özel isimler → sözlük önerileri)" IsChecked="{Binding RefreshContext}" />
     <CheckBox Content="Kalite modu modelini kullan" IsChecked="{Binding UseQualityModel}" />

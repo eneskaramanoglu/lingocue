@@ -89,6 +89,14 @@ public sealed record LlmSettings
     public int RequestsPerMinute { get; init; } = 10;
 
     public const int FreeTierBatchSize = 15;
+
+    /// <summary>Address of a local Ollama server (used when <see cref="Provider"/> is "ollama").</summary>
+    public string OllamaUrl { get; init; } = "http://localhost:11434";
+
+    /// <summary>Ollama model name (e.g. what <c>ollama list</c> shows); null = the only installed one.</summary>
+    public string? LocalModel { get; init; }
+
+    public bool IsLocal => string.Equals(Provider, "ollama", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>Serializable form of <see cref="ReadingRules"/> (seconds as numbers).</summary>

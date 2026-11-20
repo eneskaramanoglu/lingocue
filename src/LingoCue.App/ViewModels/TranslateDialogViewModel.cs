@@ -10,7 +10,7 @@ using LingoCue.Llm.Providers;
 namespace LingoCue.App.ViewModels;
 
 /// <param name="TargetLanguages">One or more languages; each becomes its own track, translated in this order.</param>
-public sealed record TranslateOptions(SubtitleTrack Source, IReadOnlyList<string> TargetLanguages, string ModelId, bool Reflect, bool RefreshContext);
+public sealed record TranslateOptions(SubtitleTrack Source, IReadOnlyList<string> TargetLanguages, string ModelId, bool Reflect, bool RefreshContext, string ProviderId);
 
 public sealed record LanguageChoice(string Code, string Label);
 
@@ -45,6 +45,8 @@ public sealed partial class TranslateDialogViewModel : ViewModelBase
         _settings = settings.Llm;
         _project = project;
         Targets = [.. Languages.Select(l => new TargetLanguageItem(l))];
+        Engines = EngineChoice.From(resolver);
+        Engine = Engines.FirstOrDefault(e => e.Id == resolver.Provider.Id) ?? Engines[0];
         Sources = [.. project.Tracks.Where(t => t.Cues.Count > 0)];
         var active = project.ActiveTrack is { Cues.Count: > 0 } a ? a : null;
         Source = Sources.LastOrDefault(t => t.Kind == TrackKind.Corrected) ?? active ?? (Sources.Count > 0 ? Sources[0] : null);
@@ -65,6 +67,13 @@ public sealed partial class TranslateDialogViewModel : ViewModelBase
         (Targets.FirstOrDefault(t => t.IsEnabled) ?? Targets[0]).IsSelected = true;
         _ = ResolveAsync();
     }
+
+    public IReadOnlyList<EngineChoice> Engines { get; }
+
+    [ObservableProperty]
+    public partial EngineChoice Engine { get; set; }
+
+    partial void OnEngineChanged(EngineChoice value) => _ = ResolveAsync();
 
     public IReadOnlyList<SubtitleTrack> Sources { get; }
 
@@ -119,7 +128,7 @@ public sealed partial class TranslateDialogViewModel : ViewModelBase
     public bool CanStart => ModelId is not null && Problem is null && Source is not null && !NoTarget;
 
     public TranslateOptions? BuildResult()
-        => CanStart ? new TranslateOptions(Source!, SelectedTargets, ModelId!, Reflect, RefreshContext) : null;
+        => CanStart ? new TranslateOptions(Source!, SelectedTargets, ModelId!, Reflect, RefreshContext, Engine.Id) : null;
 
     partial void OnSourceChanged(SubtitleTrack? value)
     {
@@ -155,7 +164,9 @@ public sealed partial class TranslateDialogViewModel : ViewModelBase
         Problem = null;
         try
         {
-            ModelId = await _resolver.ResolveAsync(_settings);
+            ModelId = null;
+            EstimateText = "Model belirleniyor…";
+            ModelId = await _resolver.ResolveAsync(_settings with { Provider = Engine.Id });
             UpdateEstimate();
         }
         catch (LlmException ex)
@@ -183,7 +194,13 @@ public sealed partial class TranslateDialogViewModel : ViewModelBase
         var lines = Source.Cues.Select(c => new LineItem(c.Id, c.Text, c.Duration, c.Speaker, c.Marks.HasFlag(CueMarks.Locked),
             Reference: HasReference ? TrackOperations.OriginalText(_project, Source, c) : null)).ToList();
         var options = new PipelineOptions { BatchSize = _settings.BatchSize, Reflect = Reflect, ShortenOverlong = _settings.ShortenOverlongLines };
-        var estimate = CostEstimator.Estimate(lines, options, GlossaryCount, RefreshContext || _project.Context.Summary is null, _resolver.Provider.PriceFor(ModelId));
+        if (Engine.IsLocal)
+        {
+            EstimateText = EngineChoice.LocalEstimate(ModelId);
+            return;
+        }
+
+        var estimate = CostEstimator.Estimate(lines, options, GlossaryCount, RefreshContext || _project.Context.Summary is null, _resolver.ProviderFor(Engine.Id).PriceFor(ModelId));
 
         // Each target is a full run; the context pass only happens once.
         var runs = Math.Max(1, SelectedTargets.Count);

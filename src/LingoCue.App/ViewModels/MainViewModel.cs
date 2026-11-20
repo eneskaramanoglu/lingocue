@@ -811,11 +811,17 @@ public partial class MainViewModel : ViewModelBase
         var choice = await _dialogs.AskCorrectOptionsAsync(new CorrectDialogViewModel(_resolver, _settings.Current, project, source));
         if (choice is not null)
         {
-            await RunTrackPassAsync(project, source, TrackPassKind.Correction, choice.ModelId, choice.Reflect, choice.RefreshContext, targetLanguage: null);
+            await RunTrackPassAsync(project, source, TrackPassKind.Correction, choice.ModelId, choice.Reflect, choice.RefreshContext, targetLanguage: null, providerId: choice.ProviderId);
         }
     }
 
     private bool CanTranslate => IsIdle && Project is { } p && p.Tracks.Any(t => t.Cues.Count > 0);
+
+    /// <summary>Lines per request for a local model (small models keep JSON valid more reliably with short batches).</summary>
+    private const int LocalBatchSize = 10;
+
+    /// <summary>A local model may load for a minute and generate slowly on CPU.</summary>
+    private static readonly TimeSpan LocalRequestTimeout = TimeSpan.FromMinutes(10);
 
     /// <summary>The active track is a correction or translation with lines the model did not finish.</summary>
     private bool CanRetryFailed => IsIdle && Project?.ActiveTrack is { Kind: TrackKind.Corrected or TrackKind.Translation } t &&
@@ -883,7 +889,7 @@ public partial class MainViewModel : ViewModelBase
         {
             var label = count > 1 ? $"{Core.Text.LanguageCodes.DisplayName(choice.TargetLanguages[i])} {i + 1}/{count}" : null;
             if (!await RunTrackPassAsync(project, choice.Source, TrackPassKind.Translation, choice.ModelId, choice.Reflect,
-                    choice.RefreshContext && i == 0, choice.TargetLanguages[i], label))
+                    choice.RefreshContext && i == 0, choice.TargetLanguages[i], label, providerId: choice.ProviderId))
             {
                 break;
             }
@@ -894,7 +900,7 @@ public partial class MainViewModel : ViewModelBase
     /// <returns>True when the run finished and its track was added.</returns>
     private async Task<bool> RunTrackPassAsync(
         Project project, SubtitleTrack source, TrackPassKind kind, string modelId, bool reflect, bool refreshContext, string? targetLanguage,
-        string? runLabel = null, IReadOnlySet<int>? onlySourceCueIds = null, Action<TrackPassResult>? onResult = null)
+        string? runLabel = null, IReadOnlySet<int>? onlySourceCueIds = null, Action<TrackPassResult>? onResult = null, string? providerId = null)
     {
         if (_resolver is null || _settings is null || _loggers is null)
         {
@@ -903,11 +909,16 @@ public partial class MainViewModel : ViewModelBase
 
         var settings = _settings.Current;
         var outputLanguage = targetLanguage ?? source.Language;
+        // Local models: no rate limits but slow first loads and slower generation, so one smaller batch at a time and a long timeout.
+        var provider = _resolver.ProviderFor(providerId ?? settings.Llm.Provider);
+        var local = provider.Id == OllamaProvider.ProviderId;
         var options = new PipelineOptions
         {
-            BatchSize = settings.Llm.FreeTier ? Math.Min(settings.Llm.BatchSize, LlmSettings.FreeTierBatchSize) : settings.Llm.BatchSize,
-            Parallelism = settings.Llm.FreeTier ? 1 : settings.Llm.Parallelism,
-            Pacer = settings.Llm.FreeTier ? RequestPacer.ForRate(settings.Llm.RequestsPerMinute) : null,
+            BatchSize = local ? Math.Min(settings.Llm.BatchSize, LocalBatchSize)
+                : settings.Llm.FreeTier ? Math.Min(settings.Llm.BatchSize, LlmSettings.FreeTierBatchSize) : settings.Llm.BatchSize,
+            Parallelism = local || settings.Llm.FreeTier ? 1 : settings.Llm.Parallelism,
+            Pacer = !local && settings.Llm.FreeTier ? RequestPacer.ForRate(settings.Llm.RequestsPerMinute) : null,
+            RequestTimeout = local ? LocalRequestTimeout : TimeSpan.FromMinutes(2),
             MaxRetries = settings.Llm.MaxRetries,
             Reflect = reflect,
             ShortenOverlong = settings.Llm.ShortenOverlongLines,
@@ -930,7 +941,7 @@ public partial class MainViewModel : ViewModelBase
 
         try
         {
-            using var client = _resolver.Provider.CreateChatClient(modelId);
+            using var client = provider.CreateChatClient(modelId);
             var result = await new TrackPassRunner(client, _loggers).RunAsync(request, progress, cts.Token);
             (onResult ?? (r => AddPassTrack(project, r, modelId, kind)))(result);
             return true;
@@ -1198,6 +1209,34 @@ public partial class MainViewModel : ViewModelBase
             var ready = whisper.IsModelDownloaded(model);
             Readiness.Add(new ReadinessItem("Whisper modeli", ready ? model : "ilk transkripsiyonda iner (~1 GB)", ready));
         }
+
+        _ = AddOllamaReadinessAsync();
+    }
+
+    /// <summary>Optional local engine: asks Ollama briefly in the background so startup never waits for it.</summary>
+    private async Task AddOllamaReadinessAsync()
+    {
+        if (_resolver?.Providers.FirstOrDefault(p => p.Id == OllamaProvider.ProviderId) is not { } ollama)
+        {
+            return;
+        }
+
+        string detail;
+        bool ok;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        try
+        {
+            var models = await ollama.ListModelsAsync(timeout.Token);
+            ok = models.Count > 0;
+            detail = ok ? $"çalışıyor · {models.Count} model" : "çalışıyor, model indirilmemiş (ollama pull gemma3:12b)";
+        }
+        catch (Exception ex) when (ex is LlmException or HttpRequestException or OperationCanceledException)
+        {
+            ok = false;
+            detail = "yok — isteğe bağlı: ücretsiz, çevrimdışı çeviri için";
+        }
+
+        Readiness.Add(new ReadinessItem("Yerel model (Ollama)", detail, ok));
     }
 
     // ---------------------------------------------------------------- recent files

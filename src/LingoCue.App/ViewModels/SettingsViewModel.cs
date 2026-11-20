@@ -46,6 +46,14 @@ public sealed partial class SettingsViewModel : ViewModelBase
         KeepCircumflex = s.Llm.KeepCircumflex;
         FreeTier = s.Llm.FreeTier;
         RequestsPerMinute = s.Llm.RequestsPerMinute;
+        LlmEngines = EngineChoice.From(resolver);
+        DefaultLlmEngine = LlmEngines.FirstOrDefault(e => string.Equals(e.Id, s.Llm.Provider, StringComparison.OrdinalIgnoreCase)) ?? LlmEngines[0];
+        OllamaUrl = s.Llm.OllamaUrl;
+        LocalModel = s.Llm.LocalModel;
+        if (s.Llm.LocalModel is { } chosen)
+        {
+            LocalModels.Add(chosen);
+        }
 
         MaxCharsPerLine = s.Reading.MaxCharsPerLine;
         MaxLines = s.Reading.MaxLines;
@@ -134,13 +142,60 @@ public sealed partial class SettingsViewModel : ViewModelBase
         "Kişisel ya da gizli videolar için faturalandırması açık (ücretli) bir anahtar kullanın; ücretli kullanımda içerik bu amaçla kullanılmaz.";
 #pragma warning restore CA1822
 
+    // ---------------------------------------------------------------- local engine (Ollama)
+
+    /// <summary>Default engine for Düzelt and Çevir (each dialog can still switch).</summary>
+    public IReadOnlyList<EngineChoice> LlmEngines { get; }
+
+    [ObservableProperty]
+    public partial EngineChoice DefaultLlmEngine { get; set; }
+
+    [ObservableProperty]
+    public partial string OllamaUrl { get; set; } = OllamaProvider.DefaultUrl;
+
+    public System.Collections.ObjectModel.ObservableCollection<string> LocalModels { get; } = [];
+
+    [ObservableProperty]
+    public partial string? LocalModel { get; set; }
+
+    [ObservableProperty]
+    public partial string? LocalStatus { get; private set; }
+
+    /// <summary>Asks the Ollama at the address typed here (not yet saved) for its installed models.</summary>
+    [RelayCommand]
+    private async Task RefreshLocalModels()
+    {
+        LocalStatus = "Ollama'ya bağlanılıyor…";
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        var url = string.IsNullOrWhiteSpace(OllamaUrl) ? OllamaProvider.DefaultUrl : OllamaUrl.Trim();
+        try
+        {
+            var models = await new OllamaProvider(http, () => url).ListModelsAsync();
+            var chosen = LocalModel;
+            LocalModels.Clear();
+            foreach (var model in models)
+            {
+                LocalModels.Add(model.Id);
+            }
+
+            LocalModel = LocalModels.FirstOrDefault(m => string.Equals(m, chosen, StringComparison.OrdinalIgnoreCase)) ?? LocalModels.FirstOrDefault();
+            LocalStatus = models.Count == 0
+                ? "Ollama çalışıyor ama indirilmiş model yok. Terminalde: ollama pull gemma3:12b (Korece için qwen3:8b de iyi bir seçenek)."
+                : $"Ollama çalışıyor · {models.Count} model: {string.Join(", ", models.Select(m => m.DisplayName))}";
+        }
+        catch (Exception ex) when (ex is LlmException or HttpRequestException or TaskCanceledException or UriFormatException)
+        {
+            LocalStatus = ex is LlmException { Remedy: { } remedy } ? remedy : $"Ollama'ya bağlanılamadı: {ex.Message}";
+        }
+    }
+
     [RelayCommand]
     private async Task RefreshModels()
     {
         ModelStatus = "Model listesi alınıyor…";
         try
         {
-            var models = await _resolver.ModelsAsync(refresh: true);
+            var models = await _resolver.ModelsAsync("gemini", refresh: true);
             var fast = SelectedFast?.Id;
             var quality = SelectedQuality?.Id;
             Fill(FastModels, AutoFastLabel, models);
@@ -170,6 +225,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
             },
             Llm = current.Llm with
             {
+                Provider = DefaultLlmEngine.Id,
+                OllamaUrl = string.IsNullOrWhiteSpace(OllamaUrl) ? OllamaProvider.DefaultUrl : OllamaUrl.Trim(),
+                LocalModel = string.IsNullOrWhiteSpace(LocalModel) ? null : LocalModel,
                 FastModel = SelectedFast?.Id,
                 QualityModel = SelectedQuality?.Id,
                 UseQualityModel = UseQualityModel,

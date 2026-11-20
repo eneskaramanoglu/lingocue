@@ -25,7 +25,16 @@
   </Border>
   <StackPanel Margin="20,12,20,18" Spacing="12">
 
-    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+      <!-- Engine: Gemini in the cloud or a local Ollama model. -->
+      <TextBlock Grid.Row="3" Text="Motor" VerticalAlignment="Center" />
+      <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Engines}" SelectedItem="{Binding Engine}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:EngineChoice">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
       <TextBlock Text="Kaynak iz" VerticalAlignment="Center" />
       <ComboBox Grid.Column="1" ItemsSource="{Binding Sources}" SelectedItem="{Binding Source}" HorizontalAlignment="Stretch">
         <ComboBox.ItemTemplate>
