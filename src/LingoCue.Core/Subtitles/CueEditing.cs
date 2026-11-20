@@ -164,4 +164,64 @@ public static class CueEditing
         cue.End += applied;
         return applied;
     }
+
+    /// <summary>
+    /// The times a cue would get when dragged by <paramref name="delta"/> on the timeline (one edge or the
+    /// whole block), limited like <see cref="Nudge"/>: no overlap with neighbours (keeping
+    /// <see cref="MinGap"/>), not before zero or after <paramref name="mediaEnd"/>, at least
+    /// <see cref="MinDuration"/> long. Does not change the cue.
+    /// </summary>
+    public static (TimeSpan Start, TimeSpan End) ClampDrag(SubtitleTrack track, Cue cue, DragHandle handle, TimeSpan delta, TimeSpan? mediaEnd = null)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        ArgumentNullException.ThrowIfNull(cue);
+        var index = track.Cues.IndexOf(cue);
+        var previous = index > 0 ? track.Cues[index - 1] : null;
+        var next = index >= 0 && index + 1 < track.Cues.Count ? track.Cues[index + 1] : null;
+
+        // Never pull the limits inside the cue itself (a neighbour may already overlap it).
+        var lowest = Min(cue.Start, previous is null ? TimeSpan.Zero : previous.End + MinGap);
+        var highestEnd = next is not null ? next.Start - MinGap : mediaEnd is { } end && end > TimeSpan.Zero ? end : TimeSpan.MaxValue;
+        highestEnd = Max(cue.End, highestEnd);
+
+        switch (handle)
+        {
+            case DragHandle.Start:
+                return (Clamp(cue.Start + delta, lowest, cue.End - MinDuration > lowest ? cue.End - MinDuration : lowest), cue.End);
+
+            case DragHandle.End:
+                var minEnd = cue.Start + MinDuration;
+                return (cue.Start, Clamp(SafeAdd(cue.End, delta), minEnd < highestEnd ? minEnd : highestEnd, highestEnd));
+
+            default:
+                var shift = delta;
+                if (cue.Start + shift < lowest)
+                {
+                    shift = lowest - cue.Start;
+                }
+
+                if (highestEnd != TimeSpan.MaxValue && cue.End + shift > highestEnd)
+                {
+                    shift = highestEnd - cue.End;
+                }
+
+                return (cue.Start + shift, cue.End + shift);
+        }
+
+        static TimeSpan Clamp(TimeSpan value, TimeSpan min, TimeSpan max) => value < min ? min : value > max ? max : value;
+
+        static TimeSpan Min(TimeSpan a, TimeSpan b) => a < b ? a : b;
+
+        static TimeSpan Max(TimeSpan a, TimeSpan b) => a > b ? a : b;
+
+        static TimeSpan SafeAdd(TimeSpan a, TimeSpan b) => b > TimeSpan.Zero && a > TimeSpan.MaxValue - b ? TimeSpan.MaxValue : a + b;
+    }
+}
+
+/// <summary>What is being dragged on the timeline.</summary>
+public enum DragHandle
+{
+    Body,
+    Start,
+    End,
 }

@@ -79,6 +79,8 @@ internal static class ServiceCollectionExtensions
 
         services.AddSingleton<PlayerViewModel>();
         services.AddSingleton<SubtitleEditorViewModel>();
+        services.AddSingleton<TimelineViewModel>();
+        services.AddSingleton<QualityViewModel>();
         services.AddSingleton<StyleEditorViewModel>();
         services.AddSingleton<RenderQueueViewModel>();
         services.AddTransient<MainViewModel>();

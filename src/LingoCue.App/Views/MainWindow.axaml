@@ -67,6 +67,15 @@
         <MenuItem Header="_Yinele" InputGesture="Ctrl+Y" Command="{Binding RedoCommand}" />
         <Separator />
         <MenuItem Header="_Bul ve değiştir…" InputGesture="Ctrl+F" Command="{Binding Editor.OpenFindCommand}" />
+        <Separator />
+        <MenuItem Header="Yeni satır" InputGesture="Ctrl+Enter" Command="{Binding Editor.AddCueCommand}" />
+        <MenuItem Header="Satırı _böl" InputGesture="Ctrl+B" Command="{Binding Editor.SplitCueCommand}" />
+        <MenuItem Header="Sonrakiyle _birleştir" InputGesture="Ctrl+M" Command="{Binding Editor.MergeWithNextCommand}" />
+        <Separator />
+        <MenuItem Header="100 ms geri kaydır" InputGesture="Alt+Left" Command="{Binding Editor.NudgeBackCommand}" />
+        <MenuItem Header="100 ms ileri kaydır" InputGesture="Alt+Right" Command="{Binding Editor.NudgeForwardCommand}" />
+        <MenuItem Header="Başlangıcı oynatma konumuna al   [" Command="{Binding Editor.SetStartToPlayheadCommand}" />
+        <MenuItem Header="Bitişi oynatma konumuna al   ]" Command="{Binding Editor.SetEndToPlayheadCommand}" />
       </MenuItem>
       <MenuItem Header="_Altyazı">
         <MenuItem Header="_Transkribe Et…" InputGesture="Ctrl+T" Command="{Binding TranscribeCommand}" />
@@ -78,6 +87,9 @@
       </MenuItem>
       <MenuItem Header="A_yarlar">
         <MenuItem Header="_Tercihler…" InputGesture="Ctrl+OemComma" Command="{Binding PreferencesCommand}" />
+      </MenuItem>
+      <MenuItem Header="_Yardım">
+        <MenuItem Header="_Klavye kısayolları…" Click="OnShowShortcuts" />
       </MenuItem>
     </Menu>
 
@@ -220,8 +232,10 @@
         </DockPanel>
 
         <GridSplitter Grid.Row="2" Height="6" Background="Transparent" ResizeDirection="Rows" />
-        <Border Grid.Row="3" Classes="panel">
-          <TextBlock Classes="placeholder" Text="Zaman çizelgesi / dalga formu (M8)" />
+        <!-- Timeline: drawn in code (TimelineControl); tooltip lists the mouse actions. -->
+        <Border Grid.Row="3" Classes="panel" Padding="0" ClipToBounds="True">
+          <views:TimelineControl DataContext="{Binding Timeline}"
+                                 ToolTip.Tip="Tıkla: oraya git · Bloğu sürükle: kaydır · Kenarı sürükle: başlangıç/bitiş · Tekerlek: kaydır · Ctrl/⌘+tekerlek: yakınlaştır" />
         </Border>
       </Grid>
 
@@ -383,6 +397,34 @@
           </TabItem>
           <TabItem Header="Stil">
             <views:StyleEditorView DataContext="{Binding StyleEditor}" />
+          </TabItem>
+          <!-- QA: every rule problem of the track; picking one selects the line and seeks there. -->
+          <TabItem Header="Kontrol">
+            <DockPanel DataContext="{Binding Quality}" x:DataType="vm:QualityViewModel" Margin="8,6">
+              <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,6">
+                <TextBlock Text="{Binding Summary}" Classes="muted" />
+                <WrapPanel ItemSpacing="6" LineSpacing="4">
+                  <Button Content="Çakışmaları gider" Command="{Binding FixOverlapsCommand}" Focusable="False"
+                          ToolTip.Tip="Üst üste binen satırları bir sonrakinin hemen öncesinde bitirir" />
+                  <Button Content="Okuma hızı için süreyi uzat" Command="{Binding ExtendForReadingSpeedCommand}" Focusable="False"
+                          ToolTip.Tip="Hızlı okunan satırları, sonraki satıra değmeden hedef okuma hızına kadar uzatır" />
+                </WrapPanel>
+                <TextBlock Text="{Binding FixStatus}" Classes="muted" TextWrapping="Wrap"
+                           IsVisible="{Binding FixStatus, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              </StackPanel>
+              <ListBox ItemsSource="{Binding Issues}" SelectedItem="{Binding SelectedIssue}">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:QaIssueItem">
+                    <Grid ColumnDefinitions="20,52,110,*">
+                      <TextBlock Text="{Binding Glyph}" Classes="mark" Classes.failed="{Binding IsError}" Classes.review="{Binding !IsError}" />
+                      <TextBlock Grid.Column="1" Text="{Binding NumberText}" Classes="muted" />
+                      <TextBlock Grid.Column="2" Text="{Binding TimeText}" FontFamily="{DynamicResource MonoFont}" Classes="muted" />
+                      <TextBlock Grid.Column="3" Text="{Binding Issue.Message}" TextWrapping="Wrap" />
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </DockPanel>
           </TabItem>
         </TabControl>
        </DockPanel>

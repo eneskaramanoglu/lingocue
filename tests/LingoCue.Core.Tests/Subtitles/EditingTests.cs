@@ -94,6 +94,41 @@ public class CueEditingTests
         track.Cues[0].Start.ShouldBe(S(2) - CueEditing.MinDuration);
         track.Cues[0].End.ShouldBe(S(2));
     }
+
+    [Fact]
+    public void Dragging_the_body_stops_at_the_neighbours_and_media_bounds()
+    {
+        var track = Track((1, 2, "a"), (3, 4, "b"), (6, 7, "c"));
+        var middle = track.Cues[1];
+
+        CueEditing.ClampDrag(track, middle, DragHandle.Body, S(-5)).ShouldBe((S(2) + CueEditing.MinGap, S(3) + CueEditing.MinGap));
+        CueEditing.ClampDrag(track, middle, DragHandle.Body, S(5)).ShouldBe((S(5) - CueEditing.MinGap, S(6) - CueEditing.MinGap));
+        CueEditing.ClampDrag(track, middle, DragHandle.Body, S(0.5)).ShouldBe((S(3.5), S(4.5)));
+        CueEditing.ClampDrag(track, track.Cues[2], DragHandle.Body, S(10), mediaEnd: S(8)).ShouldBe((S(7), S(8)));
+        CueEditing.ClampDrag(track, track.Cues[0], DragHandle.Body, S(-3)).ShouldBe((S(0), S(1)));
+        (middle.Start, middle.End).ShouldBe((S(3), S(4))); // nothing changed
+    }
+
+    [Fact]
+    public void Dragging_an_edge_keeps_the_minimum_duration_and_gap()
+    {
+        var track = Track((1, 2, "a"), (3, 4, "b"));
+        var second = track.Cues[1];
+
+        CueEditing.ClampDrag(track, second, DragHandle.Start, S(-2)).ShouldBe((S(2) + CueEditing.MinGap, S(4)));
+        CueEditing.ClampDrag(track, second, DragHandle.Start, S(2)).ShouldBe((S(4) - CueEditing.MinDuration, S(4)));
+        CueEditing.ClampDrag(track, track.Cues[0], DragHandle.End, S(5)).ShouldBe((S(1), S(3) - CueEditing.MinGap));
+        CueEditing.ClampDrag(track, track.Cues[0], DragHandle.End, S(-5)).ShouldBe((S(1), S(1) + CueEditing.MinDuration));
+        CueEditing.ClampDrag(track, second, DragHandle.End, S(100)).ShouldBe((S(3), S(104))); // no media length known
+    }
+
+    [Fact]
+    public void Dragging_never_pulls_a_cue_into_an_existing_overlap()
+    {
+        var track = Track((1, 3.5, "a"), (3, 4, "b")); // already overlapping
+        CueEditing.ClampDrag(track, track.Cues[1], DragHandle.Body, S(-1)).ShouldBe((S(3), S(4)));
+        CueEditing.ClampDrag(track, track.Cues[1], DragHandle.Body, S(1)).ShouldBe((S(4), S(5)));
+    }
 }
 
 public class QualityCheckTests

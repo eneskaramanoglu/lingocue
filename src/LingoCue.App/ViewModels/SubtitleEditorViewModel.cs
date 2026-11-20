@@ -27,8 +27,11 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         _player.PropertyChanged += OnPlayerPropertyChanged;
     }
 
-    /// <summary>Raised after any edit (text, time, add, delete).</summary>
-    public event EventHandler? Edited;
+    /// <summary>
+    /// Raised after any edit (text, time, add, delete). The argument is the undo coalescing key: edits with
+    /// the same key in quick succession form one undo step; null always starts a new step.
+    /// </summary>
+    public event EventHandler<string?>? Edited;
 
     public ObservableCollection<CueViewModel> Cues { get; } = [];
 
@@ -39,6 +42,8 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(SetEndToPlayheadCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertToOriginalCommand))]
     [NotifyCanExecuteChangedFor(nameof(MarkReviewedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(NudgeBackCommand), nameof(NudgeForwardCommand), nameof(NudgeStartBackCommand), nameof(NudgeStartForwardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SplitCueCommand), nameof(MergeWithNextCommand))]
     public partial CueViewModel? SelectedCue { get; set; }
 
     /// <summary>While playing, select the cue under the playhead.</summary>
@@ -148,6 +153,7 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         if (track is null)
         {
             OnPropertyChanged(nameof(Summary));
+            RowsChanged?.Invoke(this, EventArgs.Empty);
             return;
         }
 
@@ -162,6 +168,7 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         OnPropertyChanged(nameof(Summary));
         OnPropertyChanged(nameof(VisibleCues));
         UpdateCurrent(_player.Position);
+        RowsChanged?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand(CanExecute = nameof(CanAddCue))]
@@ -289,7 +296,29 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         vm.StartChanged -= OnCueStartChanged;
     }
 
-    private void OnCueChanged(object? sender, EventArgs e) => RaiseEdited();
+    private void OnCueChanged(object? sender, EventArgs e) => RaiseEdited(_hasKeyOverride ? _keyOverride : "edit");
+
+    // Row edits raised while this is set use its key instead of "edit" (one undo step per operation).
+    private bool _hasKeyOverride;
+    private string? _keyOverride;
+
+    private void WithEditKey(string? key, Action action)
+    {
+        _hasKeyOverride = true;
+        _keyOverride = key;
+        try
+        {
+            action();
+        }
+        finally
+        {
+            _hasKeyOverride = false;
+            _keyOverride = null;
+        }
+    }
+
+    /// <summary>A key no earlier edit used: the operation becomes its own undo step, even when it changes many rows.</summary>
+    private static string UniqueKey(string name) => $"{name}:{Guid.NewGuid():N}";
 
     // Keep list and model ordered by start time after a start edit.
     private void OnCueStartChanged(object? sender, EventArgs e)
@@ -306,6 +335,7 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         if (newIndex != oldIndex)
         {
             Cues.Move(oldIndex, newIndex);
+            RowsChanged?.Invoke(this, EventArgs.Empty);
             Renumber();
         }
     }
@@ -462,24 +492,123 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         }
 
         // Through the row view models so the grid updates; back to front keeps indexes valid.
-        foreach (var group in matches.GroupBy(m => m.Cue))
+        WithEditKey(UniqueKey("replace"), () =>
         {
-            var text = group.Key.Text;
-            foreach (var match in group.OrderByDescending(m => m.Index))
+            foreach (var group in matches.GroupBy(m => m.Cue))
             {
-                text = string.Concat(text.AsSpan(0, match.Index), ReplaceText, text.AsSpan(match.Index + match.Length));
-            }
+                var text = group.Key.Text;
+                foreach (var match in group.OrderByDescending(m => m.Index))
+                {
+                    text = string.Concat(text.AsSpan(0, match.Index), ReplaceText, text.AsSpan(match.Index + match.Length));
+                }
 
-            Cues.First(c => c.Model == group.Key).Text = text;
-        }
+                Cues.First(c => c.Model == group.Key).Text = text;
+            }
+        });
 
         _matchIndex = -1;
         FindStatus = $"{matches.Count} yerde değiştirildi";
     }
 
-    private void RaiseEdited()
+    // ---------------------------------------------------------------- timing and structure edits
+
+    private static readonly TimeSpan s_nudgeStep = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>The active track (the timeline draws it and clamps drags against it).</summary>
+    public SubtitleTrack? Track => _track;
+
+    /// <summary>Reading rules of the active track's language.</summary>
+    public ReadingRules Rules => _rules;
+
+    /// <summary>Raised when the rows were rebuilt or reordered (split, merge, quick fixes, track change).</summary>
+    public event EventHandler? RowsChanged;
+
+    /// <summary>Set by the view: the caret position in the text box while it has focus, otherwise null.</summary>
+    public Func<int?>? TextCaret { get; set; }
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void NudgeBack() => Nudge(-s_nudgeStep, startOnly: false);
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void NudgeForward() => Nudge(s_nudgeStep, startOnly: false);
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void NudgeStartBack() => Nudge(-s_nudgeStep, startOnly: true);
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void NudgeStartForward() => Nudge(s_nudgeStep, startOnly: true);
+
+    private void Nudge(TimeSpan delta, bool startOnly)
+    {
+        if (_track is null || SelectedCue is not { } vm)
+        {
+            return;
+        }
+
+        if (CueEditing.Nudge(_track, vm.Model, delta, startOnly) != TimeSpan.Zero)
+        {
+            // Repeated presses on the same line form one undo step.
+            WithEditKey($"nudge:{vm.Model.Id}:{startOnly}", () => vm.NotifyTimesChanged(startMoved: true));
+        }
+    }
+
+    /// <summary>Applies times from a timeline drag as one undo step.</summary>
+    public void ApplyTimes(CueViewModel row, TimeSpan start, TimeSpan end)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        WithEditKey(UniqueKey("drag"), () => row.SetTimes(start, end));
+    }
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void SplitCue()
+    {
+        if (_track is null || SelectedCue is not { } vm)
+        {
+            return;
+        }
+
+        var second = CueEditing.Split(_track, vm.Model, _player.Position, TextCaret?.Invoke());
+        if (second is null)
+        {
+            return;
+        }
+
+        var firstId = vm.Model.Id;
+        Rebuild(firstId);
+        RaiseEdited();
+    }
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void MergeWithNext()
+    {
+        if (_track is null || SelectedCue is not { } vm)
+        {
+            return;
+        }
+
+        if (CueEditing.MergeWithNext(_track, vm.Model, _rules.MaxCharsPerLine))
+        {
+            Rebuild(vm.Model.Id);
+            RaiseEdited();
+        }
+    }
+
+    /// <summary>Rebuilds the rows after the track was changed directly (split, merge, quick fixes) and reselects a line.</summary>
+    public void Rebuild(int? selectId = null)
+    {
+        Load(_track, _sourceTrack);
+        if (selectId is { } id)
+        {
+            SelectCue(id);
+        }
+    }
+
+    /// <summary>Records a change made directly on <see cref="Track"/> (e.g. a quick fix) as one undo step.</summary>
+    public void NotifyTrackEdited() => RaiseEdited();
+
+    private void RaiseEdited(string? coalesceKey = null)
     {
         OnPropertyChanged(nameof(Summary));
-        Edited?.Invoke(this, EventArgs.Empty);
+        Edited?.Invoke(this, coalesceKey);
     }
 }

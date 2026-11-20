@@ -36,6 +36,9 @@ public partial class MainWindow : Window
         DataContext = viewModel;
         if (viewModel.Editor is { } editor)
         {
+            // Ctrl+B splits at the caret when the text box has focus.
+            editor.TextCaret = () => CueTextBox.IsFocused ? CueTextBox.CaretIndex : null;
+
             // Opening the find bar puts the caret in the search box with its text selected.
             editor.FindOpened += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
@@ -98,6 +101,22 @@ public partial class MainWindow : Window
             }
         }
 
+        // Line shortcuts with Ctrl/⌘ work everywhere, also while typing (Ctrl+B splits at the caret).
+        var command = ViewModel?.Editor is { } lines && (e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta))
+            && !e.KeyModifiers.HasFlag(KeyModifiers.Alt)
+            ? e.Key switch
+            {
+                Key.Enter => lines.AddCueCommand,
+                Key.B => lines.SplitCueCommand,
+                Key.M => lines.MergeWithNextCommand,
+                _ => null,
+            }
+            : null;
+        if (Run(command, e))
+        {
+            return;
+        }
+
         // Enter in a single-line box (start/end time) commits it by moving focus to the list.
         if (e.Key == Key.Enter && e.Source is TextBox { AcceptsReturn: false })
         {
@@ -106,13 +125,41 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (ViewModel?.Player is not { IsLoaded: true } player || e.Source is TextBox)
+        // Everything below is inactive while typing in a text box.
+        if (e.Source is TextBox)
         {
             return;
         }
 
         var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-        var command = e.Key switch
+        if (ViewModel?.Editor is { } editor2)
+        {
+            // [ and ] by the typed symbol: on a Turkish keyboard they are AltGr+8 / AltGr+9.
+            command = e.KeySymbol switch
+            {
+                "[" => editor2.SetStartToPlayheadCommand,
+                "]" => editor2.SetEndToPlayheadCommand,
+                _ => e.KeyModifiers.HasFlag(KeyModifiers.Alt) && !e.KeyModifiers.HasFlag(KeyModifiers.Control) ? e.Key switch
+                {
+                    Key.Left when shift => editor2.NudgeStartBackCommand,
+                    Key.Right when shift => editor2.NudgeStartForwardCommand,
+                    Key.Left => editor2.NudgeBackCommand,
+                    Key.Right => editor2.NudgeForwardCommand,
+                    _ => null,
+                } : null,
+            };
+            if (Run(command, e))
+            {
+                return;
+            }
+        }
+
+        if (ViewModel?.Player is not { IsLoaded: true } player || e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+        {
+            return;
+        }
+
+        command = e.Key switch
         {
             Key.Space => player.TogglePlayPauseCommand,
             Key.Left when shift => player.FrameBackCommand,
@@ -122,10 +169,25 @@ public partial class MainWindow : Window
             _ => null,
         };
 
-        if (command is not null && command.CanExecute(null))
+        Run(command, e);
+    }
+
+    /// <summary>Runs the command for a shortcut; the key counts as handled whenever a command matched.</summary>
+    private static bool Run(System.Windows.Input.ICommand? command, KeyEventArgs e)
+    {
+        if (command is null)
+        {
+            return false;
+        }
+
+        if (command.CanExecute(null))
         {
             command.Execute(null);
-            e.Handled = true;
         }
+
+        e.Handled = true;
+        return true;
     }
+
+    private async void OnShowShortcuts(object? sender, RoutedEventArgs e) => await new ShortcutsDialog().ShowDialog(this);
 }

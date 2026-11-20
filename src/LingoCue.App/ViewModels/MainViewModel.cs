@@ -57,6 +57,8 @@ public partial class MainViewModel : ViewModelBase
         SubtitlePreviewService preview,
         PlayerViewModel playerViewModel,
         SubtitleEditorViewModel editor,
+        TimelineViewModel timeline,
+        QualityViewModel quality,
         StyleEditorViewModel styleEditor,
         RenderQueueViewModel renderQueue,
         IVideoRenderer renderer,
@@ -86,7 +88,9 @@ public partial class MainViewModel : ViewModelBase
         _logger = logger;
         Player = playerViewModel;
         Editor = editor;
-        Editor.Edited += (_, _) => OnEdited();
+        Timeline = timeline;
+        Quality = quality;
+        Editor.Edited += (_, key) => OnEdited(key);
         Editor.RulesFor = language => settings.Current.Reading.ToRules(language);
         StyleEditor = styleEditor;
         RenderQueue = renderQueue;
@@ -116,6 +120,11 @@ public partial class MainViewModel : ViewModelBase
     public PlayerViewModel? Player { get; }
 
     public SubtitleEditorViewModel? Editor { get; }
+
+    public TimelineViewModel? Timeline { get; }
+
+    /// <summary>The "Kontrol" tab (QA checks and quick fixes).</summary>
+    public QualityViewModel? Quality { get; }
 
     public StyleEditorViewModel? StyleEditor { get; }
 
@@ -323,6 +332,7 @@ public partial class MainViewModel : ViewModelBase
             }
 
             SetProject(project, path);
+            Timeline?.Clear(); // the previous video's waveform
             RememberRecent(path);
             if (project.VideoPath is { } video)
             {
@@ -1022,6 +1032,7 @@ public partial class MainViewModel : ViewModelBase
             }
 
             await _player.OpenAsync(path);
+            _ = Timeline?.LoadWaveformAsync(path);
             CurrentMedia = info;
             return true;
         }
@@ -1039,12 +1050,12 @@ public partial class MainViewModel : ViewModelBase
         return false;
     }
 
-    private void OnEdited()
+    private void OnEdited(string? coalesceKey)
     {
         CorrectCommand.NotifyCanExecuteChanged();
         TranslateCommand.NotifyCanExecuteChanged();
         ExportCommand.NotifyCanExecuteChanged();
-        MarkDirty("edit");
+        MarkDirty(coalesceKey);
         RefreshPreview(immediate: false);
     }
 
