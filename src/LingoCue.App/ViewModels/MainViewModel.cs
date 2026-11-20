@@ -936,6 +936,19 @@ public partial class MainViewModel : ViewModelBase
             };
         }
 
+        // A Korean second track needs a font with Hangul, or libass draws boxes (preview and burn-in alike).
+        var bilingual = project.Presentation.Bilingual;
+        var fontsDirectory = FontCatalog.ProjectFontDirectory(ProjectPath);
+        if (bilingual.SecondaryTrackId == track.Id && track.Language?.StartsWith("ko", StringComparison.OrdinalIgnoreCase) == true &&
+            _fontCatalog is not null && !_fontCatalog.Check(bilingual.SecondaryStyle.FontName, fontsDirectory).HasHangul &&
+            _fontCatalog.SuggestHangulFamily(fontsDirectory) is { } hangulFont)
+        {
+            project.Presentation = project.Presentation with
+            {
+                Bilingual = bilingual with { SecondaryStyle = bilingual.SecondaryStyle with { FontName = hangulFont } },
+            };
+        }
+
         project.Tracks.Add(track);
         project.ActiveTrackId = track.Id;
         RefreshTracks();

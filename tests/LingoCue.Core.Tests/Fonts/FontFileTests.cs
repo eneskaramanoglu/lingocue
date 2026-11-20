@@ -164,6 +164,24 @@ public sealed class FontFileTests : IDisposable
     }
 
     [Fact]
+    public void Detects_korean_letters()
+    {
+        var korean = Write("kr.ttf", TestFont.Ttf("Kore Deneme", characters: "abc" + FontFileReader.HangulSample));
+        var latin = Write("latin.ttf", TestFont.Ttf("Latin Deneme"));
+
+        FontFileReader.ReadFaces(korean).ShouldHaveSingleItem().HasHangul.ShouldBeTrue();
+        FontFileReader.ReadFaces(latin).ShouldHaveSingleItem().HasHangul.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Suggests_a_preferred_korean_font_then_any_with_hangul()
+    {
+        FontCatalog.PickHangulFamily([("Arial", false), ("Zeta Hangul", true), ("Malgun Gothic", true)]).ShouldBe("Malgun Gothic");
+        FontCatalog.PickHangulFamily([("Arial", false), ("Zeta Hangul", true)]).ShouldBe("Zeta Hangul");
+        FontCatalog.PickHangulFamily([("Arial", false)]).ShouldBeNull();
+    }
+
+    [Fact]
     public void Reads_every_face_of_a_collection()
     {
         var path = Write("pair.ttc", TestFont.Ttc(("Bir", "ğışİçöüÇĞŞÖÜ"), ("İki", "abc")));

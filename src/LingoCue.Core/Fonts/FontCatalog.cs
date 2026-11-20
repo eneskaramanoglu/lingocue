@@ -9,7 +9,7 @@ public enum FontSource
     Project,
 }
 
-public sealed record FontStatus(FontSource Source, bool HasTurkishLetters);
+public sealed record FontStatus(FontSource Source, bool HasTurkishLetters, bool HasHangul = false);
 
 public interface IFontCatalog
 {
@@ -20,6 +20,9 @@ public interface IFontCatalog
 
     /// <summary>Family names in a single font file (empty when it is not a readable font).</summary>
     IReadOnlyList<string> FamiliesIn(string fontFile);
+
+    /// <summary>The best installed or project font with Korean letters, or null when there is none.</summary>
+    string? SuggestHangulFamily(string? projectFontDirectory);
 }
 
 /// <summary>
@@ -57,17 +60,33 @@ public sealed class FontCatalog(IPlatformInfo platform) : IFontCatalog
         var project = ProjectFaces(projectFontDirectory).Where(f => Matches(f, name)).ToList();
         if (project.Count > 0)
         {
-            return new FontStatus(FontSource.Project, project.Any(f => f.HasTurkishLetters));
+            return new FontStatus(FontSource.Project, project.Any(f => f.HasTurkishLetters), project.Any(f => f.HasHangul));
         }
 
         var system = _system.Value.Where(f => Matches(f, name)).ToList();
         return system.Count > 0
-            ? new FontStatus(FontSource.System, system.Any(f => f.HasTurkishLetters))
+            ? new FontStatus(FontSource.System, system.Any(f => f.HasTurkishLetters), system.Any(f => f.HasHangul))
             : new FontStatus(FontSource.Missing, false);
     }
 
     public IReadOnlyList<string> FamiliesIn(string fontFile)
         => [.. FontFileReader.ReadFaces(fontFile).Select(f => f.Family).Distinct(StringComparer.OrdinalIgnoreCase)];
+
+    /// <summary>Korean fonts in order of preference: Noto (free, also on macOS via Homebrew), then the OS fonts.</summary>
+    public static IReadOnlyList<string> PreferredHangulFamilies { get; } =
+        ["Noto Sans KR", "Noto Sans CJK KR", "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", "NanumGothic", "Nanum Gothic"];
+
+    public string? SuggestHangulFamily(string? projectFontDirectory)
+        => PickHangulFamily(ProjectFaces(projectFontDirectory).Concat(_system.Value).Select(f => (f.Family, f.HasHangul)));
+
+    /// <summary>The first preferred family that has Hangul, else any family that has it.</summary>
+    public static string? PickHangulFamily(IEnumerable<(string Family, bool HasHangul)> faces)
+    {
+        ArgumentNullException.ThrowIfNull(faces);
+        var withHangul = faces.Where(f => f.HasHangul).Select(f => f.Family).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return PreferredHangulFamilies.FirstOrDefault(p => withHangul.Contains(p, StringComparer.OrdinalIgnoreCase))
+               ?? withHangul.Order(StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+    }
 
     private static bool Matches(FontFace face, string name)
         => string.Equals(face.Family, name, StringComparison.OrdinalIgnoreCase);
