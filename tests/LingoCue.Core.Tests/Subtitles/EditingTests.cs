@@ -167,6 +167,33 @@ public class QualityCheckTests
         QualityCheck.ExtendForReadingSpeed(track, ReadingRules.Default).ShouldBe(1);
         track.Cues[1].CharactersPerSecond.ShouldBeLessThanOrEqualTo(ReadingRules.Default.TargetCps + 0.01);
         track.Cues[1].End.ShouldBeLessThan(S(6));
+
+        // Nothing the fixes did is reported again.
+        QualityCheck.Check(track, ReadingRules.Default).ShouldNotContain(i => i.Kind == "Overlap" || i.Kind == "SmallGap");
+    }
+
+    [Fact]
+    public void Fixing_overlaps_leaves_small_gaps_alone()
+    {
+        var track = new SubtitleTrack();
+        track.AddCue(S(0), S(2), "kısa aralık");
+        track.AddCue(S(2.03), S(4), "sonraki");
+
+        QualityCheck.FixOverlaps(track).ShouldBe(0);
+        track.Cues[0].End.ShouldBe(S(2));
+        QualityCheck.Check(track, ReadingRules.Default).ShouldContain(i => i.Kind == "SmallGap");
+    }
+
+    [Fact]
+    public void Moving_a_line_to_its_neighbour_does_not_create_a_small_gap_warning()
+    {
+        var track = new SubtitleTrack();
+        track.AddCue(S(0), S(2), "birinci satır");
+        track.AddCue(S(3), S(5), "ikinci satır");
+
+        CueEditing.Nudge(track, track.Cues[1], S(-5));
+
+        QualityCheck.Check(track, ReadingRules.Default).ShouldNotContain(i => i.Kind == "SmallGap");
     }
 }
 

@@ -16,7 +16,7 @@ public sealed record QaIssue(int CueId, int Number, TimeSpan Start, QaSeverity S
 public static class QualityCheck
 {
     /// <summary>Gaps below this read as one flickering subtitle (Netflix asks for at least 2 frames).</summary>
-    public static readonly TimeSpan MinNoticeableGap = TimeSpan.FromMilliseconds(80);
+    public static readonly TimeSpan MinNoticeableGap = CueEditing.MinGap;
 
     private static readonly System.Globalization.CultureInfo s_tr = Text.TurkishText.Culture;
 
@@ -84,7 +84,7 @@ public static class QualityCheck
         return issues;
     }
 
-    /// <summary>Ends each overlapping cue just before the next one starts. Returns how many changed.</summary>
+    /// <summary>Ends each cue that overlaps the next one <see cref="CueEditing.MinGap"/> before it starts. Returns how many changed.</summary>
     public static int FixOverlaps(SubtitleTrack track)
     {
         ArgumentNullException.ThrowIfNull(track);
@@ -94,7 +94,9 @@ public static class QualityCheck
         {
             var cue = track.Cues[i];
             var next = track.Cues[i + 1];
-            if (cue.End > next.Start - CueEditing.MinGap)
+
+            // Only real overlaps; a small gap is a separate warning and shortening it would cost reading time.
+            if (cue.End > next.Start)
             {
                 var end = next.Start - CueEditing.MinGap;
                 if (end - cue.Start >= CueEditing.MinDuration && end != cue.End)

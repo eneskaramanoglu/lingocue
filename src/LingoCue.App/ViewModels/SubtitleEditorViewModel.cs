@@ -14,7 +14,7 @@ namespace LingoCue.App.ViewModels;
 public sealed partial class SubtitleEditorViewModel : ViewModelBase
 {
     private static readonly TimeSpan s_defaultCueLength = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan s_minGap = TimeSpan.FromMilliseconds(40);
+    private static readonly TimeSpan s_minGap = CueEditing.MinGap;
     private readonly IVideoPlayer _player;
     private ReadingRules _rules = ReadingRules.Default;
     private SubtitleTrack? _track;

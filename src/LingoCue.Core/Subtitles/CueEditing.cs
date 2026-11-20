@@ -3,8 +3,11 @@ namespace LingoCue.Core.Subtitles;
 /// <summary>Editing operations on the cues of a track: split, merge and nudging times without overlaps.</summary>
 public static class CueEditing
 {
-    /// <summary>Gap kept between neighbouring cues when moving one (2 frames at 25 fps ≈ 80 ms is common).</summary>
-    public static readonly TimeSpan MinGap = TimeSpan.FromMilliseconds(40);
+    /// <summary>
+    /// Gap kept between neighbouring cues when moving one: 2 frames at 25 fps, the gap the QA check asks
+    /// for and the segmenter leaves, so editing never creates a "too small gap" warning.
+    /// </summary>
+    public static readonly TimeSpan MinGap = TimeSpan.FromMilliseconds(80);
 
     /// <summary>Shortest cue a split or a nudge may leave.</summary>
     public static readonly TimeSpan MinDuration = TimeSpan.FromMilliseconds(200);
