@@ -27,6 +27,11 @@
     <KeyBinding Gesture="Meta+I" Command="{Binding ImportSubtitleCommand}" />
     <KeyBinding Gesture="Ctrl+T" Command="{Binding TranscribeCommand}" />
     <KeyBinding Gesture="Ctrl+E" Command="{Binding ExportCommand}" />
+    <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}" />
+    <KeyBinding Gesture="Meta+Z" Command="{Binding UndoCommand}" />
+    <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding RedoCommand}" />
+    <KeyBinding Gesture="Meta+Shift+Z" Command="{Binding RedoCommand}" />
     <KeyBinding Gesture="Meta+E" Command="{Binding ExportCommand}" />
     <KeyBinding Gesture="Meta+T" Command="{Binding TranscribeCommand}" />
   </Window.KeyBindings>
@@ -44,6 +49,10 @@
         <Separator />
         <MenuItem Header="Altyazı _İçe Aktar…" InputGesture="Ctrl+I" Command="{Binding ImportSubtitleCommand}" />
         <MenuItem Header="_Dışa Aktar…" InputGesture="Ctrl+E" Command="{Binding ExportCommand}" />
+      </MenuItem>
+      <MenuItem Header="_Düzen">
+        <MenuItem Header="_Geri al" InputGesture="Ctrl+Z" Command="{Binding UndoCommand}" />
+        <MenuItem Header="_Yinele" InputGesture="Ctrl+Y" Command="{Binding RedoCommand}" />
       </MenuItem>
       <MenuItem Header="_Altyazı">
         <MenuItem Header="_Transkribe Et…" InputGesture="Ctrl+T" Command="{Binding TranscribeCommand}" />

@@ -96,7 +96,7 @@ public partial class MainViewModel : ViewModelBase
         StyleEditor.FontAdded += (_, _) => UpdateFontsDirectory();
         StyleEditor.Changed += (_, _) =>
         {
-            MarkDirty();
+            MarkDirty("style");
             RefreshPreview(immediate: false);
         };
         PlatformText = platform.RuntimeIdentifier;
@@ -188,7 +188,7 @@ public partial class MainViewModel : ViewModelBase
     // Long-running job state.
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
-    [NotifyCanExecuteChangedFor(nameof(OpenVideoCommand), nameof(OpenProjectCommand), nameof(ImportSubtitleCommand), nameof(TranscribeCommand), nameof(CorrectCommand), nameof(TranslateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenVideoCommand), nameof(OpenProjectCommand), nameof(ImportSubtitleCommand), nameof(TranscribeCommand), nameof(CorrectCommand), nameof(TranslateCommand), nameof(UndoCommand), nameof(RedoCommand))]
     public partial bool IsBusy { get; set; }
 
     /// <summary>0..1; 0 shows an indeterminate bar.</summary>
@@ -440,6 +440,8 @@ public partial class MainViewModel : ViewModelBase
         ProjectPath = path;
         UpdateFontsDirectory();
         StyleEditor?.Load(Project, Project?.ActiveTrack, path);
+        FlushHistory();
+        _history.MarkSaved(Project!);
         IsDirty = false;
         OnPropertyChanged(nameof(DocumentName));
         StatusText = $"Kaydedildi: {path}";
@@ -980,6 +982,10 @@ public partial class MainViewModel : ViewModelBase
         ProjectPath = projectPath;
         UpdateFontsDirectory();
         IsDirty = false;
+        _historyPending = false;
+        _history.Reset(project);
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
         if (project.VideoPath is null)
         {
             CurrentMedia = null;
@@ -1034,14 +1040,103 @@ public partial class MainViewModel : ViewModelBase
         CorrectCommand.NotifyCanExecuteChanged();
         TranslateCommand.NotifyCanExecuteChanged();
         ExportCommand.NotifyCanExecuteChanged();
-        MarkDirty();
+        MarkDirty("edit");
         RefreshPreview(immediate: false);
     }
 
-    private void MarkDirty()
+    /// <param name="coalesceKey">Edits with the same key in quick succession form one undo step.</param>
+    private void MarkDirty(string? coalesceKey = null)
     {
         IsDirty = true;
         OnPropertyChanged(nameof(DocumentName));
+        ScheduleHistoryRecord(coalesceKey);
+    }
+
+    // ---------------------------------------------------------------- undo / redo
+
+    private readonly ProjectHistory _history = new();
+    private Avalonia.Threading.DispatcherTimer? _historyTimer;
+    private string? _pendingKey;
+    private bool _historyPending;
+
+    /// <summary>Snapshots are taken once the edits pause (not on every keystroke).</summary>
+    private void ScheduleHistoryRecord(string? coalesceKey)
+    {
+        if (Project is null)
+        {
+            return;
+        }
+
+        if (_historyPending && _pendingKey != coalesceKey)
+        {
+            FlushHistory(); // a different kind of edit: close the previous step first
+        }
+
+        _pendingKey = coalesceKey;
+        _historyPending = true;
+        _historyTimer ??= new Avalonia.Threading.DispatcherTimer(TimeSpan.FromMilliseconds(400), Avalonia.Threading.DispatcherPriority.Background, (_, _) => FlushHistory());
+        _historyTimer.Stop();
+        _historyTimer.Start();
+    }
+
+    private void FlushHistory()
+    {
+        _historyTimer?.Stop();
+        if (!_historyPending || Project is null)
+        {
+            return;
+        }
+
+        _historyPending = false;
+        _history.Record(Project, _pendingKey);
+        IsDirty = !_history.IsAtSavedState;
+        OnPropertyChanged(nameof(DocumentName));
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanUndo => IsIdle && (_historyPending || _history.CanUndo);
+
+    private bool CanRedo => IsIdle && !_historyPending && _history.CanRedo;
+
+    [RelayCommand(CanExecute = nameof(CanUndo))]
+    private void Undo()
+    {
+        FlushHistory();
+        if (Project is not null && _history.Undo(Project) is { } previous)
+        {
+            ApplyHistoryState(previous, "Geri alındı.");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRedo))]
+    private void Redo()
+    {
+        if (Project is not null && _history.Redo(Project) is { } next)
+        {
+            ApplyHistoryState(next, "Yinelendi.");
+        }
+    }
+
+    /// <summary>Swaps in a restored project, keeping the video, path and (if possible) the selected line.</summary>
+    private void ApplyHistoryState(Project restored, string status)
+    {
+        var selectedCue = Editor?.SelectedCue?.Model.Id;
+        restored.VideoPath = Project?.VideoPath;
+        Project = restored;
+        restored.EnsureActiveTrack();
+        RefreshTracks();
+        if (selectedCue is { } id)
+        {
+            Editor?.SelectCue(id);
+        }
+
+        RefreshPreview(immediate: true);
+        IsDirty = !_history.IsAtSavedState;
+        OnPropertyChanged(nameof(DocumentName));
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
+        StatusText = status;
     }
 
     private void RefreshPreview(bool immediate)

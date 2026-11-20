@@ -62,6 +62,23 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
     /// <summary>Re-evaluates the rows, e.g. after the reading rules changed in the settings.</summary>
     public void Refresh() => Load(_track, _sourceTrack);
 
+    /// <summary>Selects the row of the cue with this id (e.g. after undo rebuilt the list).</summary>
+    public void SelectCue(int id)
+    {
+        if (Cues.FirstOrDefault(c => c.Model.Id == id) is { } row)
+        {
+            _selectingFromPlayback = true; // keep the video where it is
+            try
+            {
+                SelectedCue = row;
+            }
+            finally
+            {
+                _selectingFromPlayback = false;
+            }
+        }
+    }
+
     /// <summary>The track this one was derived from (correction/translation); its cue texts are shown as originals.</summary>
     private SubtitleTrack? _sourceTrack;
 
