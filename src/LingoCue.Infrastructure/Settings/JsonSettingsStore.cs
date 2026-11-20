@@ -43,7 +43,8 @@ public sealed class JsonSettingsStore : ISettingsStore
         ArgumentNullException.ThrowIfNull(settings);
         lock (_gate)
         {
-            AtomicFile.WriteAllTextAsync(_path, JsonSerializer.Serialize(settings, s_options)).GetAwaiter().GetResult();
+            // Synchronous on purpose: Save is called on the UI thread (see AtomicFile.WriteAllText).
+            AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(settings, s_options));
             Current = settings;
         }
 

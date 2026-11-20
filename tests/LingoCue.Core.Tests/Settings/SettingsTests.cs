@@ -84,4 +84,34 @@ public class GlossaryTests
         merged.For(null).Select(e => e.Term).ShouldBe(["İstanbul", "Boğaz"]);
         merged.For("en").ShouldHaveSingleItem().Effective.ShouldBe("Istanbul");
     }
+
+    [Fact]
+    public void Save_on_a_ui_like_thread_does_not_deadlock()
+    {
+        // Like the UI thread: posted continuations only run when the (blocked) thread pumps them.
+        var dir = Directory.CreateTempSubdirectory("lingocue-settings-ui-").FullName;
+        var file = Path.Combine(dir, "settings.json");
+        var store = new JsonSettingsStore(file);
+        var finished = false;
+        var thread = new Thread(() =>
+        {
+            SynchronizationContext.SetSynchronizationContext(new NeverPumpedContext());
+            store.Save(store.Current.WithRecentFile(Path.Combine(dir, "a.lingocue")));
+            finished = true;
+        });
+
+        thread.Start();
+        thread.Join(TimeSpan.FromSeconds(10)).ShouldBeTrue("Save blocked the thread");
+        finished.ShouldBeTrue();
+        new JsonSettingsStore(file).Current.RecentFiles.ShouldHaveSingleItem();
+        Directory.Delete(dir, recursive: true);
+    }
+
+    private sealed class NeverPumpedContext : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            // Dropped: nothing would run it while the thread is blocked.
+        }
+    }
 }

@@ -49,7 +49,7 @@ public sealed class JsonStyleTemplateStore : IStyleTemplateStore
                 File.Delete(PathFor(old.Name));
             }
 
-            AtomicFile.WriteAllTextAsync(PathFor(styleTemplate.Name), StyleTemplates.Serialize(styleTemplate)).GetAwaiter().GetResult();
+            AtomicFile.WriteAllText(PathFor(styleTemplate.Name), StyleTemplates.Serialize(styleTemplate)); // UI thread: never block on async
             _templates = [.. _templates.Where(t => !SameName(t.Name, styleTemplate.Name)), styleTemplate with { BuiltIn = false }];
             _templates.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase));
         }
