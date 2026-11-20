@@ -33,6 +33,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   all is one undo step.
 - **Dosya → Son açılanlar**: the last 10 projects and videos.
 
+### Changed
+- Moving a line keeps at least 80 ms (2 frames) to its neighbour, the same gap the QA check and
+  automatic segmentation use, so editing does not create "gap too small" warnings.
+- **Çakışmaları gider** only changes lines that really overlap; lines that are merely close keep
+  their reading time and stay listed as a warning.
+
+### Fixed
+- Saving preferences or a style template could freeze the app, because the save waited on the
+  UI thread. Files are now written directly.
+- Switching to the Stil or Kontrol tab no longer clears the selected line.
+
 ## [0.8.0] - 2026-11-19
 
 ### Added
