@@ -6,6 +6,31 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-20
+
+### Changed
+- **New look ("Stüdyo")**: a dark-first design with a matching light theme. It uses one accent
+  color, cards with rounded corners, quieter buttons and sunken input fields.
+- The menu and toolbar become one app bar:
+  - The document name has a dot when there are unsaved changes.
+  - **Transkribe → Düzelt → Çevir** form one workflow group; a finished step shows a green check.
+  - Undo, redo and settings are icon buttons; **Dışa aktar** is the primary button.
+  - The theme moved to Ayarlar → Tema.
+- **Welcome screen** when no project is open: a drop zone with Video aç / Proje aç, the recent
+  files as cards, and a readiness list (FFmpeg, Gemini key, Whisper model).
+- The lines are a list instead of a table. Each row shows the time range and duration, the text,
+  and the reading speed as a green, amber or red label; the selected line has an accent edge.
+- The right panel has segmented tabs, and Kontrol shows how many problems there are.
+- **Kontrol** shows error, warning and clean-line counts as tiles, and each issue as a row with a
+  severity badge.
+- The timeline follows the theme. The selected line is drawn in the accent color, and warnings
+  and errors are tinted.
+- The transport bar is its own card with a round play button. A label over the video shows the
+  resolution and frame rate.
+- Dialogs have an icon header, a footer bar with Vazgeç before the main action, and boxes for
+  cost estimates. Dışa Aktar picks the export kind from three cards.
+- The status bar shows a running job as a thin progress bar in a pill.
+
 ## [0.9.0] - 2026-11-20
 
 ### Added

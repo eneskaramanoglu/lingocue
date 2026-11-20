@@ -159,6 +159,23 @@ track cues ──► LineItem(id, text, duration, speaker, locked)
 - The editor links a derived track to its source through `SourceTrackId`/`SourceCueId` to show the
   original text and the changed-only filter.
 
+## Look and feel (v0.10.0)
+
+- **One place for the design.** `App.axaml` gives the Fluent theme a palette per theme variant
+  (`ColorPaletteResources`: accent, window, text). `Styles/Shell.axaml` holds three things:
+  - the app's tokens for both variants: surfaces (`AppBackground` → `Chrome` → `Panel` →
+    `Sunken`), text, accent and the ok/warning/error pairs;
+  - the icon geometries (Material Design Icons, used through `PathIcon`);
+  - the component classes, for example `Border.panel/.well/.chip/.tile`,
+    `Button.accent/.icon/.small/.step/.card`, `RadioButton.choice`, `ListBox.cues` and
+    `TabControl.segmented`.
+- **How views use it.** Views reference tokens with `DynamicResource`, so switching the theme
+  restyles everything. `TimelineControl` draws in code, so it reads the same tokens through
+  `TryFindResource` and rebuilds its brushes when the theme variant changes.
+- **Line list.** The lines are a virtualized `ListBox` with a row template rather than a
+  `DataGrid`. The window syncs its selection in code-behind, because an unloaded tab must not
+  clear the editor's selected line.
+
 ## Editor polish (M8)
 
 - **Undo/redo:** `ProjectHistory` (Core) keeps up to 100 JSON snapshots of the project, without the
