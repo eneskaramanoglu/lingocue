@@ -100,6 +100,7 @@ public partial class MainViewModel : ViewModelBase
             RefreshPreview(immediate: false);
         };
         PlatformText = platform.RuntimeIdentifier;
+        LoadRecentFiles();
         SelectedTheme = themeService.Current;
     }
 
@@ -188,7 +189,7 @@ public partial class MainViewModel : ViewModelBase
     // Long-running job state.
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
-    [NotifyCanExecuteChangedFor(nameof(OpenVideoCommand), nameof(OpenProjectCommand), nameof(ImportSubtitleCommand), nameof(TranscribeCommand), nameof(CorrectCommand), nameof(TranslateCommand), nameof(UndoCommand), nameof(RedoCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenVideoCommand), nameof(OpenProjectCommand), nameof(ImportSubtitleCommand), nameof(TranscribeCommand), nameof(CorrectCommand), nameof(TranslateCommand), nameof(UndoCommand), nameof(RedoCommand), nameof(OpenRecentCommand))]
     public partial bool IsBusy { get; set; }
 
     /// <summary>0..1; 0 shows an indeterminate bar.</summary>
@@ -292,6 +293,7 @@ public partial class MainViewModel : ViewModelBase
             else
             {
                 SetProject(new Project { VideoPath = path }, projectPath: null);
+                RememberRecent(path);
             }
 
             RefreshPreview(immediate: true);
@@ -321,6 +323,7 @@ public partial class MainViewModel : ViewModelBase
             }
 
             SetProject(project, path);
+            RememberRecent(path);
             if (project.VideoPath is { } video)
             {
                 if (File.Exists(video))
@@ -445,6 +448,7 @@ public partial class MainViewModel : ViewModelBase
         IsDirty = false;
         OnPropertyChanged(nameof(DocumentName));
         StatusText = $"Kaydedildi: {path}";
+        RememberRecent(path);
         return true;
     }
 
@@ -1050,6 +1054,53 @@ public partial class MainViewModel : ViewModelBase
         IsDirty = true;
         OnPropertyChanged(nameof(DocumentName));
         ScheduleHistoryRecord(coalesceKey);
+    }
+
+    // ---------------------------------------------------------------- recent files
+
+    /// <summary>Dosya → Son açılanlar (newest first).</summary>
+    public System.Collections.ObjectModel.ObservableCollection<RecentFileItem> RecentFiles { get; } = [];
+
+    public bool HasRecentFiles => RecentFiles.Count > 0;
+
+    private void RememberRecent(string path)
+    {
+        if (_settings is null)
+        {
+            return;
+        }
+
+        _settings.Save(_settings.Current.WithRecentFile(path));
+        LoadRecentFiles();
+    }
+
+    private void LoadRecentFiles()
+    {
+        RecentFiles.Clear();
+        foreach (var path in _settings?.Current.RecentFiles ?? [])
+        {
+            RecentFiles.Add(new RecentFileItem(path, OpenRecentCommand));
+        }
+
+        OnPropertyChanged(nameof(HasRecentFiles));
+    }
+
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private async Task OpenRecent(string path)
+    {
+        if (!File.Exists(path))
+        {
+            ErrorText = $"Dosya bulunamadı, listeden çıkarıldı: {path}";
+            if (_settings is not null)
+            {
+                _settings.Save(_settings.Current.WithoutRecentFile(path));
+                LoadRecentFiles();
+            }
+
+            return;
+        }
+
+        await OpenFileAsync(path);
     }
 
     // ---------------------------------------------------------------- undo / redo

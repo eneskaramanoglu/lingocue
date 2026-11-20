@@ -330,6 +330,153 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         }
     }
 
+    // ---------------------------------------------------------------- find / replace
+
+    private int _matchIndex = -1;
+
+    [ObservableProperty]
+    public partial bool IsFindOpen { get; set; }
+
+    [ObservableProperty]
+    public partial string FindText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string ReplaceText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool MatchCase { get; set; }
+
+    [ObservableProperty]
+    public partial bool WholeWord { get; set; }
+
+    [ObservableProperty]
+    public partial string? FindStatus { get; private set; }
+
+    /// <summary>Raised when the find bar opens, so the view can focus the search box.</summary>
+    public event EventHandler? FindOpened;
+
+    [RelayCommand]
+    private void OpenFind()
+    {
+        IsFindOpen = true;
+        FindOpened?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    private void CloseFind()
+    {
+        IsFindOpen = false;
+        FindStatus = null;
+    }
+
+    partial void OnFindTextChanged(string value) => ResetFind();
+
+    partial void OnMatchCaseChanged(bool value) => ResetFind();
+
+    partial void OnWholeWordChanged(bool value) => ResetFind();
+
+    private void ResetFind()
+    {
+        _matchIndex = -1;
+        var count = Matches().Count;
+        FindStatus = FindText.Length == 0 ? null : count == 0 ? "Bulunamadı" : $"{count} eşleşme";
+    }
+
+    private List<Core.Text.TextMatch> Matches()
+        => _track is null || FindText.Length == 0
+            ? []
+            : [.. Core.Text.TextSearch.FindAll(Cues.Select(c => c.Model), FindText, MatchCase, WholeWord)];
+
+    [RelayCommand]
+    private void FindNext() => Step(+1);
+
+    [RelayCommand]
+    private void FindPrevious() => Step(-1);
+
+    private void Step(int direction)
+    {
+        var matches = Matches();
+        if (matches.Count == 0)
+        {
+            FindStatus = FindText.Length == 0 ? null : "Bulunamadı";
+            return;
+        }
+
+        if (_matchIndex < 0)
+        {
+            // Start from the selected line, so "next" means after what the user is looking at.
+            var selected = SelectedCue is null ? -1 : Cues.IndexOf(SelectedCue);
+            var first = matches.FindIndex(m => Cues.IndexOf(Cues.First(c => c.Model == m.Cue)) >= selected);
+            _matchIndex = direction > 0 ? Math.Max(0, first) : (first <= 0 ? matches.Count - 1 : first - 1);
+        }
+        else
+        {
+            _matchIndex = (_matchIndex + direction + matches.Count) % matches.Count;
+        }
+
+        Show(matches, _matchIndex);
+    }
+
+    private void Show(List<Core.Text.TextMatch> matches, int index)
+    {
+        SelectedCue = Cues.FirstOrDefault(c => c.Model == matches[index].Cue);
+        FindStatus = $"{index + 1} / {matches.Count}";
+    }
+
+    [RelayCommand]
+    private void ReplaceOne()
+    {
+        var matches = Matches();
+        if (matches.Count == 0)
+        {
+            FindStatus = "Bulunamadı";
+            return;
+        }
+
+        var index = _matchIndex < 0 ? 0 : Math.Min(_matchIndex, matches.Count - 1);
+        var match = matches[index];
+        var row = Cues.First(c => c.Model == match.Cue);
+        var text = match.Cue.Text;
+        row.Text = string.Concat(text.AsSpan(0, match.Index), ReplaceText, text.AsSpan(match.Index + match.Length));
+
+        var remaining = Matches();
+        _matchIndex = remaining.Count == 0 ? -1 : Math.Min(index, remaining.Count - 1);
+        if (_matchIndex >= 0)
+        {
+            Show(remaining, _matchIndex);
+        }
+        else
+        {
+            FindStatus = "Hepsi değiştirildi";
+        }
+    }
+
+    [RelayCommand]
+    private void ReplaceAll()
+    {
+        var matches = Matches();
+        if (matches.Count == 0)
+        {
+            FindStatus = "Bulunamadı";
+            return;
+        }
+
+        // Through the row view models so the grid updates; back to front keeps indexes valid.
+        foreach (var group in matches.GroupBy(m => m.Cue))
+        {
+            var text = group.Key.Text;
+            foreach (var match in group.OrderByDescending(m => m.Index))
+            {
+                text = string.Concat(text.AsSpan(0, match.Index), ReplaceText, text.AsSpan(match.Index + match.Length));
+            }
+
+            Cues.First(c => c.Model == group.Key).Text = text;
+        }
+
+        _matchIndex = -1;
+        FindStatus = $"{matches.Count} yerde değiştirildi";
+    }
+
     private void RaiseEdited()
     {
         OnPropertyChanged(nameof(Summary));

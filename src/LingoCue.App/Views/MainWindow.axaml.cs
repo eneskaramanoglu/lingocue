@@ -34,6 +34,15 @@ public partial class MainWindow : Window
         : this()
     {
         DataContext = viewModel;
+        if (viewModel.Editor is { } editor)
+        {
+            // Opening the find bar puts the caret in the search box with its text selected.
+            editor.FindOpened += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                FindBox.Focus();
+                FindBox.SelectAll();
+            });
+        }
     }
 
     private MainViewModel? ViewModel => DataContext as MainViewModel;
@@ -70,6 +79,25 @@ public partial class MainWindow : Window
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
+        // The find box: Enter = next match, Shift+Enter = previous, Esc = close.
+        if (ReferenceEquals(e.Source, FindBox) && ViewModel?.Editor is { } editor)
+        {
+            if (e.Key == Key.Enter)
+            {
+                (e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? editor.FindPreviousCommand : editor.FindNextCommand).Execute(null);
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.Escape)
+            {
+                editor.CloseFindCommand.Execute(null);
+                CueGrid.Focus();
+                e.Handled = true;
+                return;
+            }
+        }
+
         // Enter in a single-line box (start/end time) commits it by moving focus to the list.
         if (e.Key == Key.Enter && e.Source is TextBox { AcceptsReturn: false })
         {

@@ -27,6 +27,8 @@
     <KeyBinding Gesture="Meta+I" Command="{Binding ImportSubtitleCommand}" />
     <KeyBinding Gesture="Ctrl+T" Command="{Binding TranscribeCommand}" />
     <KeyBinding Gesture="Ctrl+E" Command="{Binding ExportCommand}" />
+    <KeyBinding Gesture="Ctrl+F" Command="{Binding Editor.OpenFindCommand}" />
+    <KeyBinding Gesture="Meta+F" Command="{Binding Editor.OpenFindCommand}" />
     <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}" />
     <KeyBinding Gesture="Meta+Z" Command="{Binding UndoCommand}" />
     <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}" />
@@ -43,6 +45,16 @@
       <MenuItem Header="_Dosya">
         <MenuItem Header="_Video Aç…" InputGesture="Ctrl+O" Command="{Binding OpenVideoCommand}" />
         <MenuItem Header="_Proje Aç…" Command="{Binding OpenProjectCommand}" />
+        <!-- Each recent file becomes a submenu item; the style applies to the items, not to this menu. -->
+        <MenuItem x:Name="RecentMenu" Header="_Son açılanlar" ItemsSource="{Binding RecentFiles}" IsEnabled="{Binding HasRecentFiles}">
+          <MenuItem.Styles>
+            <Style Selector="MenuItem#RecentMenu MenuItem" x:DataType="vm:RecentFileItem">
+              <Setter Property="Header" Value="{Binding Header}" />
+              <Setter Property="Command" Value="{Binding Open}" />
+              <Setter Property="CommandParameter" Value="{Binding Path}" />
+            </Style>
+          </MenuItem.Styles>
+        </MenuItem>
         <Separator />
         <MenuItem Header="_Kaydet" InputGesture="Ctrl+S" Command="{Binding SaveProjectCommand}" />
         <MenuItem Header="_Farklı Kaydet…" InputGesture="Ctrl+Shift+S" Command="{Binding SaveProjectAsCommand}" />
@@ -53,6 +65,8 @@
       <MenuItem Header="_Düzen">
         <MenuItem Header="_Geri al" InputGesture="Ctrl+Z" Command="{Binding UndoCommand}" />
         <MenuItem Header="_Yinele" InputGesture="Ctrl+Y" Command="{Binding RedoCommand}" />
+        <Separator />
+        <MenuItem Header="_Bul ve değiştir…" InputGesture="Ctrl+F" Command="{Binding Editor.OpenFindCommand}" />
       </MenuItem>
       <MenuItem Header="_Altyazı">
         <MenuItem Header="_Transkribe Et…" InputGesture="Ctrl+T" Command="{Binding TranscribeCommand}" />
@@ -252,6 +266,28 @@
                       ToolTip.Tip="Seçili satırı sil" />
             </WrapPanel>
           </DockPanel>
+
+          <!-- Find / replace bar (Ctrl/⌘+F); Enter in the search box finds the next match. -->
+          <Border DockPanel.Dock="Top" Classes="panel" Margin="8,0,8,6" Padding="8" IsVisible="{Binding IsFindOpen}">
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="6" RowSpacing="6">
+              <TextBox x:Name="FindBox" Text="{Binding FindText}" PlaceholderText="Bul (Türkçe büyük/küçük harf kurallarıyla)" />
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                <Button Content="↑" Command="{Binding FindPreviousCommand}" ToolTip.Tip="Önceki (Shift+Enter)" Focusable="False" />
+                <Button Content="↓" Command="{Binding FindNextCommand}" ToolTip.Tip="Sonraki (Enter)" Focusable="False" />
+                <Button Content="✕" Command="{Binding CloseFindCommand}" ToolTip.Tip="Kapat (Esc)" Focusable="False" />
+              </StackPanel>
+              <TextBox Grid.Row="1" Text="{Binding ReplaceText}" PlaceholderText="Değiştir" />
+              <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                <Button Content="Değiştir" Command="{Binding ReplaceOneCommand}" Focusable="False" />
+                <Button Content="Tümü" Command="{Binding ReplaceAllCommand}" Focusable="False" ToolTip.Tip="Hepsini değiştir (tek adımda geri alınabilir)" />
+              </StackPanel>
+              <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="12">
+                <CheckBox Content="Büyük/küçük harf" IsChecked="{Binding MatchCase}" Focusable="False" />
+                <CheckBox Content="Tam kelime" IsChecked="{Binding WholeWord}" Focusable="False" />
+                <TextBlock Text="{Binding FindStatus}" Classes="muted" VerticalAlignment="Center" />
+              </StackPanel>
+            </Grid>
+          </Border>
 
           <!-- Editor for the selected cue -->
           <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource PanelBorderBrush}"
