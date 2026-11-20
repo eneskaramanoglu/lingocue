@@ -329,7 +329,7 @@
     </ScrollViewer>
 
     <Grid Margin="12" ColumnDefinitions="5*,Auto,4*" IsVisible="{Binding HasProject}">
-      <Grid Grid.Column="0" RowDefinitions="*,Auto,Auto,110">
+      <Grid Grid.Column="0" RowDefinitions="*,Auto,Auto,160">
         <Border Grid.Row="0" Classes="panel video" ClipToBounds="True">
           <Panel>
             <mpv:MpvView MpvContext="{Binding Player.Mpv}" Renderer="OpenGl" IsVisible="{Binding HasMedia}" />
@@ -342,13 +342,18 @@
                 </MultiBinding>
               </views:SafeAreaOverlay.IsVisible>
             </views:SafeAreaOverlay>
+            <!-- Resolution chip over the picture. -->
+            <Border Classes="overlay" IsVisible="{Binding HasMedia}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12">
+              <TextBlock Text="{Binding MediaSummary}" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" />
+            </Border>
             <TextBlock Classes="placeholder" IsVisible="{Binding !HasMedia}"
                        Text="Video Aç ile bir video seçin ya da buraya sürükleyin (MP4, MOV, MKV).&#x0a;Altyazı (SRT, VTT, ASS) ve .lingocue projeleri de sürüklenebilir." />
           </Panel>
         </Border>
 
         <!-- Transport -->
-        <DockPanel Grid.Row="1" Margin="0,6,0,0" DataContext="{Binding Player}" x:DataType="vm:PlayerViewModel"
+        <Border Grid.Row="1" Classes="panel" Margin="0,10,0,0" Padding="10,5">
+        <DockPanel DataContext="{Binding Player}" x:DataType="vm:PlayerViewModel"
                    IsEnabled="{Binding IsLoaded}">
           <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="4">
             <Button Classes="transport" Command="{Binding JumpBackCommand}" ToolTip.Tip="5 sn geri (←)">
@@ -376,8 +381,9 @@
             <TextBlock Text="{Binding DurationText}" FontFamily="{DynamicResource MonoFont}" Classes="muted" />
           </StackPanel>
           <Slider Minimum="0" Maximum="{Binding DurationSeconds}" Value="{Binding PositionSeconds}"
-                  Margin="8,0" VerticalAlignment="Center" Focusable="False" />
+                  Margin="12,0" VerticalAlignment="Center" Focusable="False" Classes="seek" />
         </DockPanel>
+        </Border>
 
         <GridSplitter Grid.Row="2" Height="6" Background="Transparent" ResizeDirection="Rows" />
         <!-- Timeline: drawn in code (TimelineControl); tooltip lists the mouse actions. -->

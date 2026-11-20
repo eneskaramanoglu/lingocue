@@ -318,6 +318,13 @@
     <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
 
+  <!-- Small dark label over the video picture. -->
+  <Style Selector="Border.overlay">
+    <Setter Property="Background" Value="#BF0E1014" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="8,4" />
+  </Style>
+
   <!-- Transport -->
   <Style Selector="Button.transport">
     <Setter Property="Padding" Value="0" />

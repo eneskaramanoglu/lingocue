@@ -176,7 +176,7 @@ public partial class MainViewModel : ViewModelBase
     public partial string StatusText { get; set; } = "Hazır. Başlamak için bir video ya da proje açın veya sürükleyip bırakın.";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasMedia), nameof(VideoWidth), nameof(VideoHeight))]
+    [NotifyPropertyChangedFor(nameof(HasMedia), nameof(VideoWidth), nameof(VideoHeight), nameof(MediaSummary))]
     [NotifyCanExecuteChangedFor(nameof(TranscribeCommand))]
     public partial MediaInfo? CurrentMedia { get; private set; }
 
@@ -186,6 +186,11 @@ public partial class MainViewModel : ViewModelBase
     public double VideoWidth => CurrentMedia?.Video?.DisplayWidth ?? 0;
 
     public double VideoHeight => CurrentMedia?.Video?.DisplayHeight ?? 0;
+
+    /// <summary>"1920×1080 · 25 fps" for the chip over the video.</summary>
+    public string? MediaSummary => CurrentMedia?.Video is { } v
+        ? string.Create(CultureInfo.GetCultureInfo("tr-TR"), $"{v.DisplayWidth}×{v.DisplayHeight} · {v.FrameRate:0.##} fps")
+        : null;
 
     [ObservableProperty]
     public partial string? ErrorText { get; set; }

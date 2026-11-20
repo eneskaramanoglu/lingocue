@@ -21,21 +21,61 @@ namespace LingoCue.App.Views;
 /// </remarks>
 public sealed class TimelineControl : Control, ICustomHitTest
 {
-    private const double RulerHeight = 18;
+    private const double RulerHeight = 24;
     private const double EdgeGrip = 6;
     private const double MinPixelsPerSecond = 2;
     private const double MaxPixelsPerSecond = 1000;
     private static readonly TimeSpan s_dragSeekInterval = TimeSpan.FromMilliseconds(200);
 
-    private static readonly IBrush s_waveBrush = new SolidColorBrush(Color.FromArgb(150, 96, 165, 250));
-    private static readonly IBrush s_cueBrush = new SolidColorBrush(Color.FromArgb(70, 59, 130, 246));
-    private static readonly IBrush s_cueSelectedBrush = new SolidColorBrush(Color.FromArgb(120, 245, 158, 11));
-    private static readonly IBrush s_cueErrorBrush = new SolidColorBrush(Color.FromArgb(90, 239, 68, 68));
-    private static readonly IPen s_cuePen = new Pen(new SolidColorBrush(Color.FromArgb(200, 59, 130, 246)), 1);
-    private static readonly IPen s_cueSelectedPen = new Pen(new SolidColorBrush(Color.FromRgb(245, 158, 11)), 2);
-    private static readonly IPen s_playheadPen = new Pen(new SolidColorBrush(Color.FromRgb(239, 68, 68)), 1.5);
-    private static readonly IPen s_ghostPen = new Pen(new SolidColorBrush(Color.FromRgb(245, 158, 11)), 1, DashStyle.Dash);
+    private static readonly IBrush s_playheadBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x5D, 0x5D));
+    private static readonly IPen s_playheadPen = new Pen(s_playheadBrush, 2);
     private static readonly Typeface s_typeface = new(FontFamily.Default);
+
+    /// <summary>Brushes from the theme tokens (Styles/Shell.axaml), rebuilt when the theme changes.</summary>
+    private sealed record Palette(
+        IBrush Wave, IBrush Cue, IPen CuePen, IBrush Selected, IPen SelectedPen, IBrush Warning, IPen WarningPen,
+        IBrush Error, IPen ErrorPen, IPen Ghost, IPen Ruler, IBrush Muted, IBrush Text);
+
+    private Palette? _palette;
+    private Avalonia.Styling.ThemeVariant? _paletteVariant;
+
+    private Palette Pal
+    {
+        get
+        {
+            if (_palette is not null && Equals(_paletteVariant, ActualThemeVariant))
+            {
+                return _palette;
+            }
+
+            var accent = ResourceColor("AccentBrush", Color.FromRgb(0x5B, 0x9B, 0xFF));
+            var warning = ResourceColor("WarningForegroundBrush", Color.FromRgb(0xFB, 0xBF, 0x24));
+            var error = ResourceColor("ErrorForegroundBrush", Color.FromRgb(0xF8, 0x71, 0x71));
+            var text = ResourceColor("PrimaryTextBrush", Colors.White);
+            var muted = ResourceColor("MutedTextBrush", Colors.Gray);
+            var border = ResourceColor("PanelBorderBrush", Colors.DimGray);
+            _paletteVariant = ActualThemeVariant;
+            return _palette = new Palette(
+                Wave: Solid(muted, 0x40),
+                Cue: Solid(text, 0x10),
+                CuePen: new Pen(Solid(text, 0x24), 1),
+                Selected: Solid(accent, 0x33),
+                SelectedPen: new Pen(new SolidColorBrush(accent), 1.5),
+                Warning: Solid(warning, 0x29),
+                WarningPen: new Pen(Solid(warning, 0x8C), 1),
+                Error: Solid(error, 0x29),
+                ErrorPen: new Pen(Solid(error, 0x8C), 1),
+                Ghost: new Pen(new SolidColorBrush(accent), 1, DashStyle.Dash),
+                Ruler: new Pen(new SolidColorBrush(border), 1),
+                Muted: new SolidColorBrush(muted),
+                Text: new SolidColorBrush(text));
+
+            static IBrush Solid(Color c, byte alpha) => new SolidColorBrush(Color.FromArgb(alpha, c.R, c.G, c.B));
+        }
+    }
+
+    private Color ResourceColor(string key, Color fallback)
+        => this.TryFindResource(key, ActualThemeVariant, out var value) && value is ISolidColorBrush brush ? brush.Color : fallback;
 
     private TimelineViewModel? _vm;
     private double _pixelsPerSecond = 80;
@@ -61,7 +101,6 @@ public sealed class TimelineControl : Control, ICustomHitTest
     /// <summary>The whole area takes pointer input, also where nothing is drawn.</summary>
     public bool HitTest(Point point) => true;
 
-    private IBrush TextBrush => ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark ? Brushes.White : Brushes.Black;
 
     protected override void OnDataContextChanged(EventArgs e)
     {
@@ -140,9 +179,7 @@ public sealed class TimelineControl : Control, ICustomHitTest
             return;
         }
 
-        var foreground = this.TryFindResource("MutedTextBrush", ActualThemeVariant, out var muted) && muted is IBrush b
-            ? b
-            : Brushes.Gray;
+        var foreground = Pal.Muted;
         var area = new Rect(0, RulerHeight, bounds.Width, Math.Max(0, bounds.Height - RulerHeight));
 
         DrawWaveform(context, vm, area);
@@ -153,7 +190,7 @@ public sealed class TimelineControl : Control, ICustomHitTest
         {
             var x1 = TimeToX(ghost.Start);
             var x2 = TimeToX(ghost.End);
-            context.DrawRectangle(null, s_ghostPen, new Rect(x1, area.Top + 1, Math.Max(1, x2 - x1), Math.Max(0, area.Height - 2)));
+            context.DrawRectangle(null, Pal.Ghost, new Rect(x1, area.Top + 6, Math.Max(1, x2 - x1), Math.Max(0, area.Height - 12)), 8, 8);
         }
 
         if (vm.IsLoaded)
@@ -162,6 +199,7 @@ public sealed class TimelineControl : Control, ICustomHitTest
             if (x >= 0 && x <= bounds.Width)
             {
                 context.DrawLine(s_playheadPen, new Point(x, 0), new Point(x, bounds.Height));
+                context.DrawRectangle(s_playheadBrush, null, new Rect(x - 6, 0, 12, 8), 2, 2);
             }
         }
 
@@ -197,12 +235,12 @@ public sealed class TimelineControl : Control, ICustomHitTest
             }
         }
 
-        context.DrawGeometry(s_waveBrush, null, geometry);
+        context.DrawGeometry(Pal.Wave, null, geometry);
     }
 
     private void DrawRuler(DrawingContext context, double width, IBrush foreground)
     {
-        var pen = new Pen(foreground, 1);
+        var pen = Pal.Ruler;
         context.DrawLine(pen, new Point(0, RulerHeight - 0.5), new Point(width, RulerHeight - 0.5));
 
         // Label every n seconds so labels stay ~80 px apart.
@@ -232,8 +270,8 @@ public sealed class TimelineControl : Control, ICustomHitTest
     private void DrawCues(DrawingContext context, TimelineViewModel vm, Rect area)
     {
         var viewEnd = _viewStart + ViewSeconds;
-        var top = area.Top + 2;
-        var height = Math.Max(0, area.Height - 4);
+        var top = area.Top + 8;
+        var height = Math.Max(0, area.Height - 16);
         foreach (var row in vm.Cues)
         {
             if (row.End.TotalSeconds < _viewStart)
@@ -250,14 +288,19 @@ public sealed class TimelineControl : Control, ICustomHitTest
             var x1 = TimeToX(row.Start);
             var x2 = TimeToX(row.End);
             var rect = new Rect(x1, top, Math.Max(1, x2 - x1), height);
-            var fill = selected ? s_cueSelectedBrush : row.HasError ? s_cueErrorBrush : s_cueBrush;
-            context.DrawRectangle(fill, selected ? s_cueSelectedPen : s_cuePen, rect, 3, 3);
+            var palette = Pal;
+            var (fill, outline) = selected ? (palette.Selected, palette.SelectedPen)
+                : row.HasError ? (palette.Error, palette.ErrorPen)
+                : row.HasWarning ? (palette.Warning, palette.WarningPen)
+                : (palette.Cue, palette.CuePen);
+            context.DrawRectangle(fill, outline, rect, 8, 8);
 
             if (rect.Width > 24)
             {
-                using (context.PushClip(rect.Deflate(new Thickness(4, 2))))
+                using (context.PushClip(rect.Deflate(new Thickness(6, 2))))
                 {
-                    DrawText(context, $"{row.Number}  {row.OneLineText}", new Point(x1 + 4, top + 3), TextBrush, 11);
+                    DrawText(context, row.Number.ToString(CultureInfo.InvariantCulture), new Point(x1 + 8, top + 6), palette.Muted, 11);
+                    DrawText(context, row.OneLineText, new Point(x1 + 8 + (row.Number >= 100 ? 24 : row.Number >= 10 ? 18 : 12), top + 6), palette.Text, 11);
                 }
             }
         }
