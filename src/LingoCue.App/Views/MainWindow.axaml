@@ -4,6 +4,7 @@
         xmlns:mpv="using:HanumanInstitute.LibMpv.Avalonia"
         xmlns:sub="using:LingoCue.Core.Subtitles"
         xmlns:views="using:LingoCue.App.Views"
+        xmlns:services="using:LingoCue.App.Services"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
@@ -40,8 +41,16 @@
 
   <DockPanel>
 
-    <!-- Menu -->
-    <Menu DockPanel.Dock="Top">
+    <!-- App bar: logo + compact menu + document on the left, the Transkribe → Düzelt → Çevir workflow
+         in the middle, undo/redo, settings and the one primary action (Dışa aktar) on the right. -->
+    <Border DockPanel.Dock="Top" Classes="chrome" Height="52" BorderThickness="0,0,0,1" Padding="14,0,12,0">
+     <Grid ColumnDefinitions="*,Auto,*">
+      <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+        <Border Width="26" Height="26" CornerRadius="7" Background="{DynamicResource AccentBrush}">
+          <PathIcon Data="{StaticResource IconLogo}" Width="15" Height="15" Foreground="{DynamicResource OnAccentBrush}" />
+        </Border>
+        <TextBlock Text="LingoCue" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+    <Menu Classes="appmenu" VerticalAlignment="Center">
       <MenuItem Header="_Dosya">
         <MenuItem Header="_Video Aç…" InputGesture="Ctrl+O" Command="{Binding OpenVideoCommand}" />
         <MenuItem Header="_Proje Aç…" Command="{Binding OpenProjectCommand}" />
@@ -85,37 +94,87 @@
         <Separator />
         <MenuItem Header="_İzler…" Command="{Binding ManageTracksCommand}" />
         <MenuItem Header="_Sözlük ve Bağlam…" Command="{Binding EditGlossaryCommand}" />
+        <MenuItem Header="S_til" Command="{Binding ShowStyleCommand}" />
       </MenuItem>
       <MenuItem Header="A_yarlar">
         <MenuItem Header="_Tercihler…" InputGesture="Ctrl+OemComma" Command="{Binding PreferencesCommand}" />
+        <MenuItem Header="Te_ma">
+          <MenuItem Header="Sistem" Command="{Binding SetThemeCommand}" CommandParameter="{x:Static services:AppTheme.System}" />
+          <MenuItem Header="Açık" Command="{Binding SetThemeCommand}" CommandParameter="{x:Static services:AppTheme.Light}" />
+          <MenuItem Header="Koyu" Command="{Binding SetThemeCommand}" CommandParameter="{x:Static services:AppTheme.Dark}" />
+        </MenuItem>
       </MenuItem>
       <MenuItem Header="_Yardım">
         <MenuItem Header="_Klavye kısayolları…" Click="OnShowShortcuts" />
       </MenuItem>
     </Menu>
+        <!-- Document name; the dot means unsaved changes. -->
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsVisible="{Binding HasProject}">
+          <TextBlock Text="/" Classes="muted" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding DocumentName}" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"
+                     MaxWidth="260" TextTrimming="CharacterEllipsis" />
+          <Ellipse Width="7" Height="7" Fill="{DynamicResource DirtyDotBrush}" IsVisible="{Binding IsDirty}"
+                   VerticalAlignment="Center" ToolTip.Tip="Kaydedilmemiş değişiklik var" />
+        </StackPanel>
+      </StackPanel>
 
-    <!-- Toolbar: actions are enabled milestone by milestone. -->
-    <Border DockPanel.Dock="Top" Padding="8,6" BorderThickness="0,1,0,1"
-            BorderBrush="{DynamicResource PanelBorderBrush}">
-      <DockPanel>
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <TextBlock Text="Tema" VerticalAlignment="Center" Classes="muted" />
-          <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}" MinWidth="110" Focusable="False" />
+      <!-- Workflow: one connected group; a finished step shows a green check. -->
+      <Border Grid.Column="1" Classes="workflow" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" Spacing="2">
+          <Button Classes="step" Command="{Binding TranscribeCommand}" Focusable="False"
+                  ToolTip.Tip="Konuşmayı tanı ve altyazı oluştur (Ctrl+T / ⌘T)">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <Panel>
+                <PathIcon Data="{StaticResource IconMic}" Width="14" Height="14" IsVisible="{Binding !IsTranscribed}" />
+                <PathIcon Data="{StaticResource IconCheck}" Width="14" Height="14" Classes="done" IsVisible="{Binding IsTranscribed}" />
+              </Panel>
+              <TextBlock Text="Transkribe" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <PathIcon Data="{StaticResource IconChevronRight}" Width="14" Height="14" Classes="joiner" />
+          <Button Classes="step" Command="{Binding CorrectCommand}" Focusable="False"
+                  ToolTip.Tip="Yapay zekâ ile tanıma hatalarını düzelt">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <Panel>
+                <PathIcon Data="{StaticResource IconWand}" Width="14" Height="14" IsVisible="{Binding !IsCorrected}" />
+                <PathIcon Data="{StaticResource IconCheck}" Width="14" Height="14" Classes="done" IsVisible="{Binding IsCorrected}" />
+              </Panel>
+              <TextBlock Text="Düzelt" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <PathIcon Data="{StaticResource IconChevronRight}" Width="14" Height="14" Classes="joiner" />
+          <Button Classes="step" Command="{Binding TranslateCommand}" Focusable="False"
+                  ToolTip.Tip="Bir izi yapay zekâ ile başka dile çevirir (yeni iz, aynı zamanlama)">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <Panel>
+                <PathIcon Data="{StaticResource IconTranslate}" Width="14" Height="14" IsVisible="{Binding !IsTranslated}" />
+                <PathIcon Data="{StaticResource IconCheck}" Width="14" Height="14" Classes="done" IsVisible="{Binding IsTranslated}" />
+              </Panel>
+              <TextBlock Text="Çevir" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
         </StackPanel>
-        <StackPanel Orientation="Horizontal" Spacing="6">
-          <Button Content="Video Aç" Command="{Binding OpenVideoCommand}" Focusable="False"
-                  ToolTip.Tip="Video aç (Ctrl+O / ⌘O)" />
-          <Button Content="Kaydet" Command="{Binding SaveProjectCommand}" Focusable="False"
-                  ToolTip.Tip="Projeyi kaydet (Ctrl+S / ⌘S)" />
-          <Separator Width="1" Margin="4,2" />
-          <Button Content="Transkribe Et" Command="{Binding TranscribeCommand}" Focusable="False"
-                  ToolTip.Tip="Konuşmayı tanı ve altyazı oluştur (Ctrl+T / ⌘T)" />
-          <Button Content="Düzelt" Command="{Binding CorrectCommand}" ToolTip.Tip="Yapay zekâ ile tanıma hatalarını düzelt" />
-          <Button Content="Çevir" Command="{Binding TranslateCommand}" ToolTip.Tip="Bir izi yapay zekâ ile başka dile çevirir (yeni iz, aynı zamanlama)" />
-          <Button Content="Stil" Command="{Binding ShowStyleCommand}" ToolTip.Tip="Altyazının görünümü: font, renk, konum, şablonlar, karaoke, iki dilli mod" />
-          <Button Content="Dışa Aktar" Command="{Binding ExportCommand}" ToolTip.Tip="Altyazı dosyası, altyazısı gömülü video veya açılıp kapanabilen altyazılı video (Ctrl/⌘+E)" />
-        </StackPanel>
-      </DockPanel>
+      </Border>
+
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+        <Button Classes="icon" Command="{Binding UndoCommand}" Focusable="False" ToolTip.Tip="Geri al (Ctrl+Z / ⌘Z)">
+          <PathIcon Data="{StaticResource IconUndo}" />
+        </Button>
+        <Button Classes="icon" Command="{Binding RedoCommand}" Focusable="False" ToolTip.Tip="Yinele (Ctrl+Y / ⌘⇧Z)">
+          <PathIcon Data="{StaticResource IconRedo}" />
+        </Button>
+        <Button Classes="icon" Command="{Binding PreferencesCommand}" Focusable="False" ToolTip.Tip="Tercihler">
+          <PathIcon Data="{StaticResource IconCog}" />
+        </Button>
+        <Button Classes="accent" Command="{Binding ExportCommand}" Focusable="False" Margin="4,0,0,0"
+                ToolTip.Tip="Altyazı dosyası, altyazısı gömülü video veya açılıp kapanabilen altyazılı video (Ctrl/⌘+E)">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <PathIcon Data="{StaticResource IconDownload}" Width="15" Height="15" />
+            <TextBlock Text="Dışa aktar" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
+     </Grid>
     </Border>
 
     <!-- Status bar with progress + cancel for long-running jobs. -->

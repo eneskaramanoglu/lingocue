@@ -4,34 +4,118 @@
   <Styles.Resources>
     <ResourceDictionary>
       <ResourceDictionary.ThemeDictionaries>
+        <!-- Design tokens ("Stüdyo"). Surfaces go from AppBackground (window) through Chrome (bars)
+             and Surface (cards/panels) to Sunken (inputs, wells). -->
         <ResourceDictionary x:Key="Light">
-          <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#F4F5F7" />
-          <SolidColorBrush x:Key="PanelBorderBrush" Color="#DADDE3" />
-          <SolidColorBrush x:Key="VideoBackgroundBrush" Color="#101114" />
-          <SolidColorBrush x:Key="MutedTextBrush" Color="#6B7280" />
-          <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#FDE8E8" />
+          <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F3F4F7" />
+          <SolidColorBrush x:Key="ChromeBackgroundBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="SunkenBackgroundBrush" Color="#F6F7F9" />
+          <SolidColorBrush x:Key="RaisedBackgroundBrush" Color="#F1F3F6" />
+          <SolidColorBrush x:Key="SelectedBackgroundBrush" Color="#E8F0FF" />
+          <SolidColorBrush x:Key="PanelBorderBrush" Color="#E5E7EB" />
+          <SolidColorBrush x:Key="StrongBorderBrush" Color="#D7DBE2" />
+          <SolidColorBrush x:Key="VideoBackgroundBrush" Color="#0B0D12" />
+          <SolidColorBrush x:Key="PrimaryTextBrush" Color="#111827" />
+          <SolidColorBrush x:Key="SecondaryTextBrush" Color="#374151" />
+          <SolidColorBrush x:Key="MutedTextBrush" Color="#5B6472" />
+          <SolidColorBrush x:Key="AccentBrush" Color="#2F6FEB" />
+          <SolidColorBrush x:Key="OnAccentBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="AccentSoftBrush" Color="#E8F0FF" />
+          <SolidColorBrush x:Key="AccentSoftTextBrush" Color="#1D4ED8" />
+          <SolidColorBrush x:Key="OkBackgroundBrush" Color="#DCFCE7" />
+          <SolidColorBrush x:Key="OkForegroundBrush" Color="#166534" />
+          <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#FEE2E2" />
+          <SolidColorBrush x:Key="ErrorForegroundBrush" Color="#991B1B" />
           <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#FEF3C7" />
-          <SolidColorBrush x:Key="WarningForegroundBrush" Color="#B45309" />
+          <SolidColorBrush x:Key="WarningForegroundBrush" Color="#92400E" />
+          <SolidColorBrush x:Key="DirtyDotBrush" Color="#D97706" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
-          <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#1E1F23" />
-          <SolidColorBrush x:Key="PanelBorderBrush" Color="#33353B" />
+          <SolidColorBrush x:Key="AppBackgroundBrush" Color="#0E1014" />
+          <SolidColorBrush x:Key="ChromeBackgroundBrush" Color="#12151B" />
+          <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#151820" />
+          <SolidColorBrush x:Key="SunkenBackgroundBrush" Color="#0F1217" />
+          <SolidColorBrush x:Key="RaisedBackgroundBrush" Color="#1A1E25" />
+          <SolidColorBrush x:Key="SelectedBackgroundBrush" Color="#1A2234" />
+          <SolidColorBrush x:Key="PanelBorderBrush" Color="#20242C" />
+          <SolidColorBrush x:Key="StrongBorderBrush" Color="#2A2F39" />
           <SolidColorBrush x:Key="VideoBackgroundBrush" Color="#000000" />
-          <SolidColorBrush x:Key="MutedTextBrush" Color="#9CA3AF" />
-          <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#4A1D1D" />
-          <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#4A3B12" />
+          <SolidColorBrush x:Key="PrimaryTextBrush" Color="#E6E8EC" />
+          <SolidColorBrush x:Key="SecondaryTextBrush" Color="#C9CED6" />
+          <SolidColorBrush x:Key="MutedTextBrush" Color="#9AA3AF" />
+          <SolidColorBrush x:Key="AccentBrush" Color="#5B9BFF" />
+          <SolidColorBrush x:Key="OnAccentBrush" Color="#0B1220" />
+          <SolidColorBrush x:Key="AccentSoftBrush" Color="#1A2234" />
+          <SolidColorBrush x:Key="AccentSoftTextBrush" Color="#B5CEFF" />
+          <SolidColorBrush x:Key="OkBackgroundBrush" Color="#14301F" />
+          <SolidColorBrush x:Key="OkForegroundBrush" Color="#4ADE80" />
+          <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#3B1717" />
+          <SolidColorBrush x:Key="ErrorForegroundBrush" Color="#F87171" />
+          <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#3A2A12" />
           <SolidColorBrush x:Key="WarningForegroundBrush" Color="#FBBF24" />
+          <SolidColorBrush x:Key="DirtyDotBrush" Color="#F59E0B" />
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
       <FontFamily x:Key="MonoFont">Cascadia Mono, Menlo, Consolas, monospace</FontFamily>
+
+      <!-- Icons: Material Design Icons geometry (Apache 2.0), used through PathIcon. -->
+      <StreamGeometry x:Key="IconLogo">M20,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6A2,2 0 0,0 20,4M4,12H8V14H4V12M14,18H4V16H14V18M20,18H16V16H20V18M20,14H10V12H20V14Z</StreamGeometry>
+      <StreamGeometry x:Key="IconCheck">M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z</StreamGeometry>
+      <StreamGeometry x:Key="IconMic">M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z</StreamGeometry>
+      <StreamGeometry x:Key="IconWand">M7.5,5.6L5,7L6.4,4.5L5,2L7.5,3.4L10,2L8.6,4.5L10,7L7.5,5.6M19.5,15.4L22,14L20.6,16.5L22,19L19.5,17.6L17,19L18.4,16.5L17,14L19.5,15.4M22,2L20.6,4.5L22,7L19.5,5.6L17,7L18.4,4.5L17,2L19.5,3.4L22,2M13.34,12.78L15.78,10.34L13.66,8.22L11.22,10.66L13.34,12.78M14.37,7.29L16.71,9.63C17.1,10 17.1,10.65 16.71,11.04L5.04,22.71C4.65,23.1 4,23.1 3.63,22.71L1.29,20.37C0.9,20 0.9,19.35 1.29,18.96L12.96,7.29C13.35,6.9 14,6.9 14.37,7.29Z</StreamGeometry>
+      <StreamGeometry x:Key="IconTranslate">M12.87,15.07L10.33,12.56L10.36,12.53C12.1,10.59 13.34,8.36 14.07,6H17V4H10V2H8V4H1V6H12.17C11.5,7.92 10.44,9.75 9,11.35C8.07,10.32 7.3,9.19 6.69,8H4.69C5.42,9.63 6.42,11.17 7.67,12.56L2.58,17.58L4,19L9,14L12.11,17.11L12.87,15.07M18.5,10H16.5L12,22H14L15.12,19H19.87L21,22H23L18.5,10M15.88,17L17.5,12.67L19.12,17H15.88Z</StreamGeometry>
+      <StreamGeometry x:Key="IconChevronRight">M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z</StreamGeometry>
+      <StreamGeometry x:Key="IconUndo">M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z</StreamGeometry>
+      <StreamGeometry x:Key="IconRedo">M18.4,10.6C16.55,9 14.15,8 11.5,8C6.85,8 2.92,11.03 1.54,15.22L3.9,16C4.95,12.81 7.95,10.5 11.5,10.5C13.45,10.5 15.23,11.22 16.62,12.38L13,16H22V7L18.4,10.6Z</StreamGeometry>
+      <StreamGeometry x:Key="IconCog">M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z</StreamGeometry>
+      <StreamGeometry x:Key="IconDownload">M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z</StreamGeometry>
+      <StreamGeometry x:Key="IconVideo">M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z</StreamGeometry>
+      <StreamGeometry x:Key="IconFolder">M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z</StreamGeometry>
+      <StreamGeometry x:Key="IconSearch">M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z</StreamGeometry>
+      <StreamGeometry x:Key="IconInfo">M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z</StreamGeometry>
+      <StreamGeometry x:Key="IconWrench">M22.7,19L13.6,9.9C14.5,7.6 14,4.9 12.1,3C10.1,1 7.1,0.6 4.7,1.7L9,6L6,9L1.6,4.7C0.4,7.1 0.9,10.1 2.9,12.1C4.8,14 7.5,14.5 9.8,13.6L18.9,22.7C19.3,23.1 19.9,23.1 20.3,22.7L22.6,20.4C23.1,20 23.1,19.3 22.7,19Z</StreamGeometry>
+      <StreamGeometry x:Key="IconClock">M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22C6.47,22 2,17.5 2,12A10,10 0 0,1 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z</StreamGeometry>
     </ResourceDictionary>
   </Styles.Resources>
 
+  <!-- ============================================================ base -->
+
+  <Style Selector="Window">
+    <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
+    <Setter Property="FontSize" Value="13" />
+  </Style>
+
+  <!-- Cards and panels: 12 px corners, hairline border. -->
   <Style Selector="Border.panel">
     <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="CornerRadius" Value="12" />
+  </Style>
+
+  <!-- A well inside a panel (estimates, info lines, option groups). -->
+  <Style Selector="Border.well">
+    <Setter Property="Background" Value="{DynamicResource SunkenBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource StrongBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="12,10" />
+  </Style>
+
+  <Style Selector="Border.info">
+    <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="12,10" />
+  </Style>
+
+  <Style Selector="Border.info TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource AccentSoftTextBrush}" />
+  </Style>
+
+  <Style Selector="Border.chrome">
+    <Setter Property="Background" Value="{DynamicResource ChromeBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
   </Style>
 
   <Style Selector="Border.video">
@@ -41,22 +125,210 @@
   <Style Selector="Border.error">
     <Setter Property="Background" Value="{DynamicResource ErrorBackgroundBrush}" />
     <Setter Property="Padding" Value="12,8" />
-    <Setter Property="Margin" Value="8,8,8,0" />
-    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Margin" Value="12,8,12,0" />
+    <Setter Property="CornerRadius" Value="10" />
   </Style>
 
-  <Style Selector="Button.transport">
-    <Setter Property="Padding" Value="8,6" />
-    <Setter Property="Focusable" Value="False" />
+  <!-- Small rounded label: CPS, counts, states. -->
+  <Style Selector="Border.chip">
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="8,2" />
+    <Setter Property="MinHeight" Value="20" />
+    <Setter Property="Background" Value="{DynamicResource RaisedBackgroundBrush}" />
   </Style>
+  <Style Selector="Border.chip > TextBlock">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Border.chip.ok"><Setter Property="Background" Value="{DynamicResource OkBackgroundBrush}" /></Style>
+  <Style Selector="Border.chip.ok > TextBlock"><Setter Property="Foreground" Value="{DynamicResource OkForegroundBrush}" /></Style>
+  <Style Selector="Border.chip.warn"><Setter Property="Background" Value="{DynamicResource WarningBackgroundBrush}" /></Style>
+  <Style Selector="Border.chip.warn > TextBlock"><Setter Property="Foreground" Value="{DynamicResource WarningForegroundBrush}" /></Style>
+  <Style Selector="Border.chip.err"><Setter Property="Background" Value="{DynamicResource ErrorBackgroundBrush}" /></Style>
+  <Style Selector="Border.chip.err > TextBlock"><Setter Property="Foreground" Value="{DynamicResource ErrorForegroundBrush}" /></Style>
+  <Style Selector="Border.chip.accent"><Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" /></Style>
+  <Style Selector="Border.chip.accent > TextBlock"><Setter Property="Foreground" Value="{DynamicResource AccentSoftTextBrush}" /></Style>
 
-  <Style Selector="Button.transport PathIcon">
+  <!-- Icons are PathIcons (Material Design Icons geometry, Apache 2.0) so they follow Foreground. -->
+  <Style Selector="PathIcon">
     <Setter Property="Width" Value="16" />
     <Setter Property="Height" Value="16" />
   </Style>
 
+  <!-- Typography helpers -->
+  <Style Selector="TextBlock.h1">
+    <Setter Property="FontSize" Value="17" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.h2">
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.section">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LetterSpacing" Value="0.6" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+  </Style>
+  <Style Selector="TextBlock.small">
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector="TextBlock.mono">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+  </Style>
+  <Style Selector="TextBox.mono">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+  </Style>
+
+  <!-- ============================================================ controls -->
+
+  <!-- Buttons: 8 px corners, quiet by default; "accent" is the one primary action, "ghost" has no fill,
+       "icon" is a square icon-only button. The Fluent template draws through PART_ContentPresenter. -->
+  <Style Selector="Button">
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="14,7" />
+    <Setter Property="MinHeight" Value="34" />
+    <Setter Property="Background" Value="{DynamicResource RaisedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource StrongBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.ghost">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.icon">
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Width" Value="34" />
+    <Setter Property="Height" Value="34" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.accent">
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Padding" Value="16,7" />
+  </Style>
+  <Style Selector="Button.accent /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
+  </Style>
+  <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
+    <Setter Property="Opacity" Value="0.9" />
+  </Style>
+  <Style Selector="Button.danger">
+    <Setter Property="Foreground" Value="{DynamicResource ErrorForegroundBrush}" />
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <!-- Inputs: sunken well, 8 px corners. -->
+  <Style Selector="TextBox">
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="MinHeight" Value="34" />
+    <Setter Property="Padding" Value="10,7" />
+    <Setter Property="Background" Value="{DynamicResource SunkenBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource StrongBorderBrush}" />
+  </Style>
+  <Style Selector="ComboBox">
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="MinHeight" Value="34" />
+    <Setter Property="Background" Value="{DynamicResource SunkenBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource StrongBorderBrush}" />
+  </Style>
+  <Style Selector="NumericUpDown">
+    <Setter Property="CornerRadius" Value="8" />
+  </Style>
+  <Style Selector="ListBox">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <!-- Segmented tabs (right panel): a pill track with the selected tab raised. -->
+  <Style Selector="TabControl.segmented">
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector="TabControl.segmented /template/ ItemsPresenter#PART_ItemsPresenter">
+    <Setter Property="Margin" Value="12,12,12,0" />
+  </Style>
+  <Style Selector="TabControl.segmented TabItem">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="MinHeight" Value="30" />
+    <Setter Property="Padding" Value="14,0" />
+    <Setter Property="CornerRadius" Value="7" />
+    <Setter Property="Margin" Value="0,0,4,0" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+  </Style>
+  <Style Selector="TabControl.segmented TabItem:selected">
+    <Setter Property="Background" Value="{DynamicResource RaisedBackgroundBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+    <Setter Property="FontWeight" Value="Medium" />
+  </Style>
+  <Style Selector="TabControl.segmented TabItem /template/ Border#PART_SelectedPipe">
+    <Setter Property="IsVisible" Value="False" />
+  </Style>
+
+  <!-- App bar -->
+  <Style Selector="Menu.appmenu > MenuItem">
+    <Setter Property="Padding" Value="9,5" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+  </Style>
+  <Style Selector="Border.workflow">
+    <Setter Property="Padding" Value="3" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Background" Value="{DynamicResource RaisedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource StrongBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Button.step">
+    <Setter Property="MinHeight" Value="30" />
+    <Setter Property="Padding" Value="12,0" />
+    <Setter Property="CornerRadius" Value="7" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+  </Style>
+  <Style Selector="PathIcon.done">
+    <Setter Property="Foreground" Value="{DynamicResource OkForegroundBrush}" />
+  </Style>
+  <Style Selector="PathIcon.joiner">
+    <Setter Property="Foreground" Value="{DynamicResource StrongBorderBrush}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- Transport -->
+  <Style Selector="Button.transport">
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Width" Value="34" />
+    <Setter Property="Height" Value="34" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="Focusable" Value="False" />
+  </Style>
+
+  <Style Selector="Button.transport PathIcon">
+    <Setter Property="Width" Value="15" />
+    <Setter Property="Height" Value="15" />
+  </Style>
+
   <Style Selector="Button.play">
-    <Setter Property="Padding" Value="12,6" />
+    <Setter Property="Width" Value="38" />
+    <Setter Property="Height" Value="38" />
+    <Setter Property="CornerRadius" Value="19" />
+  </Style>
+  <Style Selector="Button.play /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource PrimaryTextBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AppBackgroundBrush}" />
+  </Style>
+  <Style Selector="Button.play:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource PrimaryTextBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AppBackgroundBrush}" />
+    <Setter Property="Opacity" Value="0.9" />
   </Style>
 
   <!-- Cue table -->

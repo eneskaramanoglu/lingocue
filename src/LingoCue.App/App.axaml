@@ -6,7 +6,22 @@
   <!-- "Default" follows the OS theme; the user can switch to Light/Dark from the toolbar. -->
 
   <Application.Styles>
-    <FluentTheme />
+    <!-- The palettes recolor every Fluent control (accent, window background, text) to the
+         "Stüdyo" design; Styles/Shell.axaml holds the app's own tokens and component classes. -->
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Dark" Accent="#5B9BFF" RegionColor="#0E1014"
+                               BaseHigh="#E6E8EC" BaseMediumHigh="#C9CED6" BaseMedium="#9AA3AF" BaseMediumLow="#6F7886"
+                               BaseLow="#2A2F39" ChromeHigh="#3A404C" ChromeMediumLow="#151820" ChromeMedium="#1A1E25"
+                               ChromeLow="#12151B" AltHigh="#0E1014" AltMediumHigh="#12151B" AltMedium="#151820"
+                               ListLow="#1A1E25" ListMedium="#222733" />
+        <ColorPaletteResources x:Key="Light" Accent="#2F6FEB" RegionColor="#F3F4F7"
+                               BaseHigh="#111827" BaseMediumHigh="#374151" BaseMedium="#5B6472" BaseMediumLow="#8A93A1"
+                               BaseLow="#D7DBE2" ChromeHigh="#C9CED6" ChromeMediumLow="#FFFFFF" ChromeMedium="#F1F3F6"
+                               ChromeLow="#FFFFFF" AltHigh="#FFFFFF" AltMediumHigh="#FFFFFF" AltMedium="#F6F7F9"
+                               ListLow="#F1F3F6" ListMedium="#E8EBF0" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
     <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
     <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
     <StyleInclude Source="avares://LingoCue/Styles/Shell.axaml" />

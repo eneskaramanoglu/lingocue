@@ -986,7 +986,23 @@ public partial class MainViewModel : ViewModelBase
         }
 
         OnPropertyChanged(nameof(HasSeveralTracks));
+        OnPropertyChanged(nameof(IsTranscribed));
+        OnPropertyChanged(nameof(IsCorrected));
+        OnPropertyChanged(nameof(IsTranslated));
     }
+
+    // ---------------------------------------------------------------- workflow (app bar)
+
+    /// <summary>The project has lines from speech recognition or an imported file (Transkribe step done).</summary>
+    public bool IsTranscribed => Project?.Tracks.Any(t => t.Kind == TrackKind.Source && t.Cues.Count > 0) == true;
+
+    public bool IsCorrected => Project?.Tracks.Any(t => t.Kind == TrackKind.Corrected) == true;
+
+    public bool IsTranslated => Project?.Tracks.Any(t => t.Kind == TrackKind.Translation) == true;
+
+    /// <summary>Ayarlar → Tema.</summary>
+    [RelayCommand]
+    private void SetTheme(AppTheme theme) => SelectedTheme = theme;
 
     private void UpdateFontsDirectory() => _player?.SetFontsDirectory(FontCatalog.ProjectFontDirectory(ProjectPath));
 
