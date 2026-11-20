@@ -40,6 +40,22 @@ public sealed partial class QualityViewModel : ViewModelBase
     public partial string Summary { get; private set; } = "Altyazı yok";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IssueCount), nameof(HasIssues))]
+    public partial int ErrorCount { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IssueCount), nameof(HasIssues))]
+    public partial int WarningCount { get; private set; }
+
+    /// <summary>Lines without any problem (the green tile).</summary>
+    [ObservableProperty]
+    public partial int CleanCount { get; private set; }
+
+    public int IssueCount => ErrorCount + WarningCount;
+
+    public bool HasIssues => IssueCount > 0;
+
+    [ObservableProperty]
     public partial string? FixStatus { get; private set; }
 
     [ObservableProperty]
@@ -118,6 +134,7 @@ public sealed partial class QualityViewModel : ViewModelBase
         {
             Summary = "Altyazı yok";
             HasOverlaps = HasFastLines = false;
+            ErrorCount = WarningCount = CleanCount = 0;
             return;
         }
 
@@ -129,6 +146,9 @@ public sealed partial class QualityViewModel : ViewModelBase
 
         var errors = issues.Count(i => i.Severity == QaSeverity.Error);
         Summary = issues.Count == 0 ? "Sorun yok" : $"{errors} hata · {issues.Count - errors} uyarı";
+        ErrorCount = errors;
+        WarningCount = issues.Count - errors;
+        CleanCount = track.Cues.Count - issues.Select(i => i.CueId).Distinct().Count();
         HasOverlaps = issues.Any(i => i.Kind == "Overlap");
         HasFastLines = issues.Any(i => i.Kind is nameof(CueIssues.ReadingSpeedTooHigh) or nameof(CueIssues.ReadingSpeedHigh));
     }

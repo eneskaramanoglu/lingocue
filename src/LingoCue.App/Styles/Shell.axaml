@@ -277,6 +277,74 @@
     <Setter Property="IsVisible" Value="False" />
   </Style>
 
+  <Style Selector="Button.small">
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="10,3" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="CornerRadius" Value="7" />
+  </Style>
+
+  <!-- Line list and QA list: flat rows with a hairline divider; selection is a tint plus an accent edge
+       drawn by the item template. -->
+  <Style Selector="ListBox.cues">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="ListBox.cues ListBoxItem">
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+  </Style>
+  <Style Selector="ListBox.cues ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SelectedBackgroundBrush}" />
+  </Style>
+  <Style Selector="ListBox.cues ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SelectedBackgroundBrush}" />
+  </Style>
+  <Style Selector="ListBox.cues ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource RaisedBackgroundBrush}" />
+  </Style>
+  <Style Selector="ListBox.cues ListBoxItem:selected">
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.num">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+  </Style>
+  <!-- The line under the playhead. -->
+  <Style Selector="TextBlock.num.current">
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="FontWeight" Value="Bold" />
+  </Style>
+
+  <!-- QA summary tiles -->
+  <Style Selector="Border.tile">
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="12,8" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="TextBlock.tilevalue">
+    <Setter Property="FontSize" Value="22" />
+    <Setter Property="FontWeight" Value="Bold" />
+  </Style>
+  <Style Selector="Border.tile.err">
+    <Setter Property="Background" Value="{DynamicResource ErrorBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ErrorBackgroundBrush}" />
+  </Style>
+  <Style Selector="Border.tile.err TextBlock"><Setter Property="Foreground" Value="{DynamicResource ErrorForegroundBrush}" /></Style>
+  <Style Selector="Border.tile.warn">
+    <Setter Property="Background" Value="{DynamicResource WarningBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource WarningBackgroundBrush}" />
+  </Style>
+  <Style Selector="Border.tile.warn TextBlock"><Setter Property="Foreground" Value="{DynamicResource WarningForegroundBrush}" /></Style>
+  <Style Selector="Border.tile.ok">
+    <Setter Property="Background" Value="{DynamicResource OkBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource OkBackgroundBrush}" />
+  </Style>
+  <Style Selector="Border.tile.ok TextBlock"><Setter Property="Foreground" Value="{DynamicResource OkForegroundBrush}" /></Style>
+
   <!-- Clickable card (welcome screen's recent files). -->
   <Style Selector="Button.card">
     <Setter Property="HorizontalAlignment" Value="Stretch" />
