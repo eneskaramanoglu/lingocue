@@ -23,6 +23,34 @@ dotnet run --project src/LingoCue.App
 
 Logs are written to `~/Library/Logs/LingoCue/`.
 
+## v0.9.0 — Editor polish
+
+Needs a video with speech and a project with lines (any earlier version's project works). On macOS
+the shortcuts use ⌘ instead of Ctrl; Alt is ⌥.
+
+- [ ] Open the video: the timeline under the video shows the waveform after a moment, the lines as
+      blocks and a red playhead. Close and reopen the same video: the waveform appears at once (cache).
+- [ ] Click an empty part of the timeline: the video seeks there. Play: the playhead moves and the
+      timeline pages forward. ⌘+scroll zooms around the pointer; scrolling (or a two-finger swipe)
+      moves sideways.
+- [ ] Drag a block: a dashed outline follows and the video shows the frame now and then; release: the
+      line's times change in the list. Drag it onto a neighbour: it stops just before it. Drag a
+      block's left or right edge: only the start or end changes.
+- [ ] Select a line (in the list, not in a text box): ⌥+→ moves it 100 ms later, ⌥+⇧+→ moves only
+      its start. `[` and `]` set start/end to the playhead.
+- [ ] ⌘+B in the list splits the line in the middle (or at the spoken word); ⌘+B while the caret is in
+      the text box splits at the caret. ⌘+M merges with the next line. ⌘+Enter adds a new line.
+- [ ] ⌘+Z undoes each of the above one by one; ⌘+⇧+Z redoes. Typing a sentence and undoing removes
+      it in one step. Undo back to the saved state: the title's unsaved mark disappears.
+- [ ] **Kontrol** tab: problems are listed with line number and time; clicking one selects the line
+      and seeks the video. Make two lines overlap → **Çakışmaları gider** fixes it; make a line very
+      short with a long text → **Okuma hızı için süreyi uzat** lengthens it. ⌘+Z undoes each fix.
+- [ ] ⌘+F: search "istanbul" finds "İstanbul" (Turkish case rules); Enter / ⇧+Enter step through
+      matches; **Tümü** replaces all and one ⌘+Z undoes it. Esc closes the bar.
+- [ ] Dosya → Son açılanlar lists the project and the video; picking one opens it. Move the file away
+      and pick it: an error says it is missing and the entry disappears.
+- [ ] Yardım → Klavye kısayolları opens the list.
+
 ## v0.8.0 — Translation and tracks
 
 Needs a project with a transcribed and corrected Turkish track (v0.5.0) and a Gemini key. A short

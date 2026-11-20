@@ -6,6 +6,33 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-20
+
+### Added
+- **Undo and redo** (Düzen menu, Ctrl/⌘+Z, Ctrl+Y or Ctrl/⌘+Shift+Z) for every project change:
+  text, times, adding/deleting/splitting/merging lines, style, tracks, quick fixes. Up to 100 steps.
+  - Typing in one line becomes one step, and a timeline drag is one step.
+  - Saving remembers the state, so undoing back to it clears the unsaved mark.
+- **Timeline** under the video: the waveform, the lines of the active track and the playhead.
+  - Click to seek. Drag a block to move a line, or drag an edge to change its start or end. Lines
+    never overlap their neighbours.
+  - Ctrl/⌘+wheel zooms around the pointer and the wheel scrolls. The timeline follows playback.
+  - The waveform is prepared in the background and cached, so reopening a video shows it at once.
+- **Line shortcuts**:
+  - Alt+←/→ moves the selected line by 100 ms; with Shift only its start moves.
+  - `[` and `]` set the start and end to the playhead (AltGr+8/9 on a Turkish keyboard).
+  - Ctrl+B splits a line. While typing it cuts at the caret; otherwise it cuts at the word spoken at
+    the playhead, or at the middle.
+  - Ctrl+M merges a line with the next one, and Ctrl+Enter adds a new line.
+  - Yardım → Klavye kısayolları lists all shortcuts.
+- **Kontrol** tab: every problem of the track (reading speed, line length and count, too short or
+  long, overlaps, gaps too small to notice). Picking one jumps to the line.
+  - Quick fixes: **Çakışmaları gider** and **Okuma hızı için süreyi uzat**. Both can be undone.
+- **Bul ve değiştir** (Ctrl/⌘+F): search with Turkish case rules (İ/ı) and an optional whole-word
+  match. Enter finds the next match and Shift+Enter the previous one. Replace one or all; replacing
+  all is one undo step.
+- **Dosya → Son açılanlar**: the last 10 projects and videos.
+
 ## [0.8.0] - 2026-11-19
 
 ### Added
