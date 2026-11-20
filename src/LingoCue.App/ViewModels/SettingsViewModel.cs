@@ -44,6 +44,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
         Reflect = s.Llm.Reflect;
         ShortenOverlong = s.Llm.ShortenOverlongLines;
         KeepCircumflex = s.Llm.KeepCircumflex;
+        FreeTier = s.Llm.FreeTier;
+        RequestsPerMinute = s.Llm.RequestsPerMinute;
 
         MaxCharsPerLine = s.Reading.MaxCharsPerLine;
         MaxLines = s.Reading.MaxLines;
@@ -97,6 +99,13 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial bool KeepCircumflex { get; set; }
+
+    /// <summary>Free tier: one request at a time, small batches, paced to the per-minute limit.</summary>
+    [ObservableProperty]
+    public partial bool FreeTier { get; set; }
+
+    [ObservableProperty]
+    public partial decimal RequestsPerMinute { get; set; }
 
     [ObservableProperty]
     public partial decimal MaxCharsPerLine { get; set; }
@@ -169,6 +178,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
                 Reflect = Reflect,
                 ShortenOverlongLines = ShortenOverlong,
                 KeepCircumflex = KeepCircumflex,
+                FreeTier = FreeTier,
+                RequestsPerMinute = (int)Math.Clamp(RequestsPerMinute, 1, 60),
             },
             Reading = current.Reading with
             {

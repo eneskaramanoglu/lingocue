@@ -207,7 +207,7 @@ public partial class MainViewModel : ViewModelBase
     // Long-running job state.
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
-    [NotifyCanExecuteChangedFor(nameof(OpenVideoCommand), nameof(OpenProjectCommand), nameof(ImportSubtitleCommand), nameof(TranscribeCommand), nameof(CorrectCommand), nameof(TranslateCommand), nameof(UndoCommand), nameof(RedoCommand), nameof(OpenRecentCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenVideoCommand), nameof(OpenProjectCommand), nameof(ImportSubtitleCommand), nameof(TranscribeCommand), nameof(CorrectCommand), nameof(TranslateCommand), nameof(RetryFailedLinesCommand), nameof(UndoCommand), nameof(RedoCommand), nameof(OpenRecentCommand))]
     public partial bool IsBusy { get; set; }
 
     /// <summary>0..1; 0 shows an indeterminate bar.</summary>
@@ -817,6 +817,51 @@ public partial class MainViewModel : ViewModelBase
 
     private bool CanTranslate => IsIdle && Project is { } p && p.Tracks.Any(t => t.Cues.Count > 0);
 
+    /// <summary>The active track is a correction or translation with lines the model did not finish.</summary>
+    private bool CanRetryFailed => IsIdle && Project?.ActiveTrack is { Kind: TrackKind.Corrected or TrackKind.Translation } t &&
+                                   SourceOf(t) is not null && t.Cues.Any(c => c.Marks.HasFlag(CueMarks.LlmFailed));
+
+    /// <summary>
+    /// Sends only the failed lines of the active corrected/translated track again (e.g. after a free tier
+    /// timed out) and fills them in; finished lines are not paid for twice.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanRetryFailed))]
+    private async Task RetryFailedLines()
+    {
+        if (_resolver is null || _settings is null || Project is not { ActiveTrack: { } target } project || SourceOf(target) is not { } source)
+        {
+            return;
+        }
+
+        var ids = target.Cues.Where(c => c.Marks.HasFlag(CueMarks.LlmFailed) && c.SourceCueId is not null)
+            .Select(c => c.SourceCueId!.Value).ToHashSet();
+        string modelId;
+        try
+        {
+            modelId = await _resolver.ResolveAsync(_settings.Current.Llm);
+        }
+        catch (LlmException ex)
+        {
+            ErrorText = ex.Remedy ?? ex.Message;
+            return;
+        }
+
+        var kind = target.Kind == TrackKind.Translation ? TrackPassKind.Translation : TrackPassKind.Correction;
+        await RunTrackPassAsync(project, source, kind, modelId, reflect: false, refreshContext: false,
+            kind == TrackPassKind.Translation ? target.Language : null, runLabel: $"{ids.Count} başarısız satır", onlySourceCueIds: ids,
+            onResult: result =>
+            {
+                var (fixedCount, stillFailed) = TrackPassRunner.MergeInto(target, result.Pipeline);
+                Editor?.Rebuild(Editor.SelectedCue?.Model.Id);
+                MarkDirty();
+                RefreshPreview(immediate: true);
+                StatusText = stillFailed == 0
+                    ? $"{fixedCount} satır tamamlandı."
+                    : $"{fixedCount} satır tamamlandı, {stillFailed} satır yine yanıt alamadı; biraz sonra tekrar deneyin.";
+            });
+        RetryFailedLinesCommand.NotifyCanExecuteChanged();
+    }
+
     /// <summary>Translates a track (by default the latest corrected one) into a new track with the same timing.</summary>
     [RelayCommand(CanExecute = nameof(CanTranslate))]
     private async Task Translate()
@@ -849,7 +894,7 @@ public partial class MainViewModel : ViewModelBase
     /// <returns>True when the run finished and its track was added.</returns>
     private async Task<bool> RunTrackPassAsync(
         Project project, SubtitleTrack source, TrackPassKind kind, string modelId, bool reflect, bool refreshContext, string? targetLanguage,
-        string? runLabel = null)
+        string? runLabel = null, IReadOnlySet<int>? onlySourceCueIds = null, Action<TrackPassResult>? onResult = null)
     {
         if (_resolver is null || _settings is null || _loggers is null)
         {
@@ -860,14 +905,15 @@ public partial class MainViewModel : ViewModelBase
         var outputLanguage = targetLanguage ?? source.Language;
         var options = new PipelineOptions
         {
-            BatchSize = settings.Llm.BatchSize,
-            Parallelism = settings.Llm.Parallelism,
+            BatchSize = settings.Llm.FreeTier ? Math.Min(settings.Llm.BatchSize, LlmSettings.FreeTierBatchSize) : settings.Llm.BatchSize,
+            Parallelism = settings.Llm.FreeTier ? 1 : settings.Llm.Parallelism,
+            Pacer = settings.Llm.FreeTier ? RequestPacer.ForRate(settings.Llm.RequestsPerMinute) : null,
             MaxRetries = settings.Llm.MaxRetries,
             Reflect = reflect,
             ShortenOverlong = settings.Llm.ShortenOverlongLines,
             Rules = settings.Reading.ToRules(outputLanguage), // shortening follows the output language
         };
-        var request = new TrackPassRequest(project, source, kind, options, refreshContext, settings.Llm.KeepCircumflex, targetLanguage);
+        var request = new TrackPassRequest(project, source, kind, options, refreshContext, settings.Llm.KeepCircumflex, targetLanguage, onlySourceCueIds);
         var verb = kind == TrackPassKind.Correction ? "Düzeltme" : "Çeviri";
 
         using var cts = new CancellationTokenSource();
@@ -886,7 +932,7 @@ public partial class MainViewModel : ViewModelBase
         {
             using var client = _resolver.Provider.CreateChatClient(modelId);
             var result = await new TrackPassRunner(client, _loggers).RunAsync(request, progress, cts.Token);
-            AddPassTrack(project, result, modelId, kind);
+            (onResult ?? (r => AddPassTrack(project, r, modelId, kind)))(result);
             return true;
         }
         catch (OperationCanceledException)
@@ -972,8 +1018,8 @@ public partial class MainViewModel : ViewModelBase
             $"{(kind == TrackPassKind.Correction ? "Düzeltme" : "Çeviri")} bitti ({track.Name}): {counts} · {usage.InputTokens:N0}+{usage.OutputTokens:N0} token{cost}{suggestions}");
         if (failed > 0)
         {
-            var command = kind == TrackPassKind.Correction ? "Düzelt" : "Çevir";
-            ErrorText = $"{failed} satır işlenemedi ve kaynak metniyle bırakıldı. {command}'i yeniden çalıştırabilir veya elle düzenleyebilirsiniz.";
+            ErrorText = $"{failed} satır işlenemedi (✕) ve kaynak metniyle bırakıldı. Altyazı → Başarısız satırları yeniden dene ile yalnızca bu satırları tekrar gönderebilirsiniz" +
+                        (_settings?.Current.Llm.FreeTier == true ? "." : "; ücretsiz anahtar kullanıyorsanız Tercihler'de \"Ücretsiz katman\"ı açın.");
         }
     }
 
@@ -1030,6 +1076,7 @@ public partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsTranscribed));
         OnPropertyChanged(nameof(IsCorrected));
         OnPropertyChanged(nameof(IsTranslated));
+        RetryFailedLinesCommand.NotifyCanExecuteChanged();
     }
 
     // ---------------------------------------------------------------- workflow (app bar)
@@ -1112,6 +1159,7 @@ public partial class MainViewModel : ViewModelBase
         CorrectCommand.NotifyCanExecuteChanged();
         TranslateCommand.NotifyCanExecuteChanged();
         ExportCommand.NotifyCanExecuteChanged();
+        RetryFailedLinesCommand.NotifyCanExecuteChanged();
         MarkDirty(coalesceKey);
         RefreshPreview(immediate: false);
     }

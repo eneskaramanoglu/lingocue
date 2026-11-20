@@ -54,6 +54,13 @@
             <CheckBox Content="İkinci geçişte gözden geçir (reflect; maliyeti yaklaşık iki katına çıkarır)" IsChecked="{Binding Reflect}" />
             <CheckBox Content="Okuma hızını aşan satırları anlamı koruyarak kısalt" IsChecked="{Binding ShortenOverlong}" />
             <CheckBox Content="Şapkalı yazımları koru (rüzgâr, kâr, hâlâ)" IsChecked="{Binding KeepCircumflex}" />
+            <!-- Free tier: slower but steady; avoids rate-limit errors and timeouts. -->
+            <CheckBox Content="Ücretsiz katman (tek istek, küçük paketler, dakikadaki istek sınırına uy)" IsChecked="{Binding FreeTier}"
+                      ToolTip.Tip="Ücretsiz Gemini anahtarlarında zaman aşımı ve 429 hatalarını önler; çeviri daha yavaş ama kesintisiz sürer." />
+            <StackPanel Orientation="Horizontal" Spacing="10" Margin="28,0,0,0" IsVisible="{Binding FreeTier}">
+              <TextBlock Text="Dakikada en fazla istek" VerticalAlignment="Center" />
+              <NumericUpDown Minimum="1" Maximum="60" Value="{Binding RequestsPerMinute}" FormatString="0" Width="140" />
+            </StackPanel>
             <Grid ColumnDefinitions="Auto,140" ColumnSpacing="16" RowDefinitions="Auto,Auto" RowSpacing="10">
               <TextBlock Text="İstek başına satır" VerticalAlignment="Center" />
               <NumericUpDown Grid.Column="1" Minimum="5" Maximum="60" Increment="5" Value="{Binding BatchSize}" FormatString="0" />

@@ -78,6 +78,17 @@ public sealed record LlmSettings
 
     /// <summary>Retries for a batch whose answer fails validation.</summary>
     public int MaxRetries { get; init; } = 2;
+
+    /// <summary>
+    /// Free-tier mode: one request at a time, batches of at most <see cref="FreeTierBatchSize"/> lines, spaced
+    /// to <see cref="RequestsPerMinute"/>. Slower, but avoids the timeouts and 429s of shared free quotas.
+    /// </summary>
+    public bool FreeTier { get; init; }
+
+    /// <summary>Request pace in free-tier mode.</summary>
+    public int RequestsPerMinute { get; init; } = 10;
+
+    public const int FreeTierBatchSize = 15;
 }
 
 /// <summary>Serializable form of <see cref="ReadingRules"/> (seconds as numbers).</summary>

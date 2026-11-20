@@ -20,7 +20,8 @@ public sealed record TrackPassRequest(
     PipelineOptions Options,
     bool RefreshContext,
     bool KeepCircumflex = false,
-    string? TargetLanguage = null);
+    string? TargetLanguage = null,
+    IReadOnlySet<int>? OnlySourceCueIds = null);
 
 public sealed record TrackPassResult(SubtitleTrack Track, PipelineResult Pipeline, LlmUsage TotalUsage, int NewGlossarySuggestions);
 
@@ -40,6 +41,7 @@ public sealed class TrackPassRunner(IChatClient client, ILoggerFactory loggers)
         // Translation gets the recognized original speech as a hint next to the edited text.
         var withReference = request.Kind == TrackPassKind.Translation;
         var lines = source.Cues
+            .Where(c => request.OnlySourceCueIds is null || request.OnlySourceCueIds.Contains(c.Id))
             .Select(c => new LineItem(c.Id, c.Text, c.Duration, c.Speaker, c.Marks.HasFlag(CueMarks.Locked),
                 Reference: withReference ? TrackOperations.OriginalText(project, source, c) : null))
             .ToList();
@@ -69,6 +71,43 @@ public sealed class TrackPassRunner(IChatClient client, ILoggerFactory loggers)
 
         var track = BuildTrack(source, pipeline, request.Kind, targetLanguage);
         return new TrackPassResult(track, pipeline, usage, suggestions);
+    }
+
+    /// <summary>
+    /// Writes the results of a pass over some lines (<see cref="TrackPassRequest.OnlySourceCueIds"/>) into an
+    /// existing derived track, matching cues by <see cref="Cue.SourceCueId"/>. Lines that failed again keep
+    /// their text and their failed mark. Returns how many lines were fixed and how many still fail.
+    /// </summary>
+    public static (int Fixed, int StillFailed) MergeInto(SubtitleTrack target, PipelineResult pipeline)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(pipeline);
+        var byId = pipeline.Lines.ToDictionary(l => l.Id);
+        int fixedCount = 0, failed = 0;
+        foreach (var cue in target.Cues)
+        {
+            if (cue.SourceCueId is not { } id || !byId.TryGetValue(id, out var result))
+            {
+                continue;
+            }
+
+            if (result.Status == LineStatus.Failed)
+            {
+                failed++;
+                continue;
+            }
+
+            cue.Text = result.Text;
+            cue.Marks &= ~(CueMarks.NeedsReview | CueMarks.LlmFailed);
+            if (result.Status == LineStatus.NeedsReview)
+            {
+                cue.Marks |= CueMarks.NeedsReview;
+            }
+
+            fixedCount++;
+        }
+
+        return (fixedCount, failed);
     }
 
     internal static SubtitleTrack BuildTrack(SubtitleTrack source, PipelineResult pipeline, TrackPassKind kind, string? targetLanguage)
