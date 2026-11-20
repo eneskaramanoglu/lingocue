@@ -4,7 +4,11 @@ using LingoCue.Core.Subtitles;
 namespace LingoCue.Llm.Pipeline;
 
 /// <summary>One subtitle line sent to the model. <see cref="Id"/> keys the JSON round-trip.</summary>
-public sealed record LineItem(int Id, string Text, TimeSpan Duration, string? Speaker = null, bool Locked = false, int? MaxChars = null);
+/// <param name="Reference">
+/// What the speech recognizer heard for this line in the original language (may contain recognition
+/// errors). Given to translation as a hint; the edited <paramref name="Text"/> stays authoritative.
+/// </param>
+public sealed record LineItem(int Id, string Text, TimeSpan Duration, string? Speaker = null, bool Locked = false, int? MaxChars = null, string? Reference = null);
 
 public enum LineStatus
 {
@@ -57,6 +61,12 @@ public sealed record PipelineOptions
 
     /// <summary>Above this normalized edit distance a corrected line is flagged for review.</summary>
     public double ReviewChangeRatio { get; init; } = 0.6;
+
+    /// <summary>
+    /// Longest wait for one model answer. Without it a stalled request (seen live while Google was
+    /// overloaded) kept a run on "Bağlam çıkarılıyor" for minutes; a timed-out call is retried.
+    /// </summary>
+    public TimeSpan RequestTimeout { get; init; } = TimeSpan.FromMinutes(2);
 
     /// <summary>Back-off for rate limits and transient server errors.</summary>
     public IReadOnlyList<TimeSpan> TransientDelays { get; init; } =

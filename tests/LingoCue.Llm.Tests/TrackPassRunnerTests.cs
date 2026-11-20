@@ -76,6 +76,66 @@ public class TrackPassRunnerTests
     }
 
     [Fact]
+    public async Task Translating_a_corrected_track_sends_the_recognized_original_as_a_hint()
+    {
+        var (project, asr) = CreateProject();
+        project.Context = new ProjectContext { Summary = "Gezi." };
+        var correct = await new TrackPassRunner(Client(), NullLoggerFactory.Instance).RunAsync(
+            new TrackPassRequest(project, asr, TrackPassKind.Correction, new PipelineOptions { ShortenOverlong = false }, RefreshContext: false),
+            cancellationToken: TestContext.Current.CancellationToken);
+        project.Tracks.Add(correct.Track);
+        string? prompt = null;
+        string? system = null;
+        var client = new FakeChatClient((m, _, _) =>
+        {
+            system = m.First(x => x.Role == ChatRole.System).Text;
+            prompt = m.Last(x => x.Role == ChatRole.User).Text;
+            return FakeChatClient.Echo(m, (id, _) => $"line {id} in English");
+        });
+
+        var result = await new TrackPassRunner(client, NullLoggerFactory.Instance).RunAsync(
+            new TrackPassRequest(project, correct.Track, TrackPassKind.Translation, new PipelineOptions { ShortenOverlong = false }, RefreshContext: false, TargetLanguage: "en"),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        prompt.ShouldNotBeNull();
+        prompt.ShouldContain("\"text\":\"Boğaz çok güzel.\"");
+        prompt.ShouldContain("\"original\":\"bogaz cok guzel\"");
+        prompt.ShouldNotContain("\"original\":\"dokunma bana\""); // same as the text: no hint needed
+        system!.ShouldContain("no gender");
+        result.Track.SourceTrackId.ShouldBe(correct.Track.Id);
+        result.Track.Cues.Select(c => (c.Start, c.End)).ShouldBe(asr.Cues.Select(c => (c.Start, c.End)));
+    }
+
+    [Fact]
+    public void Original_text_follows_the_links_back_to_the_first_track()
+    {
+        var (project, asr) = CreateProject();
+        var corrected = new SubtitleTrack { Kind = TrackKind.Corrected, SourceTrackId = asr.Id };
+        var copy = asr.Cues[0].Clone();
+        copy.SourceCueId = asr.Cues[0].Id;
+        copy.Text = "Boğaz";
+        corrected.Cues.Add(copy);
+        var english = new SubtitleTrack { Kind = TrackKind.Translation, SourceTrackId = corrected.Id };
+        var en = copy.Clone();
+        en.SourceCueId = copy.Id;
+        en.Text = "The Bosphorus";
+        english.Cues.Add(en);
+        project.Tracks.AddRange([corrected, english]);
+
+        TrackOperations.OriginalText(project, english, en).ShouldBe("bogaz cok guzel");
+        TrackOperations.OriginalText(project, asr, asr.Cues[0]).ShouldBeNull();
+        project.Tracks.Remove(corrected);
+        TrackOperations.OriginalText(project, english, en).ShouldBeNull(); // broken chain
+    }
+
+    [Fact]
+    public void Pronoun_rule_only_for_turkish_sources()
+    {
+        TranslationTask.PronounRule(new TaskContext(new ProjectContext(), [], "tr", "en")).ShouldContain("no gender");
+        TranslationTask.PronounRule(new TaskContext(new ProjectContext(), [], "en", "tr")).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Translation_uses_target_glossary_and_clears_word_timings()
     {
         var (project, source) = CreateProject();

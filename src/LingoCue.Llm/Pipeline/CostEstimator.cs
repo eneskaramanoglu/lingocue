@@ -33,7 +33,7 @@ public static class CostEstimator
         var avgLineTokens = work.Average(l => l.Text.Length) / CharsPerToken;
         var batches = (int)Math.Ceiling(work.Count / (double)Math.Max(1, options.BatchSize));
         var perBatchFixed = SystemPromptTokens + (glossaryEntries * 12) + ((options.PreviousContext + options.NextContext) * (avgLineTokens + PerLineJsonTokens));
-        var linesTokens = work.Sum(l => (l.Text.Length / CharsPerToken) + PerLineJsonTokens);
+        var linesTokens = work.Sum(l => ((l.Text.Length + (l.Reference is { } r && r != l.Text ? r.Length : 0)) / CharsPerToken) + PerLineJsonTokens);
 
         var passes = options.Reflect ? 2 : 1;
         double input = ((batches * perBatchFixed) + linesTokens) * passes;

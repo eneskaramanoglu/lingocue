@@ -245,6 +245,17 @@ public class LineBatchRunnerTests
     public void Treats_quota_messages_as_transient()
         => LineBatchRunner.IsTransient(new InvalidOperationException("Status 429 RESOURCE_EXHAUSTED")).ShouldBeTrue();
 
+    [Fact]
+    public void Google_server_errors_are_transient_but_client_errors_are_not()
+    {
+        // Seen live: a 503 whose message names no status code.
+        const string highDemand = "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.";
+        LineBatchRunner.IsTransient(new Google.GenAI.ServerError(highDemand, 503, "UNAVAILABLE", null!)).ShouldBeTrue();
+        LineBatchRunner.IsTransient(new Google.GenAI.ServerError(highDemand, null!)).ShouldBeTrue();
+        LineBatchRunner.IsTransient(new Google.GenAI.ClientError("Quota exceeded", 429, "RESOURCE_EXHAUSTED", null!)).ShouldBeTrue();
+        LineBatchRunner.IsTransient(new Google.GenAI.ClientError("API key not valid", 400, "INVALID_ARGUMENT", null!)).ShouldBeFalse();
+    }
+
     private sealed class SyncProgress(List<PipelineProgress> values) : IProgress<PipelineProgress>
     {
         public void Report(PipelineProgress value) => values.Add(value);

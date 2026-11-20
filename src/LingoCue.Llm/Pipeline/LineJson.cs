@@ -6,7 +6,7 @@ namespace LingoCue.Llm.Pipeline;
 /// <summary>JSON contract for line batches: <c>{"lines":[{"id":1,"text":"…"}]}</c>.</summary>
 internal static class LineJson
 {
-    public static JsonElement Schema { get; } = JsonDocument.Parse("""
+    public static JsonElement Schema { get; } = JsonElement.Parse("""
         {
           "type": "object",
           "properties": {
@@ -24,25 +24,34 @@ internal static class LineJson
           },
           "required": ["lines"]
         }
-        """).RootElement.Clone();
+        """);
 
     public static string Serialize(IEnumerable<(int Id, string Text, string? Speaker)> lines)
         => Serialize(lines.Select(l => (l.Id, l.Text, l.Speaker, (int?)null)));
 
     public static string Serialize(IEnumerable<(int Id, string Text, string? Speaker, int? MaxChars)> lines)
+        => Serialize(lines.Select(l => new LineItem(l.Id, l.Text, TimeSpan.Zero, l.Speaker, MaxChars: l.MaxChars)));
+
+    /// <summary>Lines to process, with <c>original</c> (the recognized speech) when it differs from the text.</summary>
+    public static string Serialize(IEnumerable<LineItem> lines)
     {
         var array = new JsonArray();
-        foreach (var (id, text, speaker, maxChars) in lines)
+        foreach (var line in lines)
         {
-            var item = new JsonObject { ["id"] = id, ["text"] = text };
-            if (maxChars is { } max)
+            var item = new JsonObject { ["id"] = line.Id, ["text"] = line.Text };
+            if (line.MaxChars is { } max)
             {
                 item["maxChars"] = max;
             }
 
-            if (!string.IsNullOrWhiteSpace(speaker))
+            if (!string.IsNullOrWhiteSpace(line.Speaker))
             {
-                item["speaker"] = speaker;
+                item["speaker"] = line.Speaker;
+            }
+
+            if (!string.IsNullOrWhiteSpace(line.Reference) && !string.Equals(line.Reference.Trim(), line.Text.Trim(), StringComparison.Ordinal))
+            {
+                item["original"] = line.Reference;
             }
 
             array.Add(item);

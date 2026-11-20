@@ -159,6 +159,23 @@ track cues ──► LineItem(id, text, duration, speaker, locked)
 - The editor links a derived track to its source through `SourceTrackId`/`SourceCueId` to show the
   original text and the changed-only filter.
 
+## Translation and tracks (M7)
+
+- Tracks form chains: ASR "Kaynak" → "Düzeltilmiş" → "Çeviri · en". Each derived track has
+  `SourceTrackId`, and each of its cues has `SourceCueId`, with the same timing.
+  `TrackOperations.OriginalText` follows the links back to the first track.
+- Translation sends the edited line as `text` and the recognized line as `original` (only when they
+  differ). The prompt says the text is authoritative. For Turkish sources it adds a rule for the
+  genderless third-person pronoun.
+- `TrackOperations` keeps the links valid:
+  - **Delete** relinks the deleted track's children to its own source, remapping cue ids, or unlinks
+    them. It also clears the bilingual and active-track references.
+  - **SyncTimingFromSource** copies times by `SourceCueId` and counts lines without a counterpart.
+  - **AddImported** creates a new track and reads the language from `name.<lang>.srt`.
+- Reading rules depend on the language (`ReadingRulesSettings.ToRules(language)`): English gets
+  +3 CPS. The editor asks `RulesFor(track.Language)`, and the shortening pass uses the output
+  language's rules.
+
 ## Style (M5)
 
 ```

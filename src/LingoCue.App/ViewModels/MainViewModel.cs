@@ -87,6 +87,7 @@ public partial class MainViewModel : ViewModelBase
         Player = playerViewModel;
         Editor = editor;
         Editor.Edited += (_, _) => OnEdited();
+        Editor.RulesFor = language => settings.Current.Reading.ToRules(language);
         StyleEditor = styleEditor;
         RenderQueue = renderQueue;
         RenderQueue.JobFinished += (_, message) => StatusText = message;
@@ -129,7 +130,7 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Title))]
     [NotifyPropertyChangedFor(nameof(HasProject))]
-    [NotifyCanExecuteChangedFor(nameof(SaveProjectCommand), nameof(SaveProjectAsCommand), nameof(ExportCommand), nameof(EditGlossaryCommand), nameof(CorrectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveProjectCommand), nameof(SaveProjectAsCommand), nameof(ExportCommand), nameof(EditGlossaryCommand), nameof(ManageTracksCommand), nameof(CorrectCommand), nameof(TranslateCommand))]
     public partial Project? Project { get; private set; }
 
     [ObservableProperty]
@@ -179,7 +180,7 @@ public partial class MainViewModel : ViewModelBase
     public System.Collections.ObjectModel.ObservableCollection<SubtitleTrack> Tracks { get; } = [];
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(CorrectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CorrectCommand), nameof(TranslateCommand))]
     public partial SubtitleTrack? SelectedTrack { get; set; }
 
     public bool HasSeveralTracks => Tracks.Count > 1;
@@ -187,7 +188,7 @@ public partial class MainViewModel : ViewModelBase
     // Long-running job state.
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
-    [NotifyCanExecuteChangedFor(nameof(OpenVideoCommand), nameof(OpenProjectCommand), nameof(ImportSubtitleCommand), nameof(TranscribeCommand), nameof(CorrectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenVideoCommand), nameof(OpenProjectCommand), nameof(ImportSubtitleCommand), nameof(TranscribeCommand), nameof(CorrectCommand), nameof(TranslateCommand))]
     public partial bool IsBusy { get; set; }
 
     /// <summary>0..1; 0 shows an indeterminate bar.</summary>
@@ -360,25 +361,36 @@ public partial class MainViewModel : ViewModelBase
         }
 
         var track = project.EnsureActiveTrack();
-        if (track.Cues.Count > 0 && _dialogs is not null &&
-            !await _dialogs.ConfirmAsync("Altyazıyı değiştir", $"Mevcut {track.Cues.Count} satır, \"{Path.GetFileName(path)}\" içeriğiyle değiştirilecek.", "Değiştir"))
+        var mode = track.Cues.Count == 0 || _dialogs is null
+            ? ImportMode.Replace
+            : await _dialogs.AskImportModeAsync(Path.GetFileName(path), track.Name, track.Cues.Count);
+        if (mode == ImportMode.Cancel)
         {
             return;
         }
 
-        track.Cues.Clear();
-        track.Cues.AddRange(result.Document.Cues);
-        track.Sort();
-        track.Renumber();
-
-        // An imported ASS brings its look along (scaled to our 1080 reference).
-        if ((result.Document.Styles.FirstOrDefault(s => s.Name == "Default") ?? result.Document.Styles.FirstOrDefault()) is { } style)
+        if (mode == ImportMode.AddTrack)
         {
-            project.Style = AssScriptBuilder.NormalizeStyle(style, result.Document.ScriptInfo?.PlayResY ?? AssScriptBuilder.ReferenceHeight) with { Name = "Default" };
+            // A second language (e.g. an English SRT) next to the existing tracks; the project style stays.
+            track = TrackOperations.AddImported(project, result.Document.Cues, Path.GetFileName(path));
+            RefreshTracks();
         }
+        else
+        {
+            track.Cues.Clear();
+            track.Cues.AddRange(result.Document.Cues);
+            track.Sort();
+            track.Renumber();
 
-        Editor?.Load(track, SourceOf(track));
-        StyleEditor?.Load(Project, track, ProjectPath);
+            // An imported ASS brings its look along (scaled to our 1080 reference).
+            if ((result.Document.Styles.FirstOrDefault(s => s.Name == "Default") ?? result.Document.Styles.FirstOrDefault()) is { } style)
+            {
+                project.Style = AssScriptBuilder.NormalizeStyle(style, result.Document.ScriptInfo?.PlayResY ?? AssScriptBuilder.ReferenceHeight) with { Name = "Default" };
+            }
+
+            Editor?.Load(track, SourceOf(track));
+            StyleEditor?.Load(Project, track, ProjectPath);
+        }
         MarkDirty();
         RefreshPreview(immediate: true);
 
@@ -605,7 +617,7 @@ public partial class MainViewModel : ViewModelBase
         if (_dialogs is not null && _settings is not null && _resolver is not null && _keys is not null && _secretStore is not null && _platform is not null &&
             await _dialogs.ShowSettingsAsync(new SettingsViewModel(_settings, _resolver, _engines, new ApiKeysViewModel(_keys, _secretStore, _platform))))
         {
-            Editor?.SetRules(_settings.Current.Reading.ToRules());
+            Editor?.Refresh();
             StatusText = "Ayarlar kaydedildi.";
         }
     }
@@ -733,6 +745,25 @@ public partial class MainViewModel : ViewModelBase
     // ---------------------------------------------------------------- glossary / correction
 
     [RelayCommand(CanExecute = nameof(HasProject))]
+    private async Task ManageTracks()
+    {
+        if (_dialogs is null || Project is not { } project)
+        {
+            return;
+        }
+
+        var tracks = new TracksViewModel(project, _dialogs);
+        await _dialogs.ShowTracksAsync(tracks);
+        if (tracks.Changed)
+        {
+            project.EnsureActiveTrack();
+            RefreshTracks();
+            MarkDirty();
+            RefreshPreview(immediate: true);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(HasProject))]
     private async Task EditGlossary()
     {
         if (_dialogs is not null && Project is { } project && await _dialogs.EditGlossaryAsync(new GlossaryViewModel(project)))
@@ -751,23 +782,52 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        var settings = _settings.Current;
-        var choice = await _dialogs.AskCorrectOptionsAsync(new CorrectDialogViewModel(_resolver, settings, project, source));
-        if (choice is null)
+        var choice = await _dialogs.AskCorrectOptionsAsync(new CorrectDialogViewModel(_resolver, _settings.Current, project, source));
+        if (choice is not null)
+        {
+            await RunTrackPassAsync(project, source, TrackPassKind.Correction, choice.ModelId, choice.Reflect, choice.RefreshContext, targetLanguage: null);
+        }
+    }
+
+    private bool CanTranslate => IsIdle && Project is { } p && p.Tracks.Any(t => t.Cues.Count > 0);
+
+    /// <summary>Translates a track (by default the latest corrected one) into a new track with the same timing.</summary>
+    [RelayCommand(CanExecute = nameof(CanTranslate))]
+    private async Task Translate()
+    {
+        if (_dialogs is null || _resolver is null || _settings is null || Project is not { } project)
         {
             return;
         }
 
+        var choice = await _dialogs.AskTranslateOptionsAsync(new TranslateDialogViewModel(_resolver, _settings.Current, project));
+        if (choice is not null)
+        {
+            await RunTrackPassAsync(project, choice.Source, TrackPassKind.Translation, choice.ModelId, choice.Reflect, choice.RefreshContext, choice.TargetLanguage);
+        }
+    }
+
+    private async Task RunTrackPassAsync(
+        Project project, SubtitleTrack source, TrackPassKind kind, string modelId, bool reflect, bool refreshContext, string? targetLanguage)
+    {
+        if (_resolver is null || _settings is null || _loggers is null)
+        {
+            return;
+        }
+
+        var settings = _settings.Current;
+        var outputLanguage = targetLanguage ?? source.Language;
         var options = new PipelineOptions
         {
             BatchSize = settings.Llm.BatchSize,
             Parallelism = settings.Llm.Parallelism,
             MaxRetries = settings.Llm.MaxRetries,
-            Reflect = choice.Reflect,
+            Reflect = reflect,
             ShortenOverlong = settings.Llm.ShortenOverlongLines,
-            Rules = settings.Reading.ToRules(),
+            Rules = settings.Reading.ToRules(outputLanguage), // shortening follows the output language
         };
-        var request = new TrackPassRequest(project, source, TrackPassKind.Correction, options, choice.RefreshContext, settings.Llm.KeepCircumflex);
+        var request = new TrackPassRequest(project, source, kind, options, refreshContext, settings.Llm.KeepCircumflex, targetLanguage);
+        var verb = kind == TrackPassKind.Correction ? "Düzeltme" : "Çeviri";
 
         using var cts = new CancellationTokenSource();
         _jobCts = cts;
@@ -778,32 +838,32 @@ public partial class MainViewModel : ViewModelBase
         var progress = new Progress<PipelineProgress>(p =>
         {
             Progress = p.Fraction;
-            StatusText = $"Düzeltiliyor ({choice.ModelId}) · {p.Stage} {p.Done}/{p.Total}";
+            StatusText = $"{(kind == TrackPassKind.Correction ? "Düzeltiliyor" : "Çevriliyor")} ({modelId}) · {p.Stage} {p.Done}/{p.Total}";
         });
 
         try
         {
-            using var client = _resolver.Provider.CreateChatClient(choice.ModelId);
+            using var client = _resolver.Provider.CreateChatClient(modelId);
             var result = await new TrackPassRunner(client, _loggers).RunAsync(request, progress, cts.Token);
-            AddCorrectedTrack(project, result, choice.ModelId);
+            AddPassTrack(project, result, modelId, kind);
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Düzeltme iptal edildi; mevcut izler değişmedi.";
+            StatusText = $"{verb} iptal edildi; mevcut izler değişmedi.";
         }
         catch (LlmException ex)
         {
-            LogFailed(ex, choice.ModelId);
-            ErrorText = ex.Remedy is null ? $"Düzeltme başarısız: {ex.Message}" : $"{ex.Remedy} ({ex.Message})";
-            StatusText = "Düzeltme başarısız";
+            LogFailed(ex, modelId);
+            ErrorText = ex.Remedy is null ? $"{verb} başarısız: {ex.Message}" : $"{ex.Remedy} ({ex.Message})";
+            StatusText = $"{verb} başarısız";
         }
 #pragma warning disable CA1031 // The provider SDK throws its own exception types; any failure is shown and the source track is untouched.
         catch (Exception ex)
 #pragma warning restore CA1031
         {
-            LogFailed(ex, choice.ModelId);
-            ErrorText = $"Düzeltme başarısız: {ex.Message}";
-            StatusText = "Düzeltme başarısız";
+            LogFailed(ex, modelId);
+            ErrorText = $"{verb} başarısız: {ex.Message}";
+            StatusText = $"{verb} başarısız";
         }
         finally
         {
@@ -814,13 +874,22 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    private void AddCorrectedTrack(Project project, TrackPassResult result, string modelId)
+    private void AddPassTrack(Project project, TrackPassResult result, string modelId, TrackPassKind kind)
     {
         var track = result.Track;
-        var existing = project.Tracks.Count(t => t.Kind == TrackKind.Corrected && t.SourceTrackId == track.SourceTrackId);
+        var existing = project.Tracks.Count(t => t.Kind == track.Kind && t.SourceTrackId == track.SourceTrackId && t.Language == track.Language);
         if (existing > 0)
         {
             track.Name = $"{track.Name} {existing + 1}";
+        }
+
+        // A first translation becomes the bilingual partner (bilingual mode itself stays as it was).
+        if (kind == TrackPassKind.Translation && project.Presentation.Bilingual.SecondaryTrackId is null)
+        {
+            project.Presentation = project.Presentation with
+            {
+                Bilingual = project.Presentation.Bilingual with { SecondaryTrackId = track.Id },
+            };
         }
 
         project.Tracks.Add(track);
@@ -838,12 +907,16 @@ public partial class MainViewModel : ViewModelBase
             ? string.Create(CultureInfo.InvariantCulture, $" · ücretli anahtarla ~{price.Cost(usage.InputTokens, usage.OutputTokens):0.000} $")
             : string.Empty;
         var suggestions = result.NewGlossarySuggestions > 0 ? $" · sözlüğe {result.NewGlossarySuggestions} öneri eklendi" : string.Empty;
-        StatusText = string.Create(
-            CultureInfo.GetCultureInfo("tr-TR"),
-            $"Düzeltme bitti ({track.Name}): {changed} değişti, {review} kontrol bekliyor, {failed} başarısız · {usage.InputTokens:N0}+{usage.OutputTokens:N0} token{cost}{suggestions}");
+        var tr = CultureInfo.GetCultureInfo("tr-TR");
+        var counts = kind == TrackPassKind.Correction
+            ? string.Create(tr, $"{changed} değişti, {review} kontrol bekliyor, {failed} başarısız")
+            : string.Create(tr, $"{lines.Count - failed} satır çevrildi, {review} kontrol bekliyor, {failed} başarısız");
+        StatusText = string.Create(tr,
+            $"{(kind == TrackPassKind.Correction ? "Düzeltme" : "Çeviri")} bitti ({track.Name}): {counts} · {usage.InputTokens:N0}+{usage.OutputTokens:N0} token{cost}{suggestions}");
         if (failed > 0)
         {
-            ErrorText = $"{failed} satır işlenemedi ve olduğu gibi bırakıldı. Düzelt'i yeniden çalıştırabilir veya elle düzenleyebilirsiniz.";
+            var command = kind == TrackPassKind.Correction ? "Düzelt" : "Çevir";
+            ErrorText = $"{failed} satır işlenemedi ve kaynak metniyle bırakıldı. {command}'i yeniden çalıştırabilir veya elle düzenleyebilirsiniz.";
         }
     }
 
@@ -917,6 +990,7 @@ public partial class MainViewModel : ViewModelBase
         RefreshTracks();
         TranscribeCommand.NotifyCanExecuteChanged();
         CorrectCommand.NotifyCanExecuteChanged();
+        TranslateCommand.NotifyCanExecuteChanged();
         ExportCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(DocumentName));
     }
@@ -958,6 +1032,7 @@ public partial class MainViewModel : ViewModelBase
     private void OnEdited()
     {
         CorrectCommand.NotifyCanExecuteChanged();
+        TranslateCommand.NotifyCanExecuteChanged();
         ExportCommand.NotifyCanExecuteChanged();
         MarkDirty();
         RefreshPreview(immediate: false);

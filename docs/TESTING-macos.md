@@ -23,6 +23,29 @@ dotnet run --project src/LingoCue.App
 
 Logs are written to `~/Library/Logs/LingoCue/`.
 
+## v0.8.0 — Translation and tracks
+
+Needs a project with a transcribed and corrected Turkish track (v0.5.0) and a Gemini key. A short
+track keeps the cost near zero.
+
+- [ ] **Çevir**: the source is the "Düzeltilmiş" track; the info line says the original speech is
+      added as a reference. Target English; the estimate shows model and tokens. **Başlat**: progress
+      in the status bar; a track "Çeviri · en" appears with the same start/end times as Turkish.
+- [ ] In the English track the editor shows "Orijinal: <Turkish line>" under the text; rows are not
+      all marked as changed; the filter is called "Kontrol bekleyenler". CPS colours are milder than
+      for the same speed in Turkish (English allows 20 CPS).
+- [ ] A line with "o" (he/she) is translated consistently for the same person.
+- [ ] Stil → İki dilli mod: the new English track is preselected as the second track.
+- [ ] **İzler…** (button next to the track selector): rename a track, change its language, move it
+      up/down, duplicate it, add an empty track. Close: the track list shows the changes.
+- [ ] Change a start time in the Turkish track, then İzler → select the English track →
+      **Zamanlamayı kaynaktan al**: the English line gets the new time; the message counts the lines.
+- [ ] Delete the "Düzeltilmiş" track (confirm): the English track still shows "Orijinal: …" (now the
+      recognized text).
+- [ ] Import an SRT named `test.en.srt` into a project with lines: choose "Yeni iz olarak ekle"; a new
+      track with language `en` appears and the old track is untouched.
+- [ ] Save, close, reopen: all tracks, names, languages and order are kept.
+
 ## v0.7.0 — Export
 
 Needs a project with a video and at least one track; for soft subtitles ideally two tracks (e.g.
