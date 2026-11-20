@@ -45,6 +45,7 @@ internal static class ServiceCollectionExtensions
         services.AddSingleton<IMediaProbe, MediaProbe>();
         services.AddSingleton<IAudioExtractor, AudioExtractor>();
         services.AddSingleton<IVideoRenderer, VideoRenderer>();
+        services.AddSingleton<IWaveformService, WaveformService>();
 
         // Secrets
         services.AddSingleton(_ => SecretStoreFactory.Create());
