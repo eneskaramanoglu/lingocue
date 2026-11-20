@@ -159,6 +159,32 @@ track cues ──► LineItem(id, text, duration, speaker, locked)
 - The editor links a derived track to its source through `SourceTrackId`/`SourceCueId` to show the
   original text and the changed-only filter.
 
+## Languages, free tiers and the local engine (v0.11.0)
+
+- **Per-language reading rules.** `ReadingRulesSettings.ToRules(language)` gives English +3 CPS. For
+  Korean it gives `KoreanRules`: 16 characters per line, 10/12 CPS and `LengthCounting.HalfWidthLatin`.
+  `ReadingRules.TextLength/LongestLine/Cps` count by that mode, and every length check (warnings,
+  QA, segmentation, the shortening pass, the CPS chip) goes through them.
+- **Providers.** `ModelResolver` holds every `ILlmProvider` (Gemini, Ollama) and picks the one in
+  `LlmSettings.Provider`; dialogs can override it for one run.
+  - `OllamaProvider` and `OllamaChatClient` call Ollama's `/api/tags` and `/api/chat` with
+    `HttpClient` and source-generated JSON. A JSON-schema response format becomes Ollama's `format`.
+  - Local runs use batches of 10, one at a time, with a 10-minute timeout.
+- **Unanswered batches.** `LineBatchRunner` catches only "no answer" errors: transient errors after
+  their retries, or `LlmException.IsUnanswered`.
+  - A batch with no answer is split in half and retried; a single line that still fails is marked
+    failed, and the run goes on.
+  - After `MaxConsecutiveFailures` the remaining lines are marked without calling the model.
+  - Other errors, such as a bad key, still stop the run.
+  - `ResilientChat` waits as long as a rate limit asks (`RetryHint`, capped by `MaxRetryWait`).
+  - In free-tier mode a shared `RequestPacer` spaces the requests.
+- **Retrying failed lines.** `TrackPassRequest.OnlySourceCueIds` runs a pass on some source lines
+  only. `TrackPassRunner.MergeInto` writes the results into the existing derived track by
+  `SourceCueId`.
+- **Hangul fonts.** `FontFileReader` checks a few common syllables in the `cmap` table
+  (`FontFace.HasHangul`). `FontCatalog.SuggestHangulFamily` prefers Noto Sans KR, then the
+  operating system's Korean fonts. The bilingual second style has its own font name.
+
 ## Look and feel (v0.10.0)
 
 - **One place for the design.** `App.axaml` gives the Fluent theme a palette per theme variant

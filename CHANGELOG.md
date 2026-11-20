@@ -6,6 +6,40 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-20
+
+### Added
+- **Korean.** Translations can now go into Korean.
+  - Korean tracks follow the Netflix Korean style guide: 16 characters per line, at most 12 per
+    second, with Latin letters, digits, spaces and punctuation counting half.
+  - The prompt asks for the polite speech level (해요체) unless the context calls for another,
+    names written in Hangul, and standard Korean spacing.
+- **Several target languages at once.** In Çevir, pick target languages as chips, for example
+  English and Korean. Each language becomes its own track; the video context is read only once.
+  Japanese is new in the list too.
+- **Korean fonts.**
+  - The style panel warns when a Korean track's font has no Hangul and suggests one that is
+    installed (Noto Sans KR, Malgun Gothic, Apple SD Gothic Neo, …).
+  - In bilingual mode the second track has its own font. A Korean second track gets a Hangul font
+    automatically, so the preview and the burned-in video do not show boxes.
+- **Local engine (Ollama).** Correction and translation can run on a local model: free, offline and
+  without rate limits.
+  - Tercihler has the default engine, the Ollama address and the list of installed models.
+  - Düzelt and Çevir can switch engine for each run.
+  - The welcome screen shows whether Ollama is running.
+- **Free-tier mode** (Tercihler): one request at a time, batches of at most 15 lines, and a pace
+  that respects the per-minute limit.
+- **Altyazı → Başarısız satırları yeniden dene** sends again only the lines the model did not
+  finish, so lines that already finished are not paid for twice.
+
+### Fixed
+- A correction or translation no longer stops and loses its finished lines when the model stops
+  answering.
+  - A batch with no answer is split in half and retried. A line that still fails is marked and the
+    run goes on.
+  - After three failures in a row the remaining lines are marked without calling the model again.
+  - Rate limits are waited out for as long as the API asks.
+
 ## [0.10.0] - 2026-11-20
 
 ### Changed
