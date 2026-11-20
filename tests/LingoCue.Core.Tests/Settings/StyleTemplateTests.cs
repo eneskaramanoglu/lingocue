@@ -128,3 +128,24 @@ public class ReadingRulesLanguageTests
         settings.ToRules("en").MaxCharsPerLine.ShouldBe(42);
     }
 }
+
+public class RecentFilesTests
+{
+    [Fact]
+    public void Newest_first_without_duplicates_and_capped()
+    {
+        var settings = new LingoCue.Core.Settings.AppSettings();
+        var dir = Path.GetTempPath();
+        for (var i = 0; i < 12; i++)
+        {
+            settings = settings.WithRecentFile(Path.Combine(dir, $"p{i}.lingocue"));
+        }
+
+        settings = settings.WithRecentFile(Path.Combine(dir, "P5.lingocue"));
+
+        settings.RecentFiles.Count.ShouldBe(LingoCue.Core.Settings.AppSettings.MaxRecentFiles);
+        settings.RecentFiles[0].ShouldEndWith("P5.lingocue");
+        settings.RecentFiles.Count(p => p.EndsWith("p5.lingocue", StringComparison.OrdinalIgnoreCase)).ShouldBe(1);
+        settings.WithoutRecentFile(settings.RecentFiles[0]).RecentFiles.Count.ShouldBe(9);
+    }
+}

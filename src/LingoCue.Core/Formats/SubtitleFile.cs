@@ -144,4 +144,28 @@ public static class AtomicFile
 
     public static Task WriteAllTextAsync(string path, string text, CancellationToken cancellationToken = default)
         => WriteAllBytesAsync(path, new UTF8Encoding(false).GetBytes(text), cancellationToken);
+
+    /// <summary>
+    /// Synchronous version for small files written from the UI thread. Blocking on the async version
+    /// there deadlocks: its continuation waits for the very thread that is blocked.
+    /// </summary>
+    public static void WriteAllText(string path, string text)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        var directory = Path.GetDirectoryName(Path.GetFullPath(path))!;
+        Directory.CreateDirectory(directory);
+        var temp = Path.Combine(directory, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            File.WriteAllBytes(temp, new UTF8Encoding(false).GetBytes(text));
+            File.Move(temp, path, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temp))
+            {
+                File.Delete(temp);
+            }
+        }
+    }
 }

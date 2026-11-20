@@ -57,6 +57,8 @@ public partial class MainViewModel : ViewModelBase
         SubtitlePreviewService preview,
         PlayerViewModel playerViewModel,
         SubtitleEditorViewModel editor,
+        TimelineViewModel timeline,
+        QualityViewModel quality,
         StyleEditorViewModel styleEditor,
         RenderQueueViewModel renderQueue,
         IVideoRenderer renderer,
@@ -86,7 +88,9 @@ public partial class MainViewModel : ViewModelBase
         _logger = logger;
         Player = playerViewModel;
         Editor = editor;
-        Editor.Edited += (_, _) => OnEdited();
+        Timeline = timeline;
+        Quality = quality;
+        Editor.Edited += (_, key) => OnEdited(key);
         Editor.RulesFor = language => settings.Current.Reading.ToRules(language);
         StyleEditor = styleEditor;
         RenderQueue = renderQueue;
@@ -96,10 +100,11 @@ public partial class MainViewModel : ViewModelBase
         StyleEditor.FontAdded += (_, _) => UpdateFontsDirectory();
         StyleEditor.Changed += (_, _) =>
         {
-            MarkDirty();
+            MarkDirty("style");
             RefreshPreview(immediate: false);
         };
         PlatformText = platform.RuntimeIdentifier;
+        LoadRecentFiles();
         SelectedTheme = themeService.Current;
     }
 
@@ -115,6 +120,11 @@ public partial class MainViewModel : ViewModelBase
     public PlayerViewModel? Player { get; }
 
     public SubtitleEditorViewModel? Editor { get; }
+
+    public TimelineViewModel? Timeline { get; }
+
+    /// <summary>The "Kontrol" tab (QA checks and quick fixes).</summary>
+    public QualityViewModel? Quality { get; }
 
     public StyleEditorViewModel? StyleEditor { get; }
 
@@ -188,7 +198,7 @@ public partial class MainViewModel : ViewModelBase
     // Long-running job state.
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
-    [NotifyCanExecuteChangedFor(nameof(OpenVideoCommand), nameof(OpenProjectCommand), nameof(ImportSubtitleCommand), nameof(TranscribeCommand), nameof(CorrectCommand), nameof(TranslateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenVideoCommand), nameof(OpenProjectCommand), nameof(ImportSubtitleCommand), nameof(TranscribeCommand), nameof(CorrectCommand), nameof(TranslateCommand), nameof(UndoCommand), nameof(RedoCommand), nameof(OpenRecentCommand))]
     public partial bool IsBusy { get; set; }
 
     /// <summary>0..1; 0 shows an indeterminate bar.</summary>
@@ -292,6 +302,7 @@ public partial class MainViewModel : ViewModelBase
             else
             {
                 SetProject(new Project { VideoPath = path }, projectPath: null);
+                RememberRecent(path);
             }
 
             RefreshPreview(immediate: true);
@@ -321,6 +332,8 @@ public partial class MainViewModel : ViewModelBase
             }
 
             SetProject(project, path);
+            Timeline?.Clear(); // the previous video's waveform
+            RememberRecent(path);
             if (project.VideoPath is { } video)
             {
                 if (File.Exists(video))
@@ -440,9 +453,12 @@ public partial class MainViewModel : ViewModelBase
         ProjectPath = path;
         UpdateFontsDirectory();
         StyleEditor?.Load(Project, Project?.ActiveTrack, path);
+        FlushHistory();
+        _history.MarkSaved(Project!);
         IsDirty = false;
         OnPropertyChanged(nameof(DocumentName));
         StatusText = $"Kaydedildi: {path}";
+        RememberRecent(path);
         return true;
     }
 
@@ -980,6 +996,10 @@ public partial class MainViewModel : ViewModelBase
         ProjectPath = projectPath;
         UpdateFontsDirectory();
         IsDirty = false;
+        _historyPending = false;
+        _history.Reset(project);
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
         if (project.VideoPath is null)
         {
             CurrentMedia = null;
@@ -1012,6 +1032,7 @@ public partial class MainViewModel : ViewModelBase
             }
 
             await _player.OpenAsync(path);
+            _ = Timeline?.LoadWaveformAsync(path);
             CurrentMedia = info;
             return true;
         }
@@ -1029,19 +1050,155 @@ public partial class MainViewModel : ViewModelBase
         return false;
     }
 
-    private void OnEdited()
+    private void OnEdited(string? coalesceKey)
     {
         CorrectCommand.NotifyCanExecuteChanged();
         TranslateCommand.NotifyCanExecuteChanged();
         ExportCommand.NotifyCanExecuteChanged();
-        MarkDirty();
+        MarkDirty(coalesceKey);
         RefreshPreview(immediate: false);
     }
 
-    private void MarkDirty()
+    /// <param name="coalesceKey">Edits with the same key in quick succession form one undo step.</param>
+    private void MarkDirty(string? coalesceKey = null)
     {
         IsDirty = true;
         OnPropertyChanged(nameof(DocumentName));
+        ScheduleHistoryRecord(coalesceKey);
+    }
+
+    // ---------------------------------------------------------------- recent files
+
+    /// <summary>Dosya → Son açılanlar (newest first).</summary>
+    public System.Collections.ObjectModel.ObservableCollection<RecentFileItem> RecentFiles { get; } = [];
+
+    public bool HasRecentFiles => RecentFiles.Count > 0;
+
+    private void RememberRecent(string path)
+    {
+        if (_settings is null)
+        {
+            return;
+        }
+
+        _settings.Save(_settings.Current.WithRecentFile(path));
+        LoadRecentFiles();
+    }
+
+    private void LoadRecentFiles()
+    {
+        RecentFiles.Clear();
+        foreach (var path in _settings?.Current.RecentFiles ?? [])
+        {
+            RecentFiles.Add(new RecentFileItem(path, OpenRecentCommand));
+        }
+
+        OnPropertyChanged(nameof(HasRecentFiles));
+    }
+
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private async Task OpenRecent(string path)
+    {
+        if (!File.Exists(path))
+        {
+            ErrorText = $"Dosya bulunamadı, listeden çıkarıldı: {path}";
+            if (_settings is not null)
+            {
+                _settings.Save(_settings.Current.WithoutRecentFile(path));
+                LoadRecentFiles();
+            }
+
+            return;
+        }
+
+        await OpenFileAsync(path);
+    }
+
+    // ---------------------------------------------------------------- undo / redo
+
+    private readonly ProjectHistory _history = new();
+    private Avalonia.Threading.DispatcherTimer? _historyTimer;
+    private string? _pendingKey;
+    private bool _historyPending;
+
+    /// <summary>Snapshots are taken once the edits pause (not on every keystroke).</summary>
+    private void ScheduleHistoryRecord(string? coalesceKey)
+    {
+        if (Project is null)
+        {
+            return;
+        }
+
+        if (_historyPending && _pendingKey != coalesceKey)
+        {
+            FlushHistory(); // a different kind of edit: close the previous step first
+        }
+
+        _pendingKey = coalesceKey;
+        _historyPending = true;
+        _historyTimer ??= new Avalonia.Threading.DispatcherTimer(TimeSpan.FromMilliseconds(400), Avalonia.Threading.DispatcherPriority.Background, (_, _) => FlushHistory());
+        _historyTimer.Stop();
+        _historyTimer.Start();
+    }
+
+    private void FlushHistory()
+    {
+        _historyTimer?.Stop();
+        if (!_historyPending || Project is null)
+        {
+            return;
+        }
+
+        _historyPending = false;
+        _history.Record(Project, _pendingKey);
+        IsDirty = !_history.IsAtSavedState;
+        OnPropertyChanged(nameof(DocumentName));
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanUndo => IsIdle && (_historyPending || _history.CanUndo);
+
+    private bool CanRedo => IsIdle && !_historyPending && _history.CanRedo;
+
+    [RelayCommand(CanExecute = nameof(CanUndo))]
+    private void Undo()
+    {
+        FlushHistory();
+        if (Project is not null && _history.Undo(Project) is { } previous)
+        {
+            ApplyHistoryState(previous, "Geri alındı.");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRedo))]
+    private void Redo()
+    {
+        if (Project is not null && _history.Redo(Project) is { } next)
+        {
+            ApplyHistoryState(next, "Yinelendi.");
+        }
+    }
+
+    /// <summary>Swaps in a restored project, keeping the video, path and (if possible) the selected line.</summary>
+    private void ApplyHistoryState(Project restored, string status)
+    {
+        var selectedCue = Editor?.SelectedCue?.Model.Id;
+        restored.VideoPath = Project?.VideoPath;
+        Project = restored;
+        restored.EnsureActiveTrack();
+        RefreshTracks();
+        if (selectedCue is { } id)
+        {
+            Editor?.SelectCue(id);
+        }
+
+        RefreshPreview(immediate: true);
+        IsDirty = !_history.IsAtSavedState;
+        OnPropertyChanged(nameof(DocumentName));
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
+        StatusText = status;
     }
 
     private void RefreshPreview(bool immediate)

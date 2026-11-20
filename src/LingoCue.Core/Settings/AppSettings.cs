@@ -18,6 +18,25 @@ public sealed record AppSettings
 
     /// <summary>System, Light or Dark.</summary>
     public string Theme { get; init; } = "System";
+
+    /// <summary>Recently opened projects and videos, newest first.</summary>
+    public IReadOnlyList<string> RecentFiles { get; init; } = [];
+
+    public const int MaxRecentFiles = 10;
+
+    /// <summary>Puts <paramref name="path"/> first (case-insensitive de-duplication), keeping at most <see cref="MaxRecentFiles"/>.</summary>
+    public AppSettings WithRecentFile(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        var full = Path.GetFullPath(path);
+        return this with
+        {
+            RecentFiles = [full, .. RecentFiles.Where(p => !string.Equals(p, full, StringComparison.OrdinalIgnoreCase)).Take(MaxRecentFiles - 1)],
+        };
+    }
+
+    public AppSettings WithoutRecentFile(string path)
+        => this with { RecentFiles = [.. RecentFiles.Where(p => !string.Equals(p, path, StringComparison.OrdinalIgnoreCase))] };
 }
 
 public sealed record TranscriptionSettings

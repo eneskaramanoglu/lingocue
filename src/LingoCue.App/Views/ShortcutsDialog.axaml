@@ -1,0 +1,79 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="LingoCue.App.Views.ShortcutsDialog"
+        Title="Klavye kısayolları"
+        Width="560" Height="600" MinWidth="420" MinHeight="360"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+
+  <!-- Static reference list; macOS uses ⌘ where Windows uses Ctrl. -->
+  <Window.Styles>
+    <Style Selector="Grid.keys > TextBlock">
+      <Setter Property="Margin" Value="0,3" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="Grid.keys > TextBlock.key">
+      <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+      <Setter Property="Margin" Value="0,3,16,3" />
+    </Style>
+    <Style Selector="TextBlock.group">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,12,0,4" />
+    </Style>
+  </Window.Styles>
+
+  <DockPanel Margin="16">
+    <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+      <Button DockPanel.Dock="Right" Content="Kapat" Classes="accent" IsDefault="True" IsCancel="True" Click="OnClose" MinWidth="90" />
+      <TextBlock Text="macOS'ta Ctrl yerine ⌘ kullanılır. Metin kutusunda yazarken satır kısayolları (Alt+ok, [ ]) devre dışıdır."
+                 Classes="muted" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
+    </DockPanel>
+
+    <ScrollViewer>
+      <!-- One shared key column, so all groups line up. -->
+      <StackPanel Grid.IsSharedSizeScope="True">
+        <TextBlock Classes="group" Text="Oynatma" Margin="0,0,0,4" />
+        <Grid Classes="keys" RowDefinitions="Auto,Auto,Auto">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="key" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+          <TextBlock Classes="key" Text="Boşluk" /><TextBlock Grid.Column="1" Text="Oynat / duraklat" />
+          <TextBlock Grid.Row="1" Classes="key" Text="← / →" /><TextBlock Grid.Row="1" Grid.Column="1" Text="5 sn geri / ileri" />
+          <TextBlock Grid.Row="2" Classes="key" Text="Shift+← / →" /><TextBlock Grid.Row="2" Grid.Column="1" Text="Bir kare geri / ileri" />
+        </Grid>
+
+        <TextBlock Classes="group" Text="Satırlar" />
+        <Grid Classes="keys" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="key" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+          <TextBlock Classes="key" Text="Alt+← / →" /><TextBlock Grid.Column="1" Text="Seçili satırı 100 ms geri / ileri kaydır" />
+          <TextBlock Grid.Row="1" Classes="key" Text="Alt+Shift+← / →" /><TextBlock Grid.Row="1" Grid.Column="1" Text="Yalnızca başlangıcı 100 ms kaydır" />
+          <TextBlock Grid.Row="2" Classes="key" Text="[  /  ]" /><TextBlock Grid.Row="2" Grid.Column="1" Text="Başlangıcı / bitişi oynatma konumuna al" />
+          <TextBlock Grid.Row="3" Classes="key" Text="Ctrl+Enter" /><TextBlock Grid.Row="3" Grid.Column="1" Text="Oynatma konumuna yeni satır ekle" />
+          <TextBlock Grid.Row="4" Classes="key" Text="Ctrl+B" /><TextBlock Grid.Row="4" Grid.Column="1" Text="Satırı böl (metin kutusundaysa imleçten, değilse konuşulan kelimeden ya da ortadan)" />
+          <TextBlock Grid.Row="5" Classes="key" Text="Ctrl+M" /><TextBlock Grid.Row="5" Grid.Column="1" Text="Sonraki satırla birleştir" />
+          <TextBlock Grid.Row="6" Classes="key" Text="Enter (saat kutusunda)" /><TextBlock Grid.Row="6" Grid.Column="1" Text="Değeri onayla" />
+        </Grid>
+
+        <TextBlock Classes="group" Text="Düzen ve dosya" />
+        <Grid Classes="keys" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="key" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+          <TextBlock Classes="key" Text="Ctrl+Z" /><TextBlock Grid.Column="1" Text="Geri al" />
+          <TextBlock Grid.Row="1" Classes="key" Text="Ctrl+Y / Ctrl+Shift+Z" /><TextBlock Grid.Row="1" Grid.Column="1" Text="Yinele" />
+          <TextBlock Grid.Row="2" Classes="key" Text="Ctrl+F" /><TextBlock Grid.Row="2" Grid.Column="1" Text="Bul ve değiştir (Enter: sonraki, Shift+Enter: önceki, Esc: kapat)" />
+          <TextBlock Grid.Row="3" Classes="key" Text="Ctrl+O" /><TextBlock Grid.Row="3" Grid.Column="1" Text="Video aç" />
+          <TextBlock Grid.Row="4" Classes="key" Text="Ctrl+S / Ctrl+Shift+S" /><TextBlock Grid.Row="4" Grid.Column="1" Text="Kaydet / farklı kaydet" />
+          <TextBlock Grid.Row="5" Classes="key" Text="Ctrl+I" /><TextBlock Grid.Row="5" Grid.Column="1" Text="Altyazı içe aktar" />
+          <TextBlock Grid.Row="6" Classes="key" Text="Ctrl+T" /><TextBlock Grid.Row="6" Grid.Column="1" Text="Transkribe et" />
+          <TextBlock Grid.Row="7" Classes="key" Text="Ctrl+E" /><TextBlock Grid.Row="7" Grid.Column="1" Text="Dışa aktar" />
+        </Grid>
+
+        <TextBlock Classes="group" Text="Zaman çizelgesi (fare)" />
+        <Grid Classes="keys" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="key" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+          <TextBlock Classes="key" Text="Tıkla / sürükle (boşta)" /><TextBlock Grid.Column="1" Text="O ana git" />
+          <TextBlock Grid.Row="1" Classes="key" Text="Bloğu sürükle" /><TextBlock Grid.Row="1" Grid.Column="1" Text="Satırı zamanda kaydır (komşulara binmez)" />
+          <TextBlock Grid.Row="2" Classes="key" Text="Kenarı sürükle" /><TextBlock Grid.Row="2" Grid.Column="1" Text="Başlangıç veya bitişi değiştir" />
+          <TextBlock Grid.Row="3" Classes="key" Text="Tekerlek" /><TextBlock Grid.Row="3" Grid.Column="1" Text="Yatay kaydır" />
+          <TextBlock Grid.Row="4" Classes="key" Text="Ctrl+tekerlek" /><TextBlock Grid.Row="4" Grid.Column="1" Text="Yakınlaştır / uzaklaştır" />
+        </Grid>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

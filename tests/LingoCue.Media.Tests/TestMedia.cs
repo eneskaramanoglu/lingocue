@@ -20,6 +20,9 @@ public sealed class TestMedia : IAsyncLifetime
 
     public string NotMedia => Path.Combine(_directory, "not-media.mp4");
 
+    /// <summary>1 s of video without an audio stream.</summary>
+    public string SilentVideo => Path.Combine(_directory, "video-only.mp4");
+
     /// <summary>3 s of audio: 440 Hz tone, 1 s of silence (1–2 s), tone again.</summary>
     public string ToneSilenceTone => Path.Combine(_directory, "tone-silence-tone.wav");
 
@@ -64,6 +67,10 @@ public sealed class TestMedia : IAsyncLifetime
         await Run(runner, tools.FfmpegPath,
             "-f", "lavfi", "-i", "aevalsrc=if(between(t\\,1\\,2)\\,0\\,0.5*sin(2*PI*440*t)):s=16000:d=3",
             ToneSilenceTone);
+
+        await Run(runner, tools.FfmpegPath,
+            "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=25:duration=1",
+            "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-an", SilentVideo);
 
         await File.WriteAllTextAsync(NotMedia, "this is not a video");
         Tools = tools;

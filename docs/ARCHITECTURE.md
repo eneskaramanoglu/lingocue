@@ -159,6 +159,36 @@ track cues ──► LineItem(id, text, duration, speaker, locked)
 - The editor links a derived track to its source through `SourceTrackId`/`SourceCueId` to show the
   original text and the changed-only filter.
 
+## Editor polish (M8)
+
+- **Undo/redo:** `ProjectHistory` (Core) keeps up to 100 JSON snapshots of the project, without the
+  bulky ASR runs, which are carried over on restore. `MainViewModel` records a snapshot 400 ms
+  after the last change. `SubtitleEditorViewModel.Edited` carries a coalescing key:
+  - typing uses `"edit"`, so quick keystrokes merge into one step;
+  - nudging the same line repeatedly shares one key;
+  - drags, replace-all and quick fixes get a unique key or `null`, so each is its own step.
+- **Editing operations** are pure Core functions over a `SubtitleTrack`, tested without UI:
+  - `CueEditing.Split`, `MergeWithNext`, `Nudge` and `ClampDrag`, with a 40 ms minimum gap and a
+    200 ms minimum length;
+  - `QualityCheck.Check` with `FixOverlaps` and `ExtendForReadingSpeed`;
+  - `TextSearch`, which uses tr-TR case-insensitive comparison.
+- **Waveform:** `WaveformService` (Media) works in four steps:
+  1. probes the file;
+  2. decodes the first audio stream to 8 kHz mono PCM in a temporary file;
+  3. reduces it to one peak byte per 10 ms;
+  4. caches the result in `<app data>/cache/waveforms/<hash>.lcwf`, keyed by full path, size and
+     modification time.
+- **Timeline:** `TimelineControl` is a code-drawn `Control`, so thousands of lines and samples do not
+  each create a visual. It draws only the visible time range.
+  - Zoom, scroll and hit-testing live in the control; `TimelineViewModel` supplies the data and the
+    actions (seek, select, clamp, apply).
+  - A drag shows a ghost outline and seeks at most every 200 ms with a fast keyframe seek. The times
+    change once, on release.
+- **Shortcuts** are handled in the window's tunnelling key handler:
+  - Ctrl/⌘ shortcuts work everywhere;
+  - Alt+arrows and `[ ]` are ignored while a text box has focus;
+  - `[ ]` match by `KeySymbol`, because on a Turkish keyboard they are AltGr+8/9.
+
 ## Translation and tracks (M7)
 
 - Tracks form chains: ASR "Kaynak" → "Düzeltilmiş" → "Çeviri · en". Each derived track has

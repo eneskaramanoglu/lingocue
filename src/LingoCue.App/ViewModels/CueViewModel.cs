@@ -237,6 +237,34 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
 
     public void SetEnd(TimeSpan end) => EndInput = Timecode.Format(end);
 
+    /// <summary>Sets both times at once (timeline drag); one change notification.</summary>
+    public void SetTimes(TimeSpan start, TimeSpan end)
+    {
+        if (end <= start || (start == cue.Start && end == cue.End))
+        {
+            return;
+        }
+
+        var startMoved = start != cue.Start;
+        cue.Start = start;
+        cue.End = end;
+        OnTimesChanged();
+        if (startMoved)
+        {
+            StartChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>Call after the model's times were changed directly (e.g. <c>CueEditing.Nudge</c>).</summary>
+    public void NotifyTimesChanged(bool startMoved)
+    {
+        OnTimesChanged();
+        if (startMoved)
+        {
+            StartChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
     private void OnTimesChanged()
     {
         OnPropertyChanged(nameof(Start));

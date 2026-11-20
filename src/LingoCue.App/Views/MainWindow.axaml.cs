@@ -23,7 +23,7 @@ public partial class MainWindow : Window
 
         CueGrid.SelectionChanged += (_, _) =>
         {
-            if (CueGrid.SelectedItem is { } item)
+            if (CueGrid.SelectedItem is { } item && CueGrid.IsLoaded)
             {
                 CueGrid.ScrollIntoView(item, null);
             }
@@ -34,9 +34,65 @@ public partial class MainWindow : Window
         : this()
     {
         DataContext = viewModel;
+        if (viewModel.Editor is { } editor)
+        {
+            SyncGridSelection(editor);
+
+            // Ctrl+B splits at the caret when the text box has focus.
+            editor.TextCaret = () => CueTextBox.IsFocused ? CueTextBox.CaretIndex : null;
+
+            // Opening the find bar puts the caret in the search box with its text selected.
+            editor.FindOpened += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                FindBox.Focus();
+                FindBox.SelectAll();
+            });
+        }
     }
 
     private MainViewModel? ViewModel => DataContext as MainViewModel;
+
+    /// <summary>
+    /// Keeps the grid's selection and <see cref="SubtitleEditorViewModel.SelectedCue"/> in step. Not a
+    /// two-way binding: when another tab is shown the grid is unloaded and clears its selection, which
+    /// must not clear the line selected in the editor (the timeline and the Kontrol tab use it).
+    /// </summary>
+    private void SyncGridSelection(SubtitleEditorViewModel editor)
+    {
+        var syncing = false;
+        void Push()
+        {
+            if (!ReferenceEquals(CueGrid.SelectedItem, editor.SelectedCue))
+            {
+                syncing = true;
+                try
+                {
+                    CueGrid.SelectedItem = editor.SelectedCue;
+                }
+                finally
+                {
+                    syncing = false;
+                }
+            }
+        }
+
+        editor.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(SubtitleEditorViewModel.SelectedCue) or nameof(SubtitleEditorViewModel.VisibleCues))
+            {
+                Push();
+            }
+        };
+        CueGrid.SelectionChanged += (_, _) =>
+        {
+            // Only a row the user picked counts; "nothing selected" comes from unloading or a list reset.
+            if (!syncing && CueGrid.SelectedItem is CueViewModel row && !ReferenceEquals(row, editor.SelectedCue))
+            {
+                editor.SelectedCue = row;
+            }
+        };
+        CueGrid.AttachedToVisualTree += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(Push);
+    }
 
     protected override async void OnClosing(WindowClosingEventArgs e)
     {
@@ -70,6 +126,41 @@ public partial class MainWindow : Window
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
+        // The find box: Enter = next match, Shift+Enter = previous, Esc = close.
+        if (ReferenceEquals(e.Source, FindBox) && ViewModel?.Editor is { } editor)
+        {
+            if (e.Key == Key.Enter)
+            {
+                (e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? editor.FindPreviousCommand : editor.FindNextCommand).Execute(null);
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.Escape)
+            {
+                editor.CloseFindCommand.Execute(null);
+                CueGrid.Focus();
+                e.Handled = true;
+                return;
+            }
+        }
+
+        // Line shortcuts with Ctrl/⌘ work everywhere, also while typing (Ctrl+B splits at the caret).
+        var command = ViewModel?.Editor is { } lines && (e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta))
+            && !e.KeyModifiers.HasFlag(KeyModifiers.Alt)
+            ? e.Key switch
+            {
+                Key.Enter => lines.AddCueCommand,
+                Key.B => lines.SplitCueCommand,
+                Key.M => lines.MergeWithNextCommand,
+                _ => null,
+            }
+            : null;
+        if (Run(command, e))
+        {
+            return;
+        }
+
         // Enter in a single-line box (start/end time) commits it by moving focus to the list.
         if (e.Key == Key.Enter && e.Source is TextBox { AcceptsReturn: false })
         {
@@ -78,13 +169,41 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (ViewModel?.Player is not { IsLoaded: true } player || e.Source is TextBox)
+        // Everything below is inactive while typing in a text box.
+        if (e.Source is TextBox)
         {
             return;
         }
 
         var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-        var command = e.Key switch
+        if (ViewModel?.Editor is { } editor2)
+        {
+            // [ and ] by the typed symbol: on a Turkish keyboard they are AltGr+8 / AltGr+9.
+            command = e.KeySymbol switch
+            {
+                "[" => editor2.SetStartToPlayheadCommand,
+                "]" => editor2.SetEndToPlayheadCommand,
+                _ => e.KeyModifiers.HasFlag(KeyModifiers.Alt) && !e.KeyModifiers.HasFlag(KeyModifiers.Control) ? e.Key switch
+                {
+                    Key.Left when shift => editor2.NudgeStartBackCommand,
+                    Key.Right when shift => editor2.NudgeStartForwardCommand,
+                    Key.Left => editor2.NudgeBackCommand,
+                    Key.Right => editor2.NudgeForwardCommand,
+                    _ => null,
+                } : null,
+            };
+            if (Run(command, e))
+            {
+                return;
+            }
+        }
+
+        if (ViewModel?.Player is not { IsLoaded: true } player || e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+        {
+            return;
+        }
+
+        command = e.Key switch
         {
             Key.Space => player.TogglePlayPauseCommand,
             Key.Left when shift => player.FrameBackCommand,
@@ -94,10 +213,25 @@ public partial class MainWindow : Window
             _ => null,
         };
 
-        if (command is not null && command.CanExecute(null))
+        Run(command, e);
+    }
+
+    /// <summary>Runs the command for a shortcut; the key counts as handled whenever a command matched.</summary>
+    private static bool Run(System.Windows.Input.ICommand? command, KeyEventArgs e)
+    {
+        if (command is null)
+        {
+            return false;
+        }
+
+        if (command.CanExecute(null))
         {
             command.Execute(null);
-            e.Handled = true;
         }
+
+        e.Handled = true;
+        return true;
     }
+
+    private async void OnShowShortcuts(object? sender, RoutedEventArgs e) => await new ShortcutsDialog().ShowDialog(this);
 }
