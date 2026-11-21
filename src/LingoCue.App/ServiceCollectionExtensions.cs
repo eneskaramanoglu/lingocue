@@ -31,6 +31,7 @@ internal static class ServiceCollectionExtensions
     public static IServiceCollection AddLingoCue(this IServiceCollection services, IPlatformInfo platform, IConfiguration configuration)
     {
         services.AddSingleton(platform);
+        services.AddSingleton<IHardwareInfoProvider, LingoCue.Infrastructure.Platform.HardwareInfoProvider>();
         services.AddSingleton<IFileManager, FileManager>();
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IFilePickerService, FilePickerService>();

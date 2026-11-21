@@ -1,11 +1,14 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LingoCue.Core.Platform;
 using LingoCue.Core.Settings;
 using LingoCue.Llm.Providers;
 using LingoCue.Transcription;
 
 namespace LingoCue.App.ViewModels;
+
+public sealed record BeamSearchChoice(bool? Value, string Label);
 
 public sealed record ModelChoice(string? Id, string Label)
 {
@@ -20,7 +23,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     private readonly ISettingsStore _store;
     private readonly ModelResolver _resolver;
 
-    public SettingsViewModel(ISettingsStore store, ModelResolver resolver, IEnumerable<ITranscriptionEngine> engines, ApiKeysViewModel apiKeys)
+    public SettingsViewModel(ISettingsStore store, ModelResolver resolver, IEnumerable<ITranscriptionEngine> engines, ApiKeysViewModel apiKeys, IHardwareInfoProvider? hardware = null)
     {
         _store = store;
         _resolver = resolver;
@@ -31,6 +34,17 @@ public sealed partial class SettingsViewModel : ViewModelBase
         SelectedEngine = Engines.FirstOrDefault(e => e.Id == s.Transcription.DefaultEngine) ?? (Engines.Count > 0 ? Engines[0] : null);
         WhisperModel = s.Transcription.WhisperModel;
         Language = s.Transcription.Language ?? "auto";
+        BeamSearchMode = BeamSearchModes.First(m => m.Value == s.Transcription.BeamSearch);
+        UseGlossaryHints = s.Transcription.UseGlossaryHints;
+        LocalBatchSize = s.Llm.LocalBatchSize;
+        LocalParallelism = s.Llm.LocalParallelism;
+        if (hardware is not null)
+        {
+            var info = hardware.Read();
+            _advice = HardwareAdvisor.Advise(info);
+            HardwareText = HardwareAdvisor.Describe(info);
+            AdviceText = DescribeAdvice(_advice);
+        }
 
         FastModels = [new ModelChoice(null, AutoFastLabel)];
         QualityModels = [new ModelChoice(null, AutoQualityLabel)];
@@ -64,6 +78,65 @@ public sealed partial class SettingsViewModel : ViewModelBase
     }
 
     public ApiKeysViewModel ApiKeys { get; }
+
+    // ---------------------------------------------------------------- hardware and accuracy
+
+    private readonly HardwareAdvice? _advice;
+
+    /// <summary>"NVIDIA GeForce RTX 3050 Laptop GPU · 4 GB"; null when unknown.</summary>
+    public string? HardwareText { get; }
+
+    public string? AdviceText { get; }
+
+    public bool HasAdvice => _advice is not null;
+
+    public IReadOnlyList<BeamSearchChoice> BeamSearchModes { get; } =
+    [
+        new(null, "Otomatik — GPU varsa en iyi, yoksa hızlı"),
+        new(true, "En iyi (beam search, 5 aday; biraz daha yavaş)"),
+        new(false, "Hızlı (tek aday)"),
+    ];
+
+    [ObservableProperty]
+    public partial BeamSearchChoice? BeamSearchMode { get; set; }
+
+    [ObservableProperty]
+    public partial bool UseGlossaryHints { get; set; }
+
+    [ObservableProperty]
+    public partial decimal LocalBatchSize { get; set; }
+
+    [ObservableProperty]
+    public partial decimal LocalParallelism { get; set; }
+
+    [ObservableProperty]
+    public partial string? AdviceStatus { get; private set; }
+
+    /// <summary>Sets the Whisper model, accuracy mode and local batch settings for this machine (saved with Kaydet).</summary>
+    [RelayCommand]
+    private void ApplyRecommended()
+    {
+        if (_advice is not { } advice)
+        {
+            return;
+        }
+
+        WhisperModel = Transcription.Whisper.WhisperModels.For(advice.Whisper);
+        BeamSearchMode = BeamSearchModes[0];
+        LocalBatchSize = advice.LocalBatchSize;
+        LocalParallelism = advice.LocalParallelism;
+        AdviceStatus = "Önerilen ayarlar seçildi; kaydetmek için Kaydet'e basın.";
+    }
+
+    internal static string DescribeAdvice(HardwareAdvice advice)
+    {
+        var whisper = Transcription.Whisper.WhisperModels.All.First(m => m.Id == Transcription.Whisper.WhisperModels.For(advice.Whisper));
+        var local = advice.Tier == HardwareTier.Cpu
+            ? "yerel dil modeli işlemcide yavaş çalışır; Gemini önerilir"
+            : $"yerel dil modeli olarak ~{advice.LocalModelBillions}B boyutunda (4-bit, ~{advice.LocalModelDownloadGb:0.#} GB) bir Ollama modeli";
+        return $"Öneri: Whisper {whisper.DisplayName}{(advice.BeamSearch ? " + beam search" : string.Empty)}; {local}; " +
+               $"yerel modelde istek başına {advice.LocalBatchSize} satır, aynı anda {advice.LocalParallelism} istek.";
+    }
 
     public IReadOnlyList<ITranscriptionEngine> Engines { get; }
 
@@ -222,6 +295,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
                 DefaultEngine = SelectedEngine?.Id ?? current.Transcription.DefaultEngine,
                 WhisperModel = WhisperModel,
                 Language = Language == "auto" ? null : Language,
+                BeamSearch = BeamSearchMode?.Value,
+                UseGlossaryHints = UseGlossaryHints,
             },
             Llm = current.Llm with
             {
@@ -238,6 +313,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
                 KeepCircumflex = KeepCircumflex,
                 FreeTier = FreeTier,
                 RequestsPerMinute = (int)Math.Clamp(RequestsPerMinute, 1, 60),
+                LocalBatchSize = (int)Math.Clamp(LocalBatchSize, 5, 40),
+                LocalParallelism = (int)Math.Clamp(LocalParallelism, 1, 4),
             },
             Reading = current.Reading with
             {

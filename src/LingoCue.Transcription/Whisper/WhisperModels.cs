@@ -14,15 +14,27 @@ public static class WhisperModels
 
     public const string LargeV3Q5 = "large-v3-q5_0";
     public const string LargeV3TurboQ5 = "large-v3-turbo-q5_0";
+    public const string LargeV3 = "large-v3";
 
     public static IReadOnlyList<TranscriptionModel> All { get; } =
     [
-        new(LargeV3Q5, "large-v3 (q5_0)", "En doğru; Türkçe için önerilen. ~1,1 GB, 4 GB GPU'ya sığar.", 1_081_140_203),
-        new(LargeV3TurboQ5, "large-v3-turbo (q5_0)", "Yaklaşık 3-4 kat hızlı, Türkçede biraz daha az isabetli. ~0,6 GB.", 574_041_195),
+        new(LargeV3Q5, "large-v3 (q5_0)", "Türkçe için önerilen; tam modele çok yakın. ~1,1 GB, 4 GB GPU'ya sığar.", 1_081_140_203),
+        new(LargeV3, "large-v3 (tam)", "Sıkıştırılmamış model; en yüksek isabet. ~3,1 GB, 6 GB ve üstü GPU ister.", 3_095_033_483),
+        new(LargeV3TurboQ5, "large-v3-turbo (q5_0)", "Yaklaşık 3-4 kat hızlı, Türkçede biraz daha az isabetli. ~0,6 GB; GPU'suz bilgisayarlar için.", 574_041_195),
     ];
+
+    /// <summary>The catalogue model for a size suggested by <see cref="Core.Platform.HardwareAdvisor"/>.</summary>
+    public static string For(Core.Platform.WhisperSize size) => size switch
+    {
+        Core.Platform.WhisperSize.Turbo => LargeV3TurboQ5,
+        Core.Platform.WhisperSize.LargeFull => LargeV3,
+        _ => LargeV3Q5,
+    };
 
     public static ModelFile FileFor(string modelId) => modelId switch
     {
+        LargeV3 => new("ggml-large-v3.bin", new Uri(WhisperRepo + "ggml-large-v3.bin"), 3_095_033_483,
+            "64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2"),
         LargeV3Q5 => new("ggml-large-v3-q5_0.bin", new Uri(WhisperRepo + "ggml-large-v3-q5_0.bin"), 1_081_140_203,
             "d75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1"),
         LargeV3TurboQ5 => new("ggml-large-v3-turbo-q5_0.bin", new Uri(WhisperRepo + "ggml-large-v3-turbo-q5_0.bin"), 574_041_195,

@@ -47,6 +47,7 @@ public partial class MainViewModel : ViewModelBase
     private readonly ILogger<MainViewModel> _logger;
     private CancellationTokenSource? _jobCts;
     private readonly IMediaToolLocator? _toolLocator;
+    private readonly IHardwareInfoProvider? _hardware;
     private string? _lastEngineId;
 
     public MainViewModel(
@@ -72,7 +73,8 @@ public partial class MainViewModel : ViewModelBase
         ModelResolver resolver,
         ILoggerFactory loggers,
         ILogger<MainViewModel> logger,
-        IMediaToolLocator? toolLocator = null)
+        IMediaToolLocator? toolLocator = null,
+        IHardwareInfoProvider? hardware = null)
     {
         _themeService = themeService;
         _files = files;
@@ -108,6 +110,7 @@ public partial class MainViewModel : ViewModelBase
         PlatformText = platform.RuntimeIdentifier;
         LoadRecentFiles();
         _toolLocator = toolLocator;
+        _hardware = hardware;
         RefreshReadiness();
         SelectedTheme = themeService.Current;
     }
@@ -640,7 +643,7 @@ public partial class MainViewModel : ViewModelBase
     private async Task Preferences()
     {
         if (_dialogs is not null && _settings is not null && _resolver is not null && _keys is not null && _secretStore is not null && _platform is not null &&
-            await _dialogs.ShowSettingsAsync(new SettingsViewModel(_settings, _resolver, _engines, new ApiKeysViewModel(_keys, _secretStore, _platform))))
+            await _dialogs.ShowSettingsAsync(new SettingsViewModel(_settings, _resolver, _engines, new ApiKeysViewModel(_keys, _secretStore, _platform), _hardware)))
         {
             Editor?.Refresh();
             RefreshReadiness();
@@ -817,9 +820,6 @@ public partial class MainViewModel : ViewModelBase
 
     private bool CanTranslate => IsIdle && Project is { } p && p.Tracks.Any(t => t.Cues.Count > 0);
 
-    /// <summary>Lines per request for a local model (small models keep JSON valid more reliably with short batches).</summary>
-    private const int LocalBatchSize = 10;
-
     /// <summary>A local model may load for a minute and generate slowly on CPU.</summary>
     private static readonly TimeSpan LocalRequestTimeout = TimeSpan.FromMinutes(10);
 
@@ -914,9 +914,9 @@ public partial class MainViewModel : ViewModelBase
         var local = provider.Id == OllamaProvider.ProviderId;
         var options = new PipelineOptions
         {
-            BatchSize = local ? Math.Min(settings.Llm.BatchSize, LocalBatchSize)
+            BatchSize = local ? Math.Clamp(settings.Llm.LocalBatchSize, 5, 40)
                 : settings.Llm.FreeTier ? Math.Min(settings.Llm.BatchSize, LlmSettings.FreeTierBatchSize) : settings.Llm.BatchSize,
-            Parallelism = local || settings.Llm.FreeTier ? 1 : settings.Llm.Parallelism,
+            Parallelism = local ? Math.Clamp(settings.Llm.LocalParallelism, 1, 4) : settings.Llm.FreeTier ? 1 : settings.Llm.Parallelism,
             Pacer = !local && settings.Llm.FreeTier ? RequestPacer.ForRate(settings.Llm.RequestsPerMinute) : null,
             RequestTimeout = local ? LocalRequestTimeout : TimeSpan.FromMinutes(2),
             MaxRetries = settings.Llm.MaxRetries,
@@ -1207,7 +1207,20 @@ public partial class MainViewModel : ViewModelBase
         {
             var model = _settings.Current.Transcription.WhisperModel;
             var ready = whisper.IsModelDownloaded(model);
-            Readiness.Add(new ReadinessItem("Whisper modeli", ready ? model : "ilk transkripsiyonda iner (~1 GB)", ready));
+            var size = Transcription.Whisper.WhisperModels.All.FirstOrDefault(m => m.Id == model)?.SizeBytes ?? 0;
+            Readiness.Add(new ReadinessItem("Whisper modeli", ready ? model : $"ilk transkripsiyonda iner (~{size / 1e9:0.#} GB)", ready));
+        }
+
+        if (_hardware is not null)
+        {
+            var info = _hardware.Read();
+            var advice = HardwareAdvisor.Advise(info);
+            var suggested = Transcription.Whisper.WhisperModels.For(advice.Whisper);
+            var current = _settings?.Current.Transcription.WhisperModel;
+            var detail = HardwareAdvisor.Describe(info) + (suggested == current
+                ? " · ayarlar bu donanıma uygun"
+                : $" · önerilen Whisper modeli: {suggested} (Ayarlar → Genel → Önerilen ayarları uygula)");
+            Readiness.Add(new ReadinessItem("Donanım", detail, IsReady: true));
         }
 
         _ = AddOllamaReadinessAsync();

@@ -36,6 +36,16 @@ public class WhisperDeviceTests
     public void Without_log_lines_the_runtime_name_is_used(string runtime, string expected)
         => WhisperDevice.Describe(runtime, []).ShouldBe(expected);
 
+    [Theory]
+    [InlineData(Core.Platform.WhisperSize.Turbo, WhisperModels.LargeV3TurboQ5)]
+    [InlineData(Core.Platform.WhisperSize.Large, WhisperModels.LargeV3Q5)]
+    [InlineData(Core.Platform.WhisperSize.LargeFull, WhisperModels.LargeV3)]
+    public void Suggested_sizes_map_to_catalogue_models(Core.Platform.WhisperSize size, string id)
+    {
+        WhisperModels.For(size).ShouldBe(id);
+        WhisperModels.All.ShouldContain(m => m.Id == id);
+    }
+
     [Fact]
     public void Gpu_devices_are_told_apart_from_the_cpu()
     {
