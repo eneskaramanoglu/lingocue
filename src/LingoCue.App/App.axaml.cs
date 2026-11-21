@@ -41,6 +41,16 @@ public partial class App : Application
                     window.Opened += async (_, _) => await vm.OpenFileAsync(startup.FilePath);
                 }
 
+                if (window.DataContext is MainViewModel main)
+                {
+                    // A few seconds after start-up, so the check never slows the first window down.
+                    window.Opened += async (_, _) =>
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(4));
+                        await main.CheckForUpdatesOnStartupAsync();
+                    };
+                }
+
                 desktop.MainWindow = window;
             }
         }

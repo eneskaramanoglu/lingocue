@@ -58,6 +58,17 @@
             <TextBlock Grid.Row="5" Grid.ColumnSpan="2" Classes="muted" TextWrapping="Wrap"
                        Text="Whisper yereldir ve ücretsizdir. Gemini 3.5 Transcribe gürültülü ve çok konuşmacılı videolarda daha iyidir ama ücretlidir (~0,005 $/dk)." />
           </Grid>
+          <!-- Updates: on by default; only the latest version number is asked from GitHub. -->
+          <Border Classes="well">
+            <StackPanel Spacing="6">
+              <TextBlock Text="GÜNCELLEMELER" Classes="section" />
+              <TextBlock Text="{Binding VersionText}" FontWeight="SemiBold" />
+              <CheckBox IsChecked="{Binding AutoCheckUpdates}"
+                        Content="Açılışta yeni sürümü denetle (günde en fazla bir kez)" />
+              <TextBlock Classes="muted small" TextWrapping="Wrap"
+                         Text="GitHub'a yalnızca en son sürümün numarası sorulur; videolarınız, projeleriniz ya da anahtarlarınız gönderilmez. Windows'ta kurulumla yüklenen sürüm güncellemeyi kendisi indirir; macOS'ta sürüm sayfası açılır." />
+            </StackPanel>
+          </Border>
           </StackPanel>
         </ScrollViewer>
       </TabItem>

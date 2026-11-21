@@ -36,6 +36,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         Language = s.Transcription.Language ?? "auto";
         BeamSearchMode = BeamSearchModes.First(m => m.Value == s.Transcription.BeamSearch);
         UseGlossaryHints = s.Transcription.UseGlossaryHints;
+        AutoCheckUpdates = s.Updates.AutoCheck;
         LocalBatchSize = s.Llm.LocalBatchSize;
         LocalParallelism = s.Llm.LocalParallelism;
         if (hardware is not null)
@@ -102,6 +103,12 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial bool UseGlossaryHints { get; set; }
+
+    /// <summary>Look for a new version at start-up, at most about once a day.</summary>
+    [ObservableProperty]
+    public partial bool AutoCheckUpdates { get; set; }
+
+    public string VersionText { get; } = $"LingoCue {Core.AppInfo.Version}";
 
     [ObservableProperty]
     public partial decimal LocalBatchSize { get; set; }
@@ -316,6 +323,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
                 LocalBatchSize = (int)Math.Clamp(LocalBatchSize, 5, 40),
                 LocalParallelism = (int)Math.Clamp(LocalParallelism, 1, 4),
             },
+            Updates = current.Updates with { AutoCheck = AutoCheckUpdates },
             Reading = current.Reading with
             {
                 MaxCharsPerLine = (int)MaxCharsPerLine,
