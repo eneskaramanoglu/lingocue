@@ -23,7 +23,12 @@ public sealed class UpdateService : IUpdateService
         _http = http;
         try
         {
-            var manager = new UpdateManager(new GithubSource(ReleaseVersions.RepositoryUrl.ToString(), null, false, null), new UpdateOptions(), null);
+            // LINGOCUE_UPDATE_SOURCE (a folder or URL with releases.win.json) is for testing an update
+            // end to end without publishing a release.
+            var testSource = Environment.GetEnvironmentVariable("LINGOCUE_UPDATE_SOURCE");
+            var manager = string.IsNullOrWhiteSpace(testSource)
+                ? new UpdateManager(new GithubSource(ReleaseVersions.RepositoryUrl.ToString(), null, false, null), new UpdateOptions(), null)
+                : new UpdateManager(testSource, new UpdateOptions(), null);
             _velopack = OperatingSystem.IsWindows() && manager.IsInstalled && !manager.IsPortable ? manager : null;
         }
         catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or NotSupportedException)

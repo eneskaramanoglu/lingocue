@@ -75,26 +75,39 @@ jobs:
           -p:PublishSingleFile=false
           -o publish/${{ matrix.rid }}
 
-      - name: Zip (Windows)
+      # Windows: Velopack Setup.exe (per-user, no admin), portable zip and the update feed. The previous
+      # release's feed and full package are fetched first so this version gets a small delta package.
+      - name: Velopack package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if (-not (Test-Path publish/${{ matrix.rid }}/libmpv-2.dll)) { throw "libmpv-2.dll missing from publish output" }
-          New-Item -ItemType Directory -Force artifacts | Out-Null
-          Compress-Archive -Path publish/${{ matrix.rid }}/* -DestinationPath artifacts/LingoCue-${{ steps.ver.outputs.version }}-${{ matrix.rid }}.zip
+          dotnet tool install -g vpk --version 1.2.161
+          $out = 'artifacts/velopack'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          vpk download github --repoUrl "https://github.com/${{ github.repository }}" --token $env:GH_TOKEN --outputDir $out
+          if ($LASTEXITCODE -ne 0) { Write-Host "No earlier Velopack release to build a delta from."; $global:LASTEXITCODE = 0 }
+          $previous = @(Get-ChildItem $out -Filter *.nupkg | ForEach-Object Name)
+          bash build/release-notes.sh ${{ steps.ver.outputs.version }} > release-notes.md
+          ./build/windows/pack.ps1 -PublishDir publish/${{ matrix.rid }} -Version ${{ steps.ver.outputs.version }} -OutputDir $out -ReleaseNotes release-notes.md
+          # Upload only this version's packages plus the feed; older packages stay in their own releases.
+          New-Item -ItemType Directory -Force artifacts/upload | Out-Null
+          Get-ChildItem $out | Where-Object { $previous -notcontains $_.Name } | Copy-Item -Destination artifacts/upload
 
-      - name: Bundle .app and zip (macOS)
+      - name: Bundle .app and disk image (macOS)
         if: runner.os == 'macOS'
         shell: bash
         run: |
           bash build/macos/make-app.sh publish/${{ matrix.rid }} artifacts ${{ steps.ver.outputs.version }}
-          ditto -c -k --sequesterRsrc --keepParent artifacts/LingoCue.app artifacts/LingoCue-${{ steps.ver.outputs.version }}-${{ matrix.rid }}.zip
+          mkdir -p artifacts/upload
+          bash build/macos/make-dmg.sh artifacts/LingoCue.app artifacts/upload/LingoCue-${{ steps.ver.outputs.version }}-${{ matrix.rid }}.dmg
           rm -rf artifacts/LingoCue.app
 
       - uses: actions/upload-artifact@v7
         with:
           name: LingoCue-${{ matrix.rid }}
-          path: artifacts/*.zip
+          path: artifacts/upload/*
           if-no-files-found: error
 
   release:
@@ -119,10 +132,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${GITHUB_REF_NAME}"
-          # Plain prefix match: "\[" inside an awk string is not a regex escape, so a regex never matched.
-          notes=$(awk -v head="## [${tag#v}]" '
-            index($0, head) == 1 {found=1; next}
-            found && index($0, "## [") == 1 {exit}
-            found {print}' CHANGELOG.md)
-          [ -z "$notes" ] && notes="See CHANGELOG.md"
-          gh release create "$tag" dist/*.zip --title "LingoCue $tag" --notes "$notes" --verify-tag
+          bash build/release-notes.sh "$tag" > notes.md
+          # Setup.exe, portable zip, Velopack feed (releases.win.json, nupkg) and the macOS .dmg.
+          ls -la dist
+          gh release create "$tag" dist/* --title "LingoCue $tag" --notes-file notes.md --verify-tag
