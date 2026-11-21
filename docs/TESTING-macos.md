@@ -23,6 +23,29 @@ dotnet run --project src/LingoCue.App
 
 Logs are written to `~/Library/Logs/LingoCue/`.
 
+## v0.11.0 — Korean, several languages, local engine
+
+Needs a project with a corrected Turkish track. A short track keeps Gemini costs near zero.
+
+- [ ] Çevir: select **İngilizce** and **Korece** chips. The estimate says "2 dil". Start: two tracks
+      appear, "Çeviri · en" and "Çeviri · ko". The Korean lines are in polite speech (요 endings)
+      and names are in Hangul.
+- [ ] Select the Korean track: the CPS chips follow the Korean limits. 16 Korean letters per line
+      is fine, 17 is flagged. Latin letters count half.
+- [ ] Stil → İki dilli mod with the Korean track second: the font is a Korean one (macOS: Apple
+      SD Gothic Neo, or Noto Sans KR if installed). Korean shows in the preview and in a
+      burned-in export with no boxes. Choose Arial as the second font: a warning appears.
+- [ ] Tercihler → Dil modeli → "Ücretsiz katman" on, set 10 per minute, translate: it runs one
+      batch at a time without 429 errors.
+- [ ] Local engine: `brew install ollama`, run `ollama serve`, then `ollama pull gemma3:12b` (or
+      qwen3:8b).
+  - [ ] Tercihler → "Bağlan ve listele" shows the model; choose it.
+  - [ ] Çevir → Motor "Yerel (Ollama)" shows no cost; the translation finishes.
+  - [ ] The welcome screen shows "Yerel model (Ollama) · çalışıyor".
+- [ ] Stop Ollama in the middle of a local translation: the run ends with lines marked ✕ (not a
+      crash). Start Ollama again, then Altyazı → **Başarısız satırları yeniden dene** fills in
+      only those lines.
+
 ## v0.10.0 — New look
 
 A visual update only; every feature works as in v0.9.0. Check both themes (Ayarlar → Tema).

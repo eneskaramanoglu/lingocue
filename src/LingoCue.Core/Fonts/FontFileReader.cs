@@ -7,7 +7,8 @@ namespace LingoCue.Core.Fonts;
 /// <param name="Family">Legacy (GDI) family name, name ID 1 — the name libass and ASS styles use, e.g. "Arial Black".</param>
 /// <param name="TypographicFamily">Name ID 16 when present (e.g. "Arial"), otherwise the family.</param>
 /// <param name="Subfamily">Style name, name ID 2 (e.g. "Bold Italic").</param>
-public sealed record FontFace(string Path, int Index, string Family, string TypographicFamily, string Subfamily, bool HasTurkishLetters);
+/// <param name="HasHangul">Has Korean syllables (checked on a few common ones).</param>
+public sealed record FontFace(string Path, int Index, string Family, string TypographicFamily, string Subfamily, bool HasTurkishLetters, bool HasHangul = false);
 
 /// <summary>
 /// Reads family names and character coverage straight from TrueType/OpenType files (<c>.ttf</c>,
@@ -18,6 +19,9 @@ public static class FontFileReader
 {
     /// <summary>Turkish letters that some fonts lack (the ASCII ones are everywhere).</summary>
     public const string TurkishLetters = "çÇğĞıİöÖşŞüÜ";
+
+    /// <summary>Common Hangul syllables; a font with all of them covers Korean subtitles in practice.</summary>
+    public const string HangulSample = "가나다한글요니습";
 
     public static bool IsFontFile(string path)
         => System.IO.Path.GetExtension(path).ToLowerInvariant() is ".ttf" or ".otf" or ".ttc" or ".otc";
@@ -86,7 +90,8 @@ public static class FontFileReader
         var typographic = names.TryGetValue(16, out var t) && !string.IsNullOrWhiteSpace(t) ? t : family;
         var subfamily = names.TryGetValue(2, out var s) ? s : "Regular";
         var turkish = cmapTable >= 0 && HasAll(r, cmapTable, TurkishLetters);
-        return new FontFace(path, index, family.Trim(), typographic.Trim(), subfamily.Trim(), turkish);
+        var hangul = cmapTable >= 0 && HasAll(r, cmapTable, HangulSample);
+        return new FontFace(path, index, family.Trim(), typographic.Trim(), subfamily.Trim(), turkish, hangul);
     }
 
     /// <summary>Name IDs 1, 2 and 16, preferring Windows/English, then any Windows, then Mac Roman.</summary>

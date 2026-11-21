@@ -175,8 +175,14 @@
 
       <!-- Bilingual -->
       <Expander Header="İki dilli mod" HorizontalAlignment="Stretch">
-        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
           <CheckBox Grid.ColumnSpan="2" Content="Seçili izin altında ikinci bir iz göster" IsChecked="{Binding BilingualEnabled}" />
+          <!-- The second track's own font (e.g. one with Hangul for Korean). -->
+          <TextBlock Grid.Row="6" Text="Font" VerticalAlignment="Center" />
+          <AutoCompleteBox Grid.Row="6" Grid.Column="1" ItemsSource="{Binding Fonts}" Text="{Binding SecondaryFontName}" FilterMode="ContainsOrdinal"
+                           MinimumPrefixLength="0" MaxDropDownHeight="320" />
+          <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding SecondaryFontWarning}" Classes="issues" TextWrapping="Wrap"
+                     IsVisible="{Binding SecondaryFontWarning, Converter={x:Static ObjectConverters.IsNotNull}}" />
           <TextBlock Grid.Row="1" Text="İkinci iz" VerticalAlignment="Center" />
           <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding SecondaryTracks}" SelectedItem="{Binding SecondaryTrack}" HorizontalAlignment="Stretch">
             <ComboBox.ItemTemplate>

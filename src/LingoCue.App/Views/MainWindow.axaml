@@ -91,6 +91,8 @@
         <MenuItem Header="_Transkribe Et…" InputGesture="Ctrl+T" Command="{Binding TranscribeCommand}" />
         <MenuItem Header="_Düzelt…" Command="{Binding CorrectCommand}" />
         <MenuItem Header="Çe_vir…" Command="{Binding TranslateCommand}" />
+        <MenuItem Header="Başarısız satırları _yeniden dene" Command="{Binding RetryFailedLinesCommand}"
+                  ToolTip.Tip="Yapay zekânın yanıt vermediği satırları (✕) yeniden gönderir; biten satırlar tekrar ücretlendirilmez." />
         <Separator />
         <MenuItem Header="_İzler…" Command="{Binding ManageTracksCommand}" />
         <MenuItem Header="_Sözlük ve Bağlam…" Command="{Binding EditGlossaryCommand}" />

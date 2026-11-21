@@ -40,11 +40,11 @@ public static class QualityCheck
 
             if (flags.HasFlag(CueIssues.ReadingSpeedTooHigh))
             {
-                Add(QaSeverity.Error, nameof(CueIssues.ReadingSpeedTooHigh), string.Create(s_tr, $"Okuma hızı çok yüksek ({cue.CharactersPerSecond:0.0} CPS > {rules.MaxCps})"));
+                Add(QaSeverity.Error, nameof(CueIssues.ReadingSpeedTooHigh), string.Create(s_tr, $"Okuma hızı çok yüksek ({rules.Cps(cue):0.0} CPS > {rules.MaxCps})"));
             }
             else if (flags.HasFlag(CueIssues.ReadingSpeedHigh))
             {
-                Add(QaSeverity.Warning, nameof(CueIssues.ReadingSpeedHigh), string.Create(s_tr, $"Okuma hızı yüksek ({cue.CharactersPerSecond:0.0} CPS > {rules.TargetCps})"));
+                Add(QaSeverity.Warning, nameof(CueIssues.ReadingSpeedHigh), string.Create(s_tr, $"Okuma hızı yüksek ({rules.Cps(cue):0.0} CPS > {rules.TargetCps})"));
             }
 
             if (flags.HasFlag(CueIssues.TooManyLines))
@@ -123,12 +123,12 @@ public static class QualityCheck
         for (var i = 0; i < track.Cues.Count; i++)
         {
             var cue = track.Cues[i];
-            if (cue.CharactersPerSecond <= rules.TargetCps || rules.TargetCps <= 0)
+            if (rules.Cps(cue) <= rules.TargetCps || rules.TargetCps <= 0)
             {
                 continue;
             }
 
-            var wanted = cue.Start + TimeSpan.FromSeconds(cue.VisibleLength / rules.TargetCps);
+            var wanted = cue.Start + TimeSpan.FromSeconds(rules.TextLength(cue.Text) / rules.TargetCps);
             var limit = i + 1 < track.Cues.Count ? track.Cues[i + 1].Start - CueEditing.MinGap : TimeSpan.MaxValue;
             var maxEnd = cue.Start + rules.MaxDuration;
             var end = new[] { wanted, limit, maxEnd }.Min();

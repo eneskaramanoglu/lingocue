@@ -25,7 +25,16 @@
   </Border>
   <StackPanel Margin="20,12,20,18" Spacing="12">
 
-    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+      <!-- Engine: Gemini in the cloud or a local Ollama model. -->
+      <TextBlock Grid.Row="3" Text="Motor" VerticalAlignment="Center" />
+      <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Engines}" SelectedItem="{Binding Engine}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:EngineChoice">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
       <TextBlock Text="Kaynak iz" VerticalAlignment="Center" />
       <ComboBox Grid.Column="1" ItemsSource="{Binding Sources}" SelectedItem="{Binding Source}" HorizontalAlignment="Stretch">
         <ComboBox.ItemTemplate>
@@ -39,17 +48,25 @@
       </ComboBox>
       <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SourceInfo}" Classes="muted" TextWrapping="Wrap" />
 
-      <TextBlock Grid.Row="2" Text="Hedef dil" VerticalAlignment="Center" />
-      <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Languages}" SelectedItem="{Binding Target}" HorizontalAlignment="Stretch">
-        <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="vm:LanguageChoice">
-            <TextBlock Text="{Binding Label}" />
+      <TextBlock Grid.Row="2" Text="Hedef diller" VerticalAlignment="Top" Margin="0,6,0,0" />
+      <!-- Chips: several targets can be selected; each becomes its own track. -->
+      <ItemsControl Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Targets}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel ItemSpacing="6" LineSpacing="6" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:TargetLanguageItem">
+            <ToggleButton Classes="chiptoggle" Content="{Binding Label}" IsChecked="{Binding IsSelected}" IsEnabled="{Binding IsEnabled}" />
           </DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
     </Grid>
 
-    <TextBlock Text="Kaynak iz zaten bu dilde; başka bir hedef dil seçin." Classes="issues" IsVisible="{Binding SameLanguage}" />
+    <TextBlock Text="En az bir hedef dil seçin (kaynak izin kendi dili seçilemez)." Classes="issues" IsVisible="{Binding NoTarget}" />
+    <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding HasKorean}"
+               Text="Korece: kibar konuşma dili (해요체), isimler Hangul ile; satır başına 16 karakter ve saniyede en fazla 12 karakter kuralı uygulanır. Videoya gömmek için Hangul içeren bir font gerekir." />
 
     <CheckBox Content="Önce videonun bağlamını çıkar (özet, ton, konuşmacılar → tutarlı terimler ve zamirler)" IsChecked="{Binding RefreshContext}" />
     <CheckBox Content="İkinci geçişte gözden geçir (daha doğal ve tutarlı, maliyet ~2 kat)" IsChecked="{Binding Reflect}" />

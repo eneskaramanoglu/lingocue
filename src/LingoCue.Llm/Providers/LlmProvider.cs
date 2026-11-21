@@ -57,4 +57,7 @@ public sealed class LlmException : Exception
 
     /// <summary>What the user can do (Turkish), when known.</summary>
     public string? Remedy { get; init; }
+
+    /// <summary>The model gave no answer in time (not a wrong key or a bad request): worth trying again later.</summary>
+    public bool IsUnanswered { get; init; }
 }

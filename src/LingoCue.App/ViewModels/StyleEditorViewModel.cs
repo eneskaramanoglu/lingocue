@@ -25,7 +25,7 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
         nameof(PrimaryColor), nameof(OutlineColor), nameof(ShadowColor), nameof(UseBox), nameof(Outline), nameof(Shadow),
         nameof(Alignment), nameof(MarginV), nameof(MarginL), nameof(MarginR), nameof(FadeIn), nameof(FadeOut),
         nameof(SelectedKaraoke), nameof(HighlightColor),
-        nameof(BilingualEnabled), nameof(SecondaryTrack), nameof(SecondaryFontSize), nameof(SecondaryColor), nameof(Gap),
+        nameof(BilingualEnabled), nameof(SecondaryTrack), nameof(SecondaryFontName), nameof(SecondaryFontSize), nameof(SecondaryColor), nameof(Gap),
     ];
 
     private readonly IStyleTemplateStore? _templates;
@@ -173,6 +173,13 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
     [ObservableProperty]
     public partial SubtitleTrack? SecondaryTrack { get; set; }
 
+    /// <summary>Font of the second (bilingual) track; a Korean track needs one with Hangul.</summary>
+    [ObservableProperty]
+    public partial string SecondaryFontName { get; set; } = "Arial";
+
+    [ObservableProperty]
+    public partial string? SecondaryFontWarning { get; private set; }
+
     [ObservableProperty]
     public partial decimal SecondaryFontSize { get; set; } = 38;
 
@@ -232,6 +239,7 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
             SecondaryTrack = SecondaryTracks.FirstOrDefault(t => t.Id == bilingual.SecondaryTrackId)
                              ?? SecondaryTracks.FirstOrDefault(t => t.Kind == TrackKind.Translation)
                              ?? SecondaryTracks.FirstOrDefault();
+            SecondaryFontName = bilingual.SecondaryStyle.FontName;
             SecondaryFontSize = (decimal)bilingual.SecondaryStyle.FontSize;
             SecondaryColor = ToColor(bilingual.SecondaryStyle.PrimaryColor);
             Gap = bilingual.Gap;
@@ -250,6 +258,12 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
         if (e.PropertyName == nameof(FontName))
         {
             UpdateFontWarning();
+            UpdateSecondaryFontWarning();
+        }
+
+        if (e.PropertyName is nameof(SecondaryFontName) or nameof(SecondaryTrack))
+        {
+            UpdateSecondaryFontWarning();
         }
 
         if (!_loading && e.PropertyName is { } name && s_editable.Contains(name))
@@ -300,6 +314,7 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
                 Gap = (int)Math.Clamp(Gap, 0, 300),
                 SecondaryStyle = presentation.Bilingual.SecondaryStyle with
                 {
+                    FontName = string.IsNullOrWhiteSpace(SecondaryFontName) ? FontName.Trim() : SecondaryFontName.Trim(),
                     FontSize = (double)Math.Clamp(SecondaryFontSize, 8, 300),
                     PrimaryColor = ToAss(SecondaryColor),
                 },
@@ -323,16 +338,37 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
         }
 
         var status = _fonts.Check(FontName, ProjectFontDirectory);
+        var korean = IsKorean(_activeTrack?.Language);
         FontWarning = status switch
         {
             { Source: FontSource.Missing } => "Bu font bu bilgisayarda yok; önizleme ve video başka bir font kullanır. \"Font dosyası ekle\" ile projeye ekleyebilirsiniz.",
+            { HasHangul: false } when korean => HangulWarning(),
             { HasTurkishLetters: false } => "Bu fontta bazı Türkçe harfler (ğ, ş, ı, İ…) yok; o harfler başka bir fontla çizilir.",
             { Source: FontSource.System } when !FontCatalog.CrossPlatformFamilies.Contains(FontName.Trim())
                 => "Bu font her bilgisayarda (ör. Mac'te) olmayabilir; projeyi taşıyacaksanız font dosyasını projeye ekleyin.",
             _ => null,
         };
-        IsFontWarningSevere = status.Source == FontSource.Missing || !status.HasTurkishLetters;
+        IsFontWarningSevere = status.Source == FontSource.Missing || (korean ? !status.HasHangul : !status.HasTurkishLetters);
     }
+
+    private void UpdateSecondaryFontWarning()
+    {
+        if (_fonts is null || !IsKorean(SecondaryTrack?.Language))
+        {
+            SecondaryFontWarning = null;
+            return;
+        }
+
+        var name = string.IsNullOrWhiteSpace(SecondaryFontName) ? FontName : SecondaryFontName;
+        SecondaryFontWarning = _fonts.Check(name, ProjectFontDirectory).HasHangul ? null : HangulWarning();
+    }
+
+    private string HangulWarning()
+        => _fonts?.SuggestHangulFamily(ProjectFontDirectory) is { } suggestion
+            ? $"Bu fontta Korece (Hangul) harfleri yok; Korece satırlar kutu (□) olarak görünebilir. Öneri: {suggestion}."
+            : "Bu fontta Korece (Hangul) harfleri yok ve bilgisayarda Korece font bulunamadı. Noto Sans KR'yi indirip \"Font dosyası ekle\" ile projeye ekleyin.";
+
+    private static bool IsKorean(string? language) => language is not null && language.StartsWith("ko", StringComparison.OrdinalIgnoreCase);
 
     [ObservableProperty]
     public partial bool IsFontWarningSevere { get; private set; }

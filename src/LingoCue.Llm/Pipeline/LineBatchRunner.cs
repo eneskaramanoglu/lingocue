@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net;
 using System.Text;
+using LingoCue.Llm.Providers;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
@@ -14,6 +15,9 @@ namespace LingoCue.Llm.Pipeline;
 /// </summary>
 public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatchRunner> logger)
 {
+    /// <summary>Single lines failing in a row before the model is treated as unavailable for this run.</summary>
+    internal const int MaxConsecutiveFailures = 3;
+
     /// <summary>Overridable for tests (back-off waits).</summary>
     internal Func<TimeSpan, CancellationToken, Task> Delay { get; set; } = Task.Delay;
 
@@ -43,20 +47,62 @@ public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatc
 
         void Report(string stage) => progress?.Report(new PipelineProgress(stage, Interlocked.Increment(ref done), total));
 
-        // Pass 1: the task itself.
+        // Pass 1: the task itself. A batch the model does not answer (timeouts, rate limits after all retries)
+        // is split in half and retried; a single line that still fails is marked failed and the run goes on, so
+        // finished batches are never lost. After several failures in a row the model is treated as unavailable
+        // and the remaining lines are marked without calling it again.
+        var consecutiveFailures = 0;
+        async Task RunOrSplitAsync(LineItem[] batch)
+        {
+            if (Volatile.Read(ref consecutiveFailures) >= MaxConsecutiveFailures)
+            {
+                MarkFailed(batch, "Model yanıt vermediği için atlandı; daha sonra yeniden deneyin.");
+                return;
+            }
+
+            try
+            {
+                var outcome = await RunBatchAsync(task, batch, BuildPrompt(batch, lines, results, options, drafts: null), task.SystemPrompt(context), context, options, usage, cancellationToken);
+                if (outcome.Failed)
+                {
+                    Interlocked.Increment(ref failedBatches);
+                }
+
+                foreach (var r in outcome.Results)
+                {
+                    results[r.Id] = r;
+                }
+
+                Interlocked.Exchange(ref consecutiveFailures, 0);
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested && (ex is LlmException { IsUnanswered: true } || IsTransient(ex)))
+            {
+                LogBatchUnanswered(task.Name, batch[0].Id, batch.Length, ex.Message);
+                if (batch.Length > 1)
+                {
+                    var half = batch.Length / 2;
+                    await RunOrSplitAsync(batch[..half]);
+                    await RunOrSplitAsync(batch[half..]);
+                    return;
+                }
+
+                Interlocked.Increment(ref consecutiveFailures);
+                Interlocked.Increment(ref failedBatches);
+                MarkFailed(batch, "Model zamanında yanıt vermedi; daha sonra yeniden deneyin.");
+            }
+        }
+
+        void MarkFailed(LineItem[] batch, string note)
+        {
+            foreach (var line in batch)
+            {
+                results[line.Id] = new LineResult(line.Id, line.Text, LineStatus.Failed, note);
+            }
+        }
+
         await ForEachBatchAsync(batches, options, async batch =>
         {
-            var outcome = await RunBatchAsync(task, batch, BuildPrompt(batch, lines, results, options, drafts: null), task.SystemPrompt(context), context, options, usage, cancellationToken);
-            if (outcome.Failed)
-            {
-                Interlocked.Increment(ref failedBatches);
-            }
-
-            foreach (var r in outcome.Results)
-            {
-                results[r.Id] = r;
-            }
-
+            await RunOrSplitAsync(batch);
             Report(task.Name);
         }, cancellationToken);
 
@@ -66,7 +112,19 @@ public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatc
             await ForEachBatchAsync(batches, options, async batch =>
             {
                 var drafts = batch.ToDictionary(l => l.Id, l => results.TryGetValue(l.Id, out var r) ? r.Text : l.Text);
-                var outcome = await RunBatchAsync(task, batch, BuildPrompt(batch, lines, results, options, drafts), task.ReflectPrompt(context), context, options, usage, cancellationToken);
+                BatchOutcome outcome;
+                try
+                {
+                    outcome = await RunBatchAsync(task, batch, BuildPrompt(batch, lines, results, options, drafts), task.ReflectPrompt(context), context, options, usage, cancellationToken);
+                }
+                catch (Exception ex) when (!cancellationToken.IsCancellationRequested && (ex is LlmException { IsUnanswered: true } || IsTransient(ex)))
+                {
+                    // The review is optional: keep the first drafts.
+                    LogBatchUnanswered(task.Name + " (gözden geçirme)", batch[0].Id, batch.Length, ex.Message);
+                    Report(task.Name + " (gözden geçirme)");
+                    return;
+                }
+
                 foreach (var r in outcome.Results.Where(r => r.Status != LineStatus.Failed))
                 {
                     var first = results[r.Id];
@@ -83,7 +141,7 @@ public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatc
         {
             var overlong = work
                 .Select(l => (Source: l, Current: results.TryGetValue(l.Id, out var r) ? r : null))
-                .Where(x => x.Current is { Status: not LineStatus.Failed } && Cps(x.Current.Text, x.Source.Duration) > options.Rules.MaxCps)
+                .Where(x => x.Current is { Status: not LineStatus.Failed } && options.Rules.Cps(x.Current.Text, x.Source.Duration) > options.Rules.MaxCps)
                 .Select(x => x.Source with { Text = x.Current!.Text, MaxChars = ShortenTask.MaxChars(x.Source, options.Rules) })
                 .ToList();
             if (overlong.Count > 0)
@@ -91,7 +149,18 @@ public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatc
                 var shorten = new ShortenTask();
                 foreach (var batch in overlong.Chunk(Math.Max(1, options.BatchSize)))
                 {
-                    var outcome = await RunBatchAsync(shorten, batch, BuildPrompt(batch, batch, results, options with { PreviousContext = 0, NextContext = 0 }, null), shorten.SystemPrompt(context), context, options, usage, cancellationToken);
+                    BatchOutcome outcome;
+                    try
+                    {
+                        outcome = await RunBatchAsync(shorten, batch, BuildPrompt(batch, batch, results, options with { PreviousContext = 0, NextContext = 0 }, null), shorten.SystemPrompt(context), context, options, usage, cancellationToken);
+                    }
+                    catch (Exception ex) when (!cancellationToken.IsCancellationRequested && (ex is LlmException { IsUnanswered: true } || IsTransient(ex)))
+                    {
+                        // Shortening is optional: the lines stay as translated (the QA tab shows them as fast).
+                        LogBatchUnanswered(shorten.Name, batch[0].Id, batch.Length, ex.Message);
+                        continue;
+                    }
+
                     foreach (var r in outcome.Results.Where(r => r.Status is LineStatus.Changed or LineStatus.NeedsReview))
                     {
                         var before = results[r.Id];
@@ -109,9 +178,6 @@ public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatc
         LogFinished(task.Name, ordered.Count, changed, failedBatches, totals.InputTokens, totals.OutputTokens);
         return new PipelineResult(ordered, usage.Value, failedBatches);
     }
-
-    private static double Cps(string text, TimeSpan duration)
-        => duration.TotalSeconds > 0 ? Core.Subtitles.SubtitleText.VisibleLength(text) / duration.TotalSeconds : 0;
 
     private static async Task ForEachBatchAsync(IReadOnlyList<LineItem[]> batches, PipelineOptions options, Func<LineItem[], Task> body, CancellationToken cancellationToken)
     {
@@ -330,6 +396,9 @@ public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatc
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "{Task}: batch starting at line {FirstId}, attempt {Attempt} invalid: {Errors}")]
     private partial void LogInvalid(string task, int firstId, int attempt, string errors);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "{Task}: batch starting at line {FirstId} ({Count} lines) got no answer: {Error}")]
+    private partial void LogBatchUnanswered(string task, int firstId, int count, string error);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "LLM call failed with {Error}; retrying in {Delay}")]
     private partial void LogTransient(string error, TimeSpan delay);

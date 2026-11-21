@@ -73,6 +73,12 @@ public sealed record PipelineOptions
         [TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(45)];
 
     public double Temperature { get; init; } = 0.2;
+
+    /// <summary>Spaces requests for a free tier's per-minute limit; null = no pacing.</summary>
+    public RequestPacer? Pacer { get; init; }
+
+    /// <summary>Longest wait honored when the API asks to retry later (a longer hint is cut to this).</summary>
+    public TimeSpan MaxRetryWait { get; init; } = TimeSpan.FromSeconds(90);
 }
 
 public sealed record PipelineProgress(string Stage, int Done, int Total)

@@ -22,6 +22,11 @@ internal static class ResilientChat
     {
         for (var attempt = 0; ; attempt++)
         {
+            if (policy.Pacer is { } pacer)
+            {
+                await pacer.WaitAsync(delay, cancellationToken);
+            }
+
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(policy.RequestTimeout);
             try
@@ -36,6 +41,7 @@ internal static class ResilientChat
                     throw new LlmException($"The model did not answer within {policy.RequestTimeout.TotalSeconds.ToString("0", CultureInfo.InvariantCulture)} s, {attempt + 1} attempts.")
                     {
                         Remedy = "Dil modeli zamanında yanıt vermedi; Google şu an yoğun olabilir. Birkaç dakika sonra tekrar deneyin ya da Tercihler'den başka bir model seçin.",
+                        IsUnanswered = true,
                     };
                 }
 
@@ -44,8 +50,15 @@ internal static class ResilientChat
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested && LineBatchRunner.IsTransient(ex) && attempt < policy.TransientDelays.Count)
             {
-                onRetry?.Invoke(ex.GetType().Name, policy.TransientDelays[attempt]);
-                await delay(policy.TransientDelays[attempt], cancellationToken);
+                // A rate limit says how long to wait; waiting less only burns another attempt.
+                var wait = policy.TransientDelays[attempt];
+                if (RetryHint.From(ex) is { } hint && hint > wait)
+                {
+                    wait = hint < policy.MaxRetryWait ? hint : policy.MaxRetryWait;
+                }
+
+                onRetry?.Invoke(ex.GetType().Name, wait);
+                await delay(wait, cancellationToken);
             }
         }
     }

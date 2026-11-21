@@ -129,10 +129,49 @@ public class TrackPassRunnerTests
     }
 
     [Fact]
+    public async Task Retrying_failed_lines_only_sends_those_lines_and_fills_them_in()
+    {
+        var (project, source) = CreateProject();
+        project.Context = new ProjectContext { Summary = "Gezi." };
+        var english = new SubtitleTrack { Kind = TrackKind.Translation, Language = "en", SourceTrackId = source.Id };
+        foreach (var cue in source.Cues)
+        {
+            var copy = cue.Clone();
+            copy.SourceCueId = cue.Id;
+            copy.Text = cue.Id == 3 ? cue.Text : "done";
+            copy.Marks = cue.Id == 3 ? CueMarks.LlmFailed : CueMarks.None;
+            english.Cues.Add(copy);
+        }
+
+        var client = new FakeChatClient((m, _, _) => FakeChatClient.Echo(m, (_, _) => "It turned into something else."));
+        var result = await new TrackPassRunner(client, NullLoggerFactory.Instance).RunAsync(
+            new TrackPassRequest(project, source, TrackPassKind.Translation, new PipelineOptions { ShortenOverlong = false }, RefreshContext: false,
+                TargetLanguage: "en", OnlySourceCueIds: new HashSet<int> { 3 }),
+            cancellationToken: TestContext.Current.CancellationToken);
+        var (fixedCount, stillFailed) = TrackPassRunner.MergeInto(english, result.Pipeline);
+
+        FakeChatClient.RequestedLines(client.Calls[0].Messages).Select(l => l.Id).ShouldBe([3]);
+        (fixedCount, stillFailed).ShouldBe((1, 0));
+        english.Cues[2].Text.ShouldBe("It turned into something else.");
+        english.Cues[2].Marks.HasFlag(CueMarks.LlmFailed).ShouldBeFalse();
+        english.Cues[0].Text.ShouldBe("done"); // untouched
+    }
+
+    [Fact]
     public void Pronoun_rule_only_for_turkish_sources()
     {
         TranslationTask.PronounRule(new TaskContext(new ProjectContext(), [], "tr", "en")).ShouldContain("no gender");
         TranslationTask.PronounRule(new TaskContext(new ProjectContext(), [], "en", "tr")).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Korean_targets_get_speech_level_and_spacing_rules()
+    {
+        var korean = new TranslationTask().SystemPrompt(new TaskContext(new ProjectContext(), [], "tr", "ko"));
+        korean.ShouldContain("해요체");
+        korean.ShouldContain("Hangul");
+        new TranslationTask().SystemPrompt(new TaskContext(new ProjectContext(), [], "tr", "en")).ShouldNotContain("해요체");
+        new ShortenTask().SystemPrompt(new TaskContext(new ProjectContext(), [], "tr", "ko")).ShouldContain("punctuation as 0.5");
     }
 
     [Fact]

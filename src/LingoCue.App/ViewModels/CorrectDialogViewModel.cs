@@ -8,7 +8,7 @@ using LingoCue.Llm.Providers;
 
 namespace LingoCue.App.ViewModels;
 
-public sealed record CorrectOptions(string ModelId, bool Reflect, bool RefreshContext, bool UseQualityModel);
+public sealed record CorrectOptions(string ModelId, bool Reflect, bool RefreshContext, bool UseQualityModel, string ProviderId);
 
 /// <summary>Shows what a correction run will do and cost before anything is sent.</summary>
 public sealed partial class CorrectDialogViewModel : ViewModelBase
@@ -30,8 +30,17 @@ public sealed partial class CorrectDialogViewModel : ViewModelBase
         UseQualityModel = _settings.UseQualityModel;
         RefreshContext = project.Context.Summary is null;
         LockedCount = _lines.Count(l => l.Locked);
+        Engines = EngineChoice.From(resolver);
+        Engine = Engines.FirstOrDefault(e => e.Id == _resolver.Provider.Id) ?? Engines[0];
         _ = ResolveAsync();
     }
+
+    public IReadOnlyList<EngineChoice> Engines { get; }
+
+    [ObservableProperty]
+    public partial EngineChoice Engine { get; set; }
+
+    partial void OnEngineChanged(EngineChoice value) => _ = ResolveAsync();
 
     public string TrackName { get; }
 
@@ -65,7 +74,7 @@ public sealed partial class CorrectDialogViewModel : ViewModelBase
 
     public bool CanStart => ModelId is not null && Problem is null && LineCount > LockedCount;
 
-    public CorrectOptions? BuildResult() => CanStart ? new CorrectOptions(ModelId!, Reflect, RefreshContext, UseQualityModel) : null;
+    public CorrectOptions? BuildResult() => CanStart ? new CorrectOptions(ModelId!, Reflect, RefreshContext, UseQualityModel, Engine.Id) : null;
 
     partial void OnReflectChanged(bool value) => UpdateEstimate();
 
@@ -78,7 +87,9 @@ public sealed partial class CorrectDialogViewModel : ViewModelBase
         Problem = null;
         try
         {
-            ModelId = await _resolver.ResolveAsync(_settings with { UseQualityModel = UseQualityModel });
+            ModelId = null;
+            EstimateText = "Model belirleniyor…";
+            ModelId = await _resolver.ResolveAsync(_settings with { UseQualityModel = UseQualityModel, Provider = Engine.Id });
             UpdateEstimate();
         }
         catch (LlmException ex)
@@ -103,7 +114,13 @@ public sealed partial class CorrectDialogViewModel : ViewModelBase
         }
 
         var options = new PipelineOptions { BatchSize = _settings.BatchSize, Reflect = Reflect, ShortenOverlong = _settings.ShortenOverlongLines };
-        var estimate = CostEstimator.Estimate(_lines, options, GlossaryCount, RefreshContext || !HasContext, _resolver.Provider.PriceFor(ModelId));
+        if (Engine.IsLocal)
+        {
+            EstimateText = EngineChoice.LocalEstimate(ModelId);
+            return;
+        }
+
+        var estimate = CostEstimator.Estimate(_lines, options, GlossaryCount, RefreshContext || !HasContext, _resolver.ProviderFor(Engine.Id).PriceFor(ModelId));
         var money = estimate.Usd is { } usd ? $"~{usd.ToString("0.000", CultureInfo.InvariantCulture)} $ (ücretli anahtarla)" : "fiyat bilinmiyor";
         var free = estimate.FreeTierAvailable ? " · ücretsiz katmanda 0 $ (sınırlı hız)" : " · bu modelin ücretsiz katmanı yok";
         EstimateText = string.Create(s_tr, $"Model: {ModelId} · tahmini {estimate.InputTokens:N0} giriş + {estimate.OutputTokens:N0} çıkış token · {money}{free}");

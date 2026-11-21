@@ -78,6 +78,25 @@ public sealed record LlmSettings
 
     /// <summary>Retries for a batch whose answer fails validation.</summary>
     public int MaxRetries { get; init; } = 2;
+
+    /// <summary>
+    /// Free-tier mode: one request at a time, batches of at most <see cref="FreeTierBatchSize"/> lines, spaced
+    /// to <see cref="RequestsPerMinute"/>. Slower, but avoids the timeouts and 429s of shared free quotas.
+    /// </summary>
+    public bool FreeTier { get; init; }
+
+    /// <summary>Request pace in free-tier mode.</summary>
+    public int RequestsPerMinute { get; init; } = 10;
+
+    public const int FreeTierBatchSize = 15;
+
+    /// <summary>Address of a local Ollama server (used when <see cref="Provider"/> is "ollama").</summary>
+    public string OllamaUrl { get; init; } = "http://localhost:11434";
+
+    /// <summary>Ollama model name (e.g. what <c>ollama list</c> shows); null = the only installed one.</summary>
+    public string? LocalModel { get; init; }
+
+    public bool IsLocal => string.Equals(Provider, "ollama", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>Serializable form of <see cref="ReadingRules"/> (seconds as numbers).</summary>
@@ -100,9 +119,26 @@ public sealed record ReadingRulesSettings
     /// <summary>English is read faster than Turkish (Netflix: 20 CPS vs 17), so its limits are higher.</summary>
     public const double EnglishCpsBonus = 3;
 
-    /// <param name="language">Track language; English gets <see cref="EnglishCpsBonus"/> more characters per second.</param>
+    /// <summary>
+    /// Korean (Netflix Korean style guide): 16 characters per line, at most 12 characters per second for
+    /// adults, Latin letters, spaces and punctuation counting half. These replace the user's Turkish-oriented
+    /// numbers because the scales differ.
+    /// </summary>
+    public static ReadingRules KoreanRules(ReadingRules baseRules)
+    {
+        ArgumentNullException.ThrowIfNull(baseRules);
+        return baseRules with { MaxCharsPerLine = 16, TargetCps = 10, MaxCps = 12, Counting = LengthCounting.HalfWidthLatin };
+    }
+
+    /// <param name="language">Track language; English gets <see cref="EnglishCpsBonus"/> more characters per second,
+    /// Korean uses <see cref="KoreanRules"/>.</param>
     public ReadingRules ToRules(string? language = null)
     {
+        if (language is not null && language.StartsWith("ko", StringComparison.OrdinalIgnoreCase))
+        {
+            return KoreanRules(ToRules(null));
+        }
+
         var bonus = language is not null && language.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? EnglishCpsBonus : 0;
         return new()
         {
