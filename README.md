@@ -81,6 +81,7 @@ Velopack (`build/windows/pack.ps1`); macOS uses `build/macos/make-app.sh` and `b
 
 ## Documentation
 
+- [Website](website/) (static, deployed with Vercel; `website/tools/make-images.cs` rebuilds its icons and preview images)
 - [User guide](docs/KULLANIM.md) (Turkish)
 - [Plan and roadmap](docs/PLAN.md) (Turkish)
 - [Architecture](docs/ARCHITECTURE.md)
