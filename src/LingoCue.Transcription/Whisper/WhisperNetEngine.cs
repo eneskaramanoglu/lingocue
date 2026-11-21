@@ -6,12 +6,16 @@ using LingoCue.Transcription.Models;
 using Microsoft.Extensions.Logging;
 using Whisper.net;
 using Whisper.net.LibraryLoader;
+using Whisper.net.Logger;
 
 namespace LingoCue.Transcription.Whisper;
 
 /// <summary>
 /// Local transcription with whisper.cpp through Whisper.net. GPU runtime order: CUDA → Vulkan → CPU
-/// on Windows, CoreML/Metal → CPU on macOS. Models are downloaded on first use.
+/// on Windows, CoreML → CPU on macOS; both macOS runtimes run on the GPU through Metal (the
+/// Whisper.net.Runtime.Metal package ships the shader) and the CoreML one falls back to Metal
+/// without its encoder model. The device actually used is read from whisper.cpp's log. Models are
+/// downloaded on first use.
 /// </summary>
 public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
 {
@@ -77,10 +81,29 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
             var speech = await DetectSpeechAsync(vadPath, wav, cancellationToken);
             progress?.Report(new(TranscriptionStage.Recognizing, 0.32));
 
+            // whisper.cpp picks its backend while the model and state load; its log says which one.
+            var nativeLog = new List<string>();
+            using var logSubscription = LogProvider.AddLogger((level, message) =>
+            {
+                if (message is null)
+                {
+                    return;
+                }
+
+                lock (nativeLog)
+                {
+                    nativeLog.Add(message);
+                }
+
+                if (level is WhisperLogLevel.Error or WhisperLogLevel.Warning)
+                {
+                    LogNative(level.ToString(), message.TrimEnd());
+                }
+            });
+
             var factory = GetFactory(modelPath, request.ModelId);
-            var device = DescribeDevice();
+            var device = "?";
             var language = ToWhisperLanguage(request.Language);
-            LogStarting(request.ModelId, device, language);
 
             var builder = factory.CreateBuilder()
                 .WithLanguage(language)
@@ -93,6 +116,8 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
             }
 
             await using var processor = builder.Build();
+            device = DescribeDevice(nativeLog);
+            LogStarting(request.ModelId, device, language);
 
             var words = new List<Word>();
             string? detected = null;
@@ -182,17 +207,14 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
         return _factory;
     }
 
-    private string DescribeDevice()
+    private string DescribeDevice(List<string> nativeLog)
     {
         var loaded = RuntimeOptions.LoadedLibrary;
-        var text = loaded switch
+        string text;
+        lock (nativeLog)
         {
-            RuntimeLibrary.Cuda or RuntimeLibrary.Cuda12 => "NVIDIA CUDA (GPU)",
-            RuntimeLibrary.Vulkan => "Vulkan (GPU)",
-            RuntimeLibrary.CoreML => "Apple CoreML",
-            RuntimeLibrary.Cpu or RuntimeLibrary.CpuNoAvx => "CPU",
-            _ => loaded?.ToString() ?? "?",
-        };
+            text = WhisperDevice.Describe(loaded?.ToString(), nativeLog);
+        }
 
         // NVIDIA driver present but CUDA runtime not used: CUDA Toolkit is missing.
         if (_platform.Platform == OsPlatform.Windows && loaded is not (RuntimeLibrary.Cuda or RuntimeLibrary.Cuda12) &&
@@ -220,6 +242,9 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
         {
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "whisper.cpp {Level}: {Message}")]
+    private partial void LogNative(string level, string message);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Whisper {Model} on {Device}, language {Language}")]
     private partial void LogStarting(string model, string device, string language);
