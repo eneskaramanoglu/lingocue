@@ -10,12 +10,16 @@ public sealed record TranscriptionModel(string Id, string DisplayName, string De
 /// <param name="MediaPath">Video or audio file; the engine extracts what it needs.</param>
 /// <param name="Duration">Media duration (from ffprobe), used for chunking and progress.</param>
 /// <param name="Language">BCP 47 spoken language (<c>tr</c>); null = auto-detect.</param>
+/// <param name="BeamSearch">Decode with several candidates (more accurate, slower); engines without it ignore it.</param>
+/// <param name="Hints">Names and terms to spell as given (from the glossary); engines without prompts ignore them.</param>
 public sealed record TranscriptionRequest(
     string MediaPath,
     TimeSpan Duration,
     string? Language,
     string ModelId,
-    bool Diarize = false);
+    bool Diarize = false,
+    bool BeamSearch = false,
+    IReadOnlyList<string>? Hints = null);
 
 public sealed record TranscriptionResult(
     IReadOnlyList<Word> Words,

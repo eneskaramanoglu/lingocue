@@ -714,7 +714,10 @@ public partial class MainViewModel : ViewModelBase
 
         try
         {
-            var request = new TranscriptionRequest(media.FilePath, media.Duration, options.Language, options.ModelId, options.Diarize);
+            var settings = _settings?.Current.Transcription;
+            var beam = settings?.BeamSearch ?? (_hardware is not null && HardwareAdvisor.Advise(_hardware.Read()).BeamSearch);
+            var hints = settings?.UseGlossaryHints != false && Project is { } project ? AsrReview.SpellingHints(project.Glossary) : null;
+            var request = new TranscriptionRequest(media.FilePath, media.Duration, options.Language, options.ModelId, options.Diarize, beam, hints);
 
             // Native inference is CPU/GPU heavy; keep it off the UI thread.
             return await Task.Run(() => options.Engine.TranscribeAsync(request, progress, cts.Token), cts.Token);
@@ -750,6 +753,7 @@ public partial class MainViewModel : ViewModelBase
     {
         var language = run.Language ?? run.DetectedLanguage ?? project.SourceLanguage;
         var cues = Segmenter.Segment(run.Words, new SegmentationOptions { Language = language });
+        var doubtful = AsrReview.FlagDoubtful(cues);
         var track = new SubtitleTrack
         {
             Name = $"Kaynak · {engineName.Split(' ')[0]} {run.Model}",
@@ -768,7 +772,7 @@ public partial class MainViewModel : ViewModelBase
         RefreshTracks();
         MarkDirty();
         RefreshPreview(immediate: true);
-        StatusText += $" · {cues.Count} satır oluşturuldu ({track.Name})";
+        StatusText += $" · {cues.Count} satır oluşturuldu ({track.Name})" + (doubtful > 0 ? $" · {doubtful} satır kontrol için işaretlendi (!)" : string.Empty);
     }
 
     // ---------------------------------------------------------------- glossary / correction

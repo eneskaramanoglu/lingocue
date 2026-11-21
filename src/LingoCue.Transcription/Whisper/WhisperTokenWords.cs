@@ -52,7 +52,11 @@ internal static class WhisperTokenWords
             }
 
             current.Text += token.Text;
-            current.Probability = Math.Min(current.Probability, token.Probability);
+            if (token.Text.Any(char.IsLetterOrDigit))
+            {
+                // Punctuation tokens (an apostrophe, a comma) are often unsure even when the word is right.
+                current.Probability = Math.Min(current.Probability, token.Probability);
+            }
             current.End = Math.Max(current.End, token.EndCs);
             if (token.DtwCs >= 0)
             {

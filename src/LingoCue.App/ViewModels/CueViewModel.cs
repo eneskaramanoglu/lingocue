@@ -119,7 +119,9 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
     public string MarkGlyph => LlmFailed ? "✕" : NeedsReview ? "!" : IsChanged ? "●" : string.Empty;
 
     public string? MarkTip => LlmFailed ? "Yapay zekâ bu satırı işleyemedi; orijinal metin bırakıldı."
-        : NeedsReview ? "Çok değişti, kontrol edin."
+        : NeedsReview ? (cue.SourceCueId is null
+            ? "Ses tanıma bu satırdan emin değil (ya da sessizlikten uydurmuş olabilir); dinleyip kontrol edin."
+            : "Çok değişti, kontrol edin.")
         : IsChanged ? "Yapay zekâ ya da siz değiştirdiniz."
         : null;
 

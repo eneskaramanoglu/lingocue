@@ -93,7 +93,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     public IReadOnlyList<BeamSearchChoice> BeamSearchModes { get; } =
     [
         new(null, "Otomatik — GPU varsa en iyi, yoksa hızlı"),
-        new(true, "En iyi (beam search, 5 aday; biraz daha yavaş)"),
+        new(true, "En iyi (beam search, 5 aday; yaklaşık 2 kat yavaş)"),
         new(false, "Hızlı (tek aday)"),
     ];
 
