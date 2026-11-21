@@ -159,6 +159,31 @@ track cues ──► LineItem(id, text, duration, speaker, locked)
 - The editor links a derived track to its source through `SourceTrackId`/`SourceCueId` to show the
   original text and the changed-only filter.
 
+## Packaging, updates and diagnostics (v1.0.0)
+
+- **Packages.** `release.yml` builds both platforms on a `v*` tag.
+  - Windows: `build/windows/pack.ps1` runs Velopack's `vpk pack`. It produces a per-user
+    `LingoCue-win-Setup.exe`, a portable zip, full and delta `.nupkg` files and `releases.win.json`. The
+    previous release is fetched first (`vpk download github`) so the new version gets a delta.
+  - macOS: `make-app.sh` builds the bundle (with `AppIcon.icns` made by `sips` + `iconutil` from
+    `build/appicon/lingocue-1024.png`); `make-dmg.sh` wraps it in a UDZO image with an Applications link.
+  - Release notes for both come from `CHANGELOG.md` (`build/release-notes.sh`).
+- **Velopack hooks.** `VelopackApp.Build().Run()` is the first line of `Main`. During install, update
+  and uninstall, Velopack starts the app with hook arguments and the process exits inside `Run()`.
+- **Updates.** `IUpdateService` (Core) has one implementation, `UpdateService` (Infrastructure):
+  - On a Windows copy installed by Setup.exe it uses Velopack's `UpdateManager` with `GithubSource`:
+    check, download in the background, `ApplyUpdatesAndRestart`.
+  - Everywhere else (macOS is unsigned, the portable zip, dev builds) it reads GitHub's `releases/latest`
+    and compares versions with `ReleaseVersions.IsNewer`. The UI then offers the release page; only
+    github.com pages are opened.
+  - `UpdateSettings` keeps the auto-check flag, the last check (at most every 20 h) and a skipped
+    version.
+  - `LINGOCUE_UPDATE_SOURCE` points the updater at a local folder to test an update end to end.
+- **Diagnostics.** `DiagnosticsService` (App) writes a zip with a summary, the five newest logs and
+  `settings.json`. `DiagnosticsReport.Redact` replaces the home folder in every form (both slash
+  styles, JSON-escaped) with `~`; `SanitizeSettings` drops the recent-files list.
+  `Dispatcher.UIThread.UnhandledException` is handled: logged, shown with an offer to make the package.
+
 ## Background box, hardware and Whisper accuracy (v0.12.0)
 
 - **Background box.** `SubtitleStyle.Background` (`SubtitleBackground`) is LingoCue's own setting,

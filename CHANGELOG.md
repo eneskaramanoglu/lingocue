@@ -6,6 +6,37 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-21
+
+The first version packaged for everyday use: installers, updates and help.
+
+### Added
+- **Windows installer.** `LingoCue-win-Setup.exe` installs per user in `%LocalAppData%ingocue` with
+  no admin rights, adds desktop and start menu shortcuts, and uninstalls from windows settings. your
+  settings and models are kept. `lingocue-win-portable.zip` runs without installing.
+- **automatic updates.**
+  - at start-up, at most once a day, the app checks github for a new version. only the version number
+    is asked. you can turn this off in tercihler → genel.
+  - an installed windows copy downloads the update in the background (usually a small delta) and
+    offers "yeniden başlat ve güncelle". it asks about unsaved work and running exports first.
+  - on macos and with the portable zip, a banner links to the release page.
+  - yardım → güncellemeleri denetle checks right away.
+- **macos disk image.** `lingocue-x.y.z-osx-arm64.dmg` with a link to applications, and an app icon.
+- **app icon** on both systems.
+- **diagnostics package** (yardım → tanılama paketi oluştur): a zip on the desktop with a summary,
+  recent logs and settings, ready to attach to a bug report. the home folder path is hidden, the
+  recent-files list is left out and api keys are never in it. nothing is sent automatically.
+- **unexpected errors** are shown with an offer to make the package; the app keeps running so you can
+  save your work.
+- **help menu:** user guide, log folder, bug report on github, and "lingocue hakkında" with the version
+  and the licenses of the components.
+- **user guide in turkish:** [docs/kullanim.md](docs/kullanim.md).
+
+### changed
+- release downloads are now an installer (windows) and a disk image (macos) instead of zip files.
+  copies of 0.12 or older that ran from a zip do not update themselves: install 1.0 once with
+  setup.exe or the .dmg.
+
 ## [0.12.0] - 2026-11-21
 
 ### Added
@@ -363,7 +394,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   unsigned osx-arm64 `.app` zip.
 - Docs: plan, research notes, architecture overview, macOS test checklist, `CLAUDE.md`.
 
-[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.12.0...v1.0.0
 [0.12.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.9.0...v0.10.0

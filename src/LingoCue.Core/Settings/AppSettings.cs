@@ -16,6 +16,8 @@ public sealed record AppSettings
 
     public ReadingRulesSettings Reading { get; init; } = new();
 
+    public UpdateSettings Updates { get; init; } = new();
+
     /// <summary>System, Light or Dark.</summary>
     public string Theme { get; init; } = "System";
 
@@ -171,4 +173,19 @@ public interface ISettingsStore
     event EventHandler<AppSettings>? Changed;
 
     void Save(AppSettings settings);
+}
+
+public sealed record UpdateSettings
+{
+    /// <summary>Look for a new release at start-up (at most once a day). Only the version is asked from GitHub.</summary>
+    public bool AutoCheck { get; init; } = true;
+
+    public DateTimeOffset? LastCheckUtc { get; init; }
+
+    /// <summary>A version the user chose to skip; newer ones are offered again.</summary>
+    public string? SkippedVersion { get; init; }
+
+    public static TimeSpan CheckInterval { get; } = TimeSpan.FromHours(20);
+
+    public bool IsCheckDue(DateTimeOffset now) => AutoCheck && (LastCheckUtc is not { } last || now - last >= CheckInterval);
 }

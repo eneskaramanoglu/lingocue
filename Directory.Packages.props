@@ -34,6 +34,7 @@
   </ItemGroup>
 
   <ItemGroup Label="Speech recognition">
+    <PackageVersion Include="Velopack" Version="1.2.161" />
     <PackageVersion Include="Whisper.net" Version="1.9.1" />
     <PackageVersion Include="Whisper.net.Runtime" Version="1.9.1" />
     <PackageVersion Include="Whisper.net.Runtime.Cuda.Windows" Version="1.9.1" />

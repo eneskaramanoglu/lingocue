@@ -107,7 +107,16 @@
         </MenuItem>
       </MenuItem>
       <MenuItem Header="_Yardım">
+        <MenuItem Header="_Kullanım kılavuzu" Command="{Binding OpenUserGuideCommand}" />
         <MenuItem Header="_Klavye kısayolları…" Click="OnShowShortcuts" />
+        <Separator />
+        <MenuItem Header="_Güncellemeleri denetle" Command="{Binding CheckForUpdatesCommand}" />
+        <Separator />
+        <MenuItem Header="_Tanılama paketi oluştur…" Command="{Binding CreateDiagnosticsCommand}" />
+        <MenuItem Header="_Log klasörünü aç" Command="{Binding OpenLogFolderCommand}" />
+        <MenuItem Header="_Hata bildir (GitHub)" Command="{Binding ReportIssueCommand}" />
+        <Separator />
+        <MenuItem Header="LingoCue _hakkında" Click="OnShowAbout" />
       </MenuItem>
     </Menu>
         <!-- Document name; the dot means unsaved changes. -->
@@ -232,6 +241,25 @@
           <TextBlock Text="{Binding VersionText}" Classes="muted small" VerticalAlignment="Center" />
         </StackPanel>
         <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Classes="small" Foreground="{DynamicResource SecondaryTextBrush}" />
+      </DockPanel>
+    </Border>
+
+    <!-- Update banner (docked like the error banner, so the native video surface never covers it). -->
+    <Border DockPanel.Dock="Top" Classes="info" IsVisible="{Binding HasUpdate}" Padding="14,8">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Classes="accent small" Content="Yeniden başlat ve güncelle" Command="{Binding RestartToUpdateCommand}"
+                  IsVisible="{Binding CanRestartToUpdate}" Focusable="False" />
+          <Button Classes="accent small" Content="Sürüm sayfasını aç" Command="{Binding OpenReleasePageCommand}"
+                  IsVisible="{Binding OffersDownloadPage}" Focusable="False" />
+          <Button Classes="small" Content="Bu sürümü atla" Command="{Binding SkipUpdateCommand}"
+                  IsVisible="{Binding OffersDownloadPage}" Focusable="False" />
+          <Button Classes="ghost small" Content="Sonra" Command="{Binding DismissUpdateCommand}" Focusable="False" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+          <PathIcon Data="{StaticResource IconLogo}" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}" />
+          <TextBlock Text="{Binding UpdateText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+        </StackPanel>
       </DockPanel>
     </Border>
 

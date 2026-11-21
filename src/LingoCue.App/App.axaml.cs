@@ -41,6 +41,38 @@ public partial class App : Application
                     window.Opened += async (_, _) => await vm.OpenFileAsync(startup.FilePath);
                 }
 
+                if (window.DataContext is MainViewModel main)
+                {
+                    // Errors no handler caught: logged, shown with a diagnostics offer; the app keeps
+                    // running so unsaved work can be saved. One dialog at a time.
+                    var reporting = false;
+                    Avalonia.Threading.Dispatcher.UIThread.UnhandledException += async (_, e) =>
+                    {
+                        e.Handled = true;
+                        if (reporting)
+                        {
+                            return;
+                        }
+
+                        reporting = true;
+                        try
+                        {
+                            await main.ReportUnexpectedErrorAsync(e.Exception);
+                        }
+                        finally
+                        {
+                            reporting = false;
+                        }
+                    };
+
+                    // A few seconds after start-up, so the check never slows the first window down.
+                    window.Opened += async (_, _) =>
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(4));
+                        await main.CheckForUpdatesOnStartupAsync();
+                    };
+                }
+
                 desktop.MainWindow = window;
             }
         }

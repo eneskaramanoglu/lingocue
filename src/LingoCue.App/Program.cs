@@ -5,6 +5,7 @@ using LingoCue.Core.Platform;
 using LingoCue.Infrastructure.Platform;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using Velopack;
 
 namespace LingoCue.App;
 
@@ -15,6 +16,10 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        // Must run first: during install, update and uninstall Velopack starts the app with hook
+        // arguments and exits inside Run(). A copy that was not installed returns at once.
+        VelopackApp.Build().SetArgs(args).Run();
+
         var platform = new PlatformInfo();
         Log.Logger = LoggingSetup.CreateBootstrapLogger(platform);
 

@@ -127,7 +127,8 @@ v0.7.0 M6 Dışa aktarma: burn-in render kuyruğu (x264 + NVENC), soft-sub, SRT/
 v0.8.0 M7 İngilizce: TR->EN çeviri, çoklu iz yönetimi.
 v0.9.0 M8 Editör cilası: dalga formu, böl/birleştir, kısayollar, undo/redo,
        QA paneli, bul/değiştir.
-v1.0.0 M9 Paketleme ve dağıtım.
+v1.0.0 M9 Paketleme ve dağıtım: Velopack ile Windows kurulumu ve otomatik güncelleme, macOS .dmg,
+       ikon, tanılama paketi, Türkçe kullanım kılavuzu.
 
 ## Çalışma kuralları
 1. İlk iş: uygulama adını seç; bu promptı docs/PLAN.md olarak kaydet; proje

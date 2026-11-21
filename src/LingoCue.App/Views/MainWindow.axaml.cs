@@ -234,4 +234,6 @@ public partial class MainWindow : Window
     }
 
     private async void OnShowShortcuts(object? sender, RoutedEventArgs e) => await new ShortcutsDialog().ShowDialog(this);
+
+    private async void OnShowAbout(object? sender, RoutedEventArgs e) => await new AboutDialog().ShowDialog(this);
 }
