@@ -159,6 +159,38 @@ track cues ──► LineItem(id, text, duration, speaker, locked)
 - The editor links a derived track to its source through `SourceTrackId`/`SourceCueId` to show the
   original text and the changed-only filter.
 
+## Background box, hardware and Whisper accuracy (v0.12.0)
+
+- **Background box.** `SubtitleStyle.Background` (`SubtitleBackground`) is LingoCue's own setting,
+  not part of the ASS style line. `AssScriptBuilder` turns it into ASS:
+  - A line box is BorderStyle 3 painted with the box color, padded by `\xbord`/`\ybord`.
+  - A block box is libass's BorderStyle 4: one rectangle per event, painted with BackColour and
+    padded by `\xshad`/`\yshad`.
+  - A frame is a copy of the event one layer below, with invisible glyphs and a larger box in the
+    frame color.
+  - A band is a full-width `\p1` rectangle sized from the line count (`LineCount`).
+  - With any of these background events, layers are spread (text 2L+1, background 2L) so libass
+    never pushes a box and its text apart.
+  - `SubtitleBackground.Of` reads a plain BorderStyle 3/4 style (older projects, imported ASS) as
+    the matching background.
+- **Hardware.** `IHardwareInfoProvider` (Infrastructure) reads the adapter with the most memory from
+  the display class registry key on Windows, and the chip and memory through `sysctl` on macOS.
+  `HardwareAdvisor` maps usable GPU memory (two thirds of unified memory on Apple Silicon) to a
+  `HardwareAdvice`: Whisper size, beam search, local LLM size and local batch settings.
+- **Whisper device.** `WhisperDevice.Describe` reads whisper.cpp's log (`using … backend`,
+  `Core ML model loaded`, `no GPU found`). The runtime name alone is not enough: the macOS runtimes
+  fall back from CoreML to Metal and from Metal to the CPU without failing.
+  `Whisper.net.Runtime.Metal` ships the Metal shader both macOS runtimes need.
+- **Speech-only decoding.** `SpeechTimeline` packs the Silero VAD regions (padded 0.3 s, merged when
+  closer than 1 s, 0.6 s pause between) into one recording. Whisper decodes that, and every word
+  time is mapped back with `ToSource`. Segments outside speech are still dropped as before.
+- **Accuracy options.** `TranscriptionRequest.BeamSearch` (beam 5) and `Hints` (from
+  `AsrReview.SpellingHints`, appended to the style prompt, capped at 180 characters and carried to
+  every window). `WhisperHallucinations` gives known invented phrases, loops and unsure "silent"
+  windows zero confidence. `AsrReview.FlagDoubtful` marks lines with a word under 0.25 for review.
+- **Encoders.** `VideoEncoder.Amf` and `Qsv` are probed with a one-frame encode like NVENC. Any
+  failure means "not this machine", so they are simply not offered.
+
 ## Languages, free tiers and the local engine (v0.11.0)
 
 - **Per-language reading rules.** `ReadingRulesSettings.ToRules(language)` gives English +3 CPS. For
