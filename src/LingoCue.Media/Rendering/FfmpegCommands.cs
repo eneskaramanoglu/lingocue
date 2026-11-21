@@ -13,6 +13,12 @@ public enum VideoEncoder
 
     /// <summary>Apple VideoToolbox (macOS): much faster, slightly larger files.</summary>
     VideoToolbox,
+
+    /// <summary>AMD AMF (Windows, Radeon): much faster, slightly larger files.</summary>
+    Amf,
+
+    /// <summary>Intel Quick Sync (Windows, Intel graphics): much faster, slightly larger files.</summary>
+    Qsv,
 }
 
 public enum SoftSubContainer
@@ -144,6 +150,14 @@ public static class FfmpegCommands
             // VideoToolbox takes a 1–100 quality (higher = better).
             VideoEncoder.VideoToolbox =>
                 ["-c:v", "h264_videotoolbox", "-q:v", Inv($"{VideoToolboxQuality(crf)}"), "-pix_fmt", "yuv420p"],
+
+            // AMF and Quick Sync constant-quality scales also read a step "worse" than x264 CRF.
+            VideoEncoder.Amf =>
+                ["-c:v", "h264_amf", "-quality", "quality", "-rc", "cqp", "-qp_i", Inv($"{Math.Min(51, crf + 1)}"), "-qp_p", Inv($"{Math.Min(51, crf + 1)}"), "-qp_b", Inv($"{Math.Min(51, crf + 1)}"), "-pix_fmt", "yuv420p"],
+
+            // Quick Sync encodes NV12 frames; ICQ (global_quality) needs look-ahead off.
+            VideoEncoder.Qsv =>
+                ["-c:v", "h264_qsv", "-preset", "slower", "-global_quality", Inv($"{Math.Min(51, crf + 1)}"), "-look_ahead", "0", "-pix_fmt", "nv12"],
 
             _ => ["-c:v", "libx264", "-preset", "veryfast", "-crf", Inv($"{crf}"), "-pix_fmt", "yuv420p"],
         };
