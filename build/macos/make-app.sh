@@ -16,8 +16,8 @@ cp -R "$publish_dir"/. "$app/Contents/MacOS/"
 sed "s/__VERSION__/$version/g" "$script_dir/Info.plist" > "$app/Contents/Info.plist"
 chmod +x "$app/Contents/MacOS/LingoCue"
 
-# App icon: an iconset from the 1024 px master (build/icon/make-icon.cs), compiled by iconutil.
-icon_master="$script_dir/../icon/lingocue-1024.png"
+# App icon: an iconset from the 1024 px master (build/appicon/make-icon.cs), compiled by iconutil.
+icon_master="$script_dir/../appicon/lingocue-1024.png"
 iconset="$(mktemp -d)/AppIcon.iconset"
 mkdir -p "$iconset"
 for size in 16 32 128 256 512; do
