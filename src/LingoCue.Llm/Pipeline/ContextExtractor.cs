@@ -80,7 +80,7 @@ public sealed class ContextExtractor(IChatClient client)
             onRetry: null,
             cancellationToken);
 
-        var usage = LlmUsage.Zero.Add(response.Usage?.InputTokenCount ?? 0, response.Usage?.OutputTokenCount ?? 0);
+        var usage = LlmUsage.Zero.Add(response.Usage?.InputTokenCount ?? 0, response.Usage?.OutputTokenCount ?? 0, response.Usage?.CachedInputTokenCount ?? 0);
         try
         {
             using var doc = JsonDocument.Parse(LineJson.StripFences(response.Text));

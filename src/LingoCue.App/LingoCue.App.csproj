@@ -11,7 +11,10 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
-    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />  </ItemGroup>
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Also a plain file: FFmpeg draws the template gallery on it when the project has no video. -->
+    <None Include="Assets/gallery-background.jpg" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" />

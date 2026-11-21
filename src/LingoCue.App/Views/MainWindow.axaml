@@ -532,6 +532,27 @@
                            Text="{Binding SelectedCue.IssuesText, FallbackValue=''}" Classes="issues" TextWrapping="Wrap" />
               </Grid>
 
+              <!-- Words speech recognition was unsure of: each one plays from just before it. -->
+              <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding SelectedCue.HasDoubtfulWords, FallbackValue=False}">
+                <TextBlock Classes="muted small" Text="Emin olunmayan kelimeler:" VerticalAlignment="Center" />
+                <ItemsControl ItemsSource="{Binding SelectedCue.DoubtfulWords, FallbackValue={x:Null}}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="sub:Word">
+                      <Button Classes="small doubtful" Margin="0,0,6,0" Focusable="False"
+                              Command="{Binding $parent[ItemsControl].((vm:SubtitleEditorViewModel)DataContext).PlayWordCommand}"
+                              CommandParameter="{Binding}" ToolTip.Tip="Bu kelimeden biraz önceden oynat">
+                        <TextBlock Text="{Binding Text}" />
+                      </Button>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+
               <!-- Original text from the source track, for corrected/translated tracks. -->
               <DockPanel IsVisible="{Binding SelectedCue.HasOriginal, FallbackValue=False}">
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">

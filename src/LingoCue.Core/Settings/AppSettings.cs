@@ -55,6 +55,9 @@ public sealed record TranscriptionSettings
 
     /// <summary>Glossary terms (names, places) are given to Whisper as spelling hints.</summary>
     public bool UseGlossaryHints { get; init; } = true;
+
+    /// <summary>macOS: run Whisper's encoder on the Apple Neural Engine (a ~1.2 GB Core ML download per model family).</summary>
+    public bool UseNeuralEngine { get; init; }
 }
 
 public sealed record LlmSettings

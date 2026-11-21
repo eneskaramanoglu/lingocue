@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using LingoCue.Core.Fonts;
 using LingoCue.Core.Projects;
 using LingoCue.Core.Subtitles;
 using LingoCue.Core.Text;
@@ -39,7 +40,8 @@ public static class AssScriptBuilder
     public const string MainStyleName = "Default";
 
     /// <param name="allowBilingual">False for one-track-per-file outputs (e.g. MKV soft subtitles), where the second track is its own file.</param>
-    public static SubtitleDocument BuildDocument(Project project, SubtitleTrack track, int videoWidth = 0, int videoHeight = 0, bool allowBilingual = true)
+    /// <param name="measurer">Measures text for rounded block boxes; without it they are drawn square.</param>
+    public static SubtitleDocument BuildDocument(Project project, SubtitleTrack track, int videoWidth = 0, int videoHeight = 0, bool allowBilingual = true, ITextMeasurer? measurer = null)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(track);
@@ -50,8 +52,8 @@ public static class AssScriptBuilder
         var culture = CultureFor(track.Language);
         var cues = track.Cues.Where(c => c.End > c.Start).ToList();
         var secondaryTrack = allowBilingual ? SecondaryTrackFor(project, track) : null;
-        var sink = new EventSink(x, y);
-        var styles = new List<SubtitleStyle> { EffectiveStyle(main) };
+        var sink = new EventSink(x, y, measurer);
+        var styles = new List<SubtitleStyle>(StylesFor(main, measurer));
 
         if (secondaryTrack is null)
         {
@@ -71,7 +73,7 @@ public static class AssScriptBuilder
                 MarginL = main.MarginL,
                 MarginR = main.MarginR,
             };
-            styles.Add(EffectiveStyle(secondary));
+            styles.AddRange(StylesFor(secondary, measurer));
             AddBilingualEvents(sink, cues, secondaryTrack, main, secondary, bilingual.Gap, presentation, culture, x);
         }
 
@@ -181,8 +183,23 @@ public static class AssScriptBuilder
     /// <summary>Events for one cue: plain, karaoke fill (one event) or active word (one event per word).</summary>
     private static void AddEvents(EventSink sink, Cue cue, CueFormatData format, PresentationOptions presentation, SubtitleStyle style, CultureInfo culture)
     {
-        AddBackground(sink, cue, format, presentation, style, culture);
-        var prefix = BoxTags(style.Background);
+        string prefix;
+        if (RoundedBoxDrawing(sink, cue, format, presentation, style, culture) is { } drawing)
+        {
+            // The text uses the plain style; the rounded box is a shape one layer below.
+            sink.AddUnder(Event(cue, drawing + FadeTag(presentation.FadeInMs, presentation.FadeOutMs), cue.Start, cue.End, format with { MarginV = 0 }));
+            prefix = string.Empty;
+        }
+        else
+        {
+            if (IsRounded(style, sink.Measurer))
+            {
+                format = format with { Style = BoxStyleName(format.Style ?? MainStyleName) }; // cannot measure: the square libass box
+            }
+
+            AddBackground(sink, cue, format, presentation, style, culture);
+            prefix = BoxTags(style.Background);
+        }
 
         var karaoke = presentation.Karaoke;
         var timed = karaoke.Mode == KaraokeMode.Off ? null : KaraokeTiming.Align(cue);
@@ -352,6 +369,92 @@ public static class AssScriptBuilder
              + $"m 0 0 l {playResX} 0 l {playResX} {Num(height)} l 0 {Num(height)}{{\\p0}}";
     }
 
+    // ---------------------------------------------------------------- rounded block box
+
+    private static bool IsRounded(SubtitleStyle style, ITextMeasurer? measurer)
+        => measurer is not null && style.Background is { Kind: BackgroundKind.BlockBox, CornerRadius: > 0 };
+
+    /// <summary>Name of the square-box fallback style for lines a rounded box cannot be measured for.</summary>
+    internal static string BoxStyleName(string style) => style + " Box";
+
+    /// <summary>
+    /// Styles written for <paramref name="style"/>: one, or with a rounded block box two: the text style
+    /// (no libass box; the shape is drawn under it) and the square BorderStyle 4 fallback.
+    /// </summary>
+    internal static IEnumerable<SubtitleStyle> StylesFor(SubtitleStyle style, ITextMeasurer? measurer)
+    {
+        if (!IsRounded(style, measurer))
+        {
+            yield return EffectiveStyle(style);
+            yield break;
+        }
+
+        yield return style with { BorderStyle = AssBorderStyle.Outline };
+        yield return EffectiveStyle(style) with { Name = BoxStyleName(style.Name) };
+    }
+
+    /// <summary>
+    /// A rounded rectangle (ASS vector drawing) around the measured text block, or null when the line
+    /// cannot be measured or is wider than the space between the margins (libass would wrap it, and the
+    /// box would no longer fit).
+    /// </summary>
+    private static string? RoundedBoxDrawing(EventSink sink, Cue cue, CueFormatData format, PresentationOptions presentation, SubtitleStyle style, CultureInfo culture)
+    {
+        if (!IsRounded(style, sink.Measurer))
+        {
+            return null;
+        }
+
+        var text = SubtitleText.StripTags(cue.Text);
+        if (presentation.UpperCase)
+        {
+            text = text.ToUpper(culture);
+        }
+
+        var available = sink.Width - style.MarginL - style.MarginR;
+        if (sink.Measurer!.LongestLineWidth(text, style) is not { } width || width <= 0 || width > available)
+        {
+            return null;
+        }
+
+        var background = style.Background;
+        var lineHeight = style.FontSize * style.ScaleY / 100;
+        var lines = text.Split('\n').Length;
+        var edge = style.Outline; // libass pads its box from the glyph border too
+        var w = width + (2 * (background.PaddingX + edge));
+        var h = (lines * lineHeight) + (2 * (background.PaddingY + edge));
+        var marginV = format.MarginV > 0 ? format.MarginV : style.MarginV;
+        var left = (style.Alignment % 3) switch
+        {
+            1 => style.MarginL - background.PaddingX - edge,
+            0 => sink.Width - style.MarginR - width - background.PaddingX - edge,
+            _ => style.MarginL + ((available - width) / 2) - background.PaddingX - edge,
+        };
+        var top = VerticalPosition(style.Alignment) switch
+        {
+            Vertical.Top => marginV - background.PaddingY - edge,
+            Vertical.Middle => (sink.Height - h) / 2,
+            _ => sink.Height - marginV - (lines * lineHeight) - background.PaddingY - edge,
+        };
+        var frame = background.HasFrame
+            ? $@"\bord{Num(background.FrameWidth)}\3c{background.FrameColor.ToAssOverride()}\3a{Alpha(background.FrameColor)}"
+            : @"\bord0";
+        return $@"{{\an7\pos({Num(left)},{Num(top)}){frame}\shad0\blur0\1c{background.Color.ToAssOverride()}\1a{Alpha(background.Color)}\p1}}"
+               + RoundedRectangle(w, h, background.CornerRadius) + @"{\p0}";
+    }
+
+    /// <summary>ASS drawing commands for a rectangle with quarter-circle corners (cubic Bézier approximation).</summary>
+    internal static string RoundedRectangle(double w, double h, double radius)
+    {
+        var r = Math.Clamp(radius, 0, Math.Min(w, h) / 2);
+        var k = r * 0.4477; // 1 − 0.5523: control point distance from the corner for a circular arc
+        return string.Create(CultureInfo.InvariantCulture,
+            $"m {Num(r)} 0 l {Num(w - r)} 0 b {Num(w - k)} 0 {Num(w)} {Num(k)} {Num(w)} {Num(r)} " +
+            $"l {Num(w)} {Num(h - r)} b {Num(w)} {Num(h - k)} {Num(w - k)} {Num(h)} {Num(w - r)} {Num(h)} " +
+            $"l {Num(r)} {Num(h)} b {Num(k)} {Num(h)} 0 {Num(h - k)} 0 {Num(h - r)} " +
+            $"l 0 {Num(r)} b 0 {Num(k)} {Num(k)} 0 {Num(r)} 0");
+    }
+
     private static string Alpha(AssColor color) => string.Create(CultureInfo.InvariantCulture, $"&H{255 - color.A:X2}&");
 
     private static string Num(double value) => Math.Round(value, 2).ToString(CultureInfo.InvariantCulture);
@@ -361,8 +464,10 @@ public static class AssScriptBuilder
     /// layers are spread out (text 2L+1, background 2L) so a box never shares a layer with text:
     /// libass would push events on the same layer apart.
     /// </summary>
-    private sealed class EventSink(int width, int height)
+    private sealed class EventSink(int width, int height, ITextMeasurer? measurer = null)
     {
+        public ITextMeasurer? Measurer => measurer;
+
         private readonly List<Cue> _text = [];
         private readonly List<Cue> _under = [];
 
@@ -434,8 +539,8 @@ public static class AssScriptBuilder
     private static Cue Event(Cue source, string text, TimeSpan start, TimeSpan end, CueFormatData format)
         => new(source.Id, start, end, text) { Speaker = source.Speaker, Marks = source.Marks, Format = format };
 
-    public static string Build(Project project, SubtitleTrack track, int videoWidth = 0, int videoHeight = 0, bool allowBilingual = true)
-        => SubtitleFormats.Ass.Write(BuildDocument(project, track, videoWidth, videoHeight, allowBilingual));
+    public static string Build(Project project, SubtitleTrack track, int videoWidth = 0, int videoHeight = 0, bool allowBilingual = true, ITextMeasurer? measurer = null)
+        => SubtitleFormats.Ass.Write(BuildDocument(project, track, videoWidth, videoHeight, allowBilingual, measurer));
 
     /// <summary>
     /// Brings a style authored for another script height (e.g. an imported 720p ASS) to the
@@ -464,6 +569,7 @@ public static class AssScriptBuilder
                 PaddingX = Math.Round(style.Background.PaddingX * f, 2),
                 PaddingY = Math.Round(style.Background.PaddingY * f, 2),
                 FrameWidth = Math.Round(style.Background.FrameWidth * f, 2),
+                CornerRadius = Math.Round(style.Background.CornerRadius * f, 2),
             },
         };
     }

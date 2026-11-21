@@ -55,7 +55,8 @@
       <ItemsControl ItemsSource="{Binding Tracks}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:TrackChoice">
-            <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}" />
+            <!-- A TextBlock, not a string Content: track names like "large-v3-q5_0" would lose "_" as an access key. -->
+            <CheckBox IsChecked="{Binding IsSelected}"><TextBlock Text="{Binding Label}" /></CheckBox>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>

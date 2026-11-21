@@ -50,6 +50,9 @@ public sealed record SubtitleBackground
 
     public AssColor FrameColor { get; init; } = AssColor.White;
 
+    /// <summary>Rounded corners of the block box, in script pixels; 0 = square (the plain libass box).</summary>
+    public double CornerRadius { get; init; }
+
     public bool HasFrame => Kind != BackgroundKind.None && FrameWidth > 0;
 
     /// <summary>

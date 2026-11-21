@@ -81,6 +81,7 @@ macOS Anahtar Zinciri'nde saklanır; proje dosyalarına yazılmaz.
    - **Whisper (yerel):** ücretsizdir, video bilgisayardan çıkmaz. Ekran kartı varsa onu kullanır.
    - **Gemini Transcribe (bulut):** gürültülü ve çok konuşmacılı videolarda daha iyidir; dakikası yaklaşık 0,005 $.
    - Sonuçta **Kaynak** izi oluşur. Ses tanımanın emin olmadığı satırlar **!** ile işaretlenir; bunları dinleyip kontrol edin.
+   - Böyle bir satırda emin olunmayan kelimeler zaman çizelgesinde turuncu çizgiyle gösterilir. Düzenleme kutusunun altındaki kelime düğmeleri, o kelimeyi biraz öncesinden çalar.
 3. **Düzelt.** Yapay zekâ yazım, noktalama ve özel isimleri düzeltir, satırları okunur uzunlukta tutar.
    Sonuç ayrı bir **Düzeltilmiş** izdir; orijinal korunur. Çok değişen satırlar **!** ile işaretlenir.
 4. **Çevir.** Bir ya da birkaç hedef dil seçin (ör. İngilizce ve Korece). Her dil ayrı bir iz olur.
@@ -112,8 +113,10 @@ Korece için Netflix kuralları (satırda 16 karakter) otomatik uygulanır.
 **Stil** sekmesi altyazının görünümünü değiştirir; önizleme anında güncellenir ve dışa aktarılan videoyla
 birebir aynıdır.
 
-- **Şablon:** Hazır görünümler (YouTube klasik, Shorts, Belgesel, Haber şeridi…). Kendi stilinizi
-  **Şablon olarak kaydet** ile tüm projelerde kullanabilirsiniz.
+- **Şablonlar:** Her şablon bir kart olarak görünür.
+  - Kartın küçük resmi, seçili satırın videonuzdaki görünümüdür.
+  - Karta tıklayınca şablon uygulanır; Ctrl+Z ile geri alırsınız. Projenin şu anki görünümüne uyan kart mavi çerçeveyle işaretlenir.
+  - Kendi stilinizi **Şablon olarak kaydet** ile tüm projelerde kullanabilirsiniz.
 - **Yazı:** font, boyut, kalın/italik, harf aralığı, BÜYÜK HARF (Türkçe kurallarıyla i → İ).
   Bilgisayarda olmayan ya da Türkçe/Korece harfi eksik fontlar için uyarı çıkar; **Font dosyası ekle**
   fontu projenin `fonts` klasörüne kopyalar.
@@ -122,6 +125,7 @@ birebir aynıdır.
   - **Satır kutusu:** her satırın arkasında ayrı kutu.
   - **Tam genişlik şerit:** videonun bir ucundan öbür ucuna bant.
   - Kutu rengi ve saydamlığı (renk seçicinin **A** değeri), yatay/dikey iç boşluk, çerçeve kalınlığı ve rengi.
+  - **Köşe yuvarlaklığı** (blok kutusu): yazının genişliği font dosyasından ölçülerek yuvarlak köşeli kutu çizilir. Ölçülemeyen ya da otomatik kaydırılacak kadar uzun satırlarda köşeli kutu kullanılır.
 - **Konum:** dokuz hizalama ve kenar boşlukları. **Güvenli alan** kılavuzları önizlemede gösterilir.
 - **Karaoke:** kelimeler konuşuldukça renklenir (Shorts tarzı). Kelime zamanı olan izlerde çalışır.
 - **İki dilli mod:** ikinci bir izi (ör. İngilizce çeviri) ana altyazının altında gösterir.
@@ -167,6 +171,7 @@ Dışa aktarma işleri arka planda sürer; ilerlemeyi sağ alttaki **İşler**'d
   (Otomatik / En iyi / Hızlı), sözlük ipuçları, güncelleme denetimi.
   - *En iyi* (beam search) daha isabetlidir ama yaklaşık iki kat yavaştır; *Otomatik* ekran kartı varsa açar.
   - *large-v3 (tam)* modeli 6 GB ve üstü ekran kartları içindir (3,1 GB indirme).
+  - **Neural Engine hızlandırması** (yalnızca Apple Silicon): Whisper'ın bir bölümü Neural Engine'de çalışır. İlk kullanımda ~1,2 GB indirilir; ilk çalıştırma birkaç dakika sürebilir.
 - **Dil modeli:** varsayılan motor (Gemini ya da Ollama), modeller, ücretsiz katman, paket boyutu.
 - **Altyazı kuralları:** satır uzunluğu, satır sayısı, süreler, okuma hızı.
 - **API anahtarları:** Gemini anahtarı.

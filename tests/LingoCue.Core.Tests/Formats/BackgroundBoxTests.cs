@@ -141,6 +141,74 @@ public class BackgroundBoxTests
         => StyleTemplates.BuiltIn.Where(t => t.Style.Background.Kind != BackgroundKind.None).Select(t => t.Name)
             .ShouldBe(["Belgesel", "Haber şeridi"]);
 
+    /// <summary>Every character is 20 px wide; null for text containing "?" (as if the font were missing).</summary>
+    private sealed class FixedMeasurer : Core.Fonts.ITextMeasurer
+    {
+        public double? LongestLineWidth(string text, SubtitleStyle style)
+            => text.Contains('?', StringComparison.Ordinal) ? null : text.Split('\n').Max(l => l.Length) * 20;
+    }
+
+    [Fact]
+    public void A_rounded_block_box_is_a_shape_under_text_with_no_libass_box()
+    {
+        var project = WithBackground(new SubtitleBackground { Kind = BackgroundKind.BlockBox, PaddingX = 30, PaddingY = 10, CornerRadius = 16 });
+
+        var document = AssScriptBuilder.BuildDocument(project, project.Tracks[0], measurer: new FixedMeasurer());
+
+        document.Styles.Select(s => (s.Name, s.BorderStyle)).ShouldBe([("Default", AssBorderStyle.Outline), ("Default Box", AssBorderStyle.Box)]);
+        var shape = document.Cues[0];
+        // "Merhaba" = 140 px wide, centered between 60 px margins on 1920; box adds padding 30 + outline 2.5 a side.
+        shape.Text.ShouldStartWith(@"{\an7\pos(857.5,967.5)\bord0\shad0\blur0");
+        shape.Text.ShouldContain(@"\p1}m 16 0 l 189 0 b ");
+        (shape.Format.Layer, document.Cues[1].Format.Layer).ShouldBe((0, 1));
+        document.Cues[1].Text.ShouldBe("Merhaba"); // no \xshad padding: the text has no libass box
+        document.Cues[1].Format.Style.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("Kim? Nerede?")]                          // the font cannot be measured
+    [InlineData("Bu satır kenar boşlukları arasına sığmayacak kadar uzun; libass onu kesin olarak iki satıra kaydırır, kutu da sığmazdı")] // > 90 chars × 20 px
+    public void Lines_that_cannot_be_measured_use_the_square_libass_box(string text)
+    {
+        var project = WithBackground(new SubtitleBackground { Kind = BackgroundKind.BlockBox, PaddingX = 30, PaddingY = 10, CornerRadius = 16 }, text);
+
+        var cue = AssScriptBuilder.BuildDocument(project, project.Tracks[0], measurer: new FixedMeasurer()).Cues.ShouldHaveSingleItem();
+
+        cue.Format.Style.ShouldBe("Default Box");
+        cue.Text.ShouldStartWith(@"{\xshad30\yshad10}");
+    }
+
+    [Fact]
+    public void Without_a_measurer_rounded_corners_fall_back_to_the_square_box()
+    {
+        var project = WithBackground(new SubtitleBackground { Kind = BackgroundKind.BlockBox, CornerRadius = 16 });
+
+        var document = AssScriptBuilder.BuildDocument(project, project.Tracks[0]);
+
+        document.Styles.ShouldHaveSingleItem().BorderStyle.ShouldBe(AssBorderStyle.Box);
+        document.Cues.ShouldHaveSingleItem().Format.Style.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Corner_radius_is_capped_at_half_the_shorter_side()
+        => AssScriptBuilder.RoundedRectangle(100, 20, 50).ShouldStartWith("m 10 0 l 90 0 ");
+
+    [Fact]
+    public void A_project_looks_like_its_template_despite_color_picker_rounding()
+    {
+        var template = StyleTemplates.BuiltIn.First(t => t.Name == "Haber şeridi");
+        var project = new Project();
+        StyleTemplates.Apply(template, project);
+        var band = project.Style.Background;
+
+        project.Style = project.Style with { Background = band with { Color = band.Color with { B = (byte)(band.Color.B - 1) } } }; // HSV round trip
+        StyleTemplates.LooksLike(project, template).ShouldBeTrue();
+
+        project.Style = project.Style with { FontSize = 60 };
+        StyleTemplates.LooksLike(project, template).ShouldBeFalse();
+        StyleTemplates.LooksLike(project, StyleTemplates.BuiltIn[0]).ShouldBeFalse();
+    }
+
     [Fact]
     public void Normalizing_an_imported_style_scales_the_box_too()
     {

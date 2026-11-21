@@ -232,6 +232,18 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void SetEndToPlayhead() => SelectedCue?.SetEnd(_player.Position);
 
+    /// <summary>Plays from a little before a doubtful word so it can be heard in context.</summary>
+    [RelayCommand]
+    private void PlayWord(Word word)
+    {
+        if (_player.IsLoaded)
+        {
+            var from = word.Start - TimeSpan.FromMilliseconds(600);
+            _player.Seek(from < TimeSpan.Zero ? TimeSpan.Zero : from);
+            _player.Play();
+        }
+    }
+
     partial void OnSelectedCueChanged(CueViewModel? value)
     {
         // A row picked by the user jumps the video there; one picked by playback must not seek.

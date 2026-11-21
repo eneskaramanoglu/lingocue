@@ -7,6 +7,7 @@ using LingoCue.App.Services;
 using LingoCue.Core.Fonts;
 using LingoCue.Core.Projects;
 using LingoCue.Core.Subtitles;
+using LingoCue.Media.Rendering;
 
 namespace LingoCue.App.ViewModels;
 
@@ -25,7 +26,7 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
     [
         nameof(FontName), nameof(FontSize), nameof(Bold), nameof(Italic), nameof(Underline), nameof(Spacing), nameof(UpperCase),
         nameof(PrimaryColor), nameof(OutlineColor), nameof(ShadowColor), nameof(Outline), nameof(Shadow),
-        nameof(SelectedBackground), nameof(BoxColor), nameof(BoxPaddingX), nameof(BoxPaddingY), nameof(FrameWidth), nameof(FrameColor),
+        nameof(SelectedBackground), nameof(BoxColor), nameof(BoxPaddingX), nameof(BoxPaddingY), nameof(FrameWidth), nameof(FrameColor), nameof(CornerRadius),
         nameof(Alignment), nameof(MarginV), nameof(MarginL), nameof(MarginR), nameof(FadeIn), nameof(FadeOut),
         nameof(SelectedKaraoke), nameof(HighlightColor),
         nameof(BilingualEnabled), nameof(SecondaryTrack), nameof(SecondaryFontName), nameof(SecondaryFontSize), nameof(SecondaryColor), nameof(Gap),
@@ -35,13 +36,15 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
     private readonly IFontCatalog? _fonts;
     private readonly IFilePickerService? _files;
     private readonly IDialogService? _dialogs;
+    private readonly StyleThumbnails? _thumbnails;
     private Project? _project;
     private SubtitleTrack? _activeTrack;
     private string? _projectPath;
     private bool _loading;
 
-    public StyleEditorViewModel(IStyleTemplateStore templates, IFontCatalog fonts, IFilePickerService files, IDialogService dialogs)
+    public StyleEditorViewModel(IStyleTemplateStore templates, IFontCatalog fonts, IFilePickerService files, IDialogService dialogs, StyleThumbnails? thumbnails = null)
     {
+        _thumbnails = thumbnails;
         _templates = templates;
         _fonts = fonts;
         _files = files;
@@ -132,7 +135,7 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
     ];
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasBackground), nameof(HasSideBox), nameof(HasFrame), nameof(BackgroundInfo), nameof(OutlineInfo))]
+    [NotifyPropertyChangedFor(nameof(HasBackground), nameof(HasSideBox), nameof(HasFrame), nameof(BackgroundInfo), nameof(OutlineInfo), nameof(HasBlockBox))]
     public partial BackgroundChoice? SelectedBackground { get; set; }
 
     public bool HasBackground => SelectedBackground is { Kind: not BackgroundKind.None };
@@ -156,6 +159,12 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasFrame), nameof(BackgroundInfo))]
     public partial decimal FrameWidth { get; set; }
+
+    /// <summary>Rounded corners of the block box (0 = square).</summary>
+    [ObservableProperty]
+    public partial decimal CornerRadius { get; set; }
+
+    public bool HasBlockBox => SelectedBackground is { Kind: BackgroundKind.BlockBox };
 
     [ObservableProperty]
     public partial Color FrameColor { get; set; } = Colors.White;
@@ -286,6 +295,7 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
             BoxPaddingX = (decimal)background.PaddingX;
             BoxPaddingY = (decimal)background.PaddingY;
             FrameWidth = (decimal)background.FrameWidth;
+            CornerRadius = (decimal)background.CornerRadius;
             FrameColor = ToColor(background.FrameColor);
             Alignment = style.Alignment;
             MarginV = style.MarginV;
@@ -317,6 +327,7 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
             _loading = false;
         }
 
+        MarkAppliedCard();
         UpdateInfo();
     }
 
@@ -368,6 +379,7 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
                 PaddingX = (double)Math.Clamp(BoxPaddingX, 0, 400),
                 PaddingY = (double)Math.Clamp(BoxPaddingY, 0, 400),
                 FrameWidth = (double)Math.Clamp(FrameWidth, 0, 40),
+                CornerRadius = (double)Math.Clamp(CornerRadius, 0, 200),
                 FrameColor = ToAss(FrameColor),
             },
             Outline = (double)Math.Clamp(Outline, 0, 50),
@@ -399,6 +411,7 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
             },
         };
 
+        MarkAppliedCard();
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -510,6 +523,75 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
         BilingualInfo = SecondaryTracks.Count == 0
             ? "İki dilli mod için projede ikinci bir iz gerekir (ör. çeviri ya da içe aktarılan İngilizce altyazı)."
             : null;
+    }
+
+    // ---------------------------------------------------------------- gallery
+
+    /// <summary>Raised when templates were added, imported or deleted (the gallery needs new thumbnails).</summary>
+    public event EventHandler? GalleryChanged;
+
+    /// <summary>One card per template, with a thumbnail of the real look (rendered by libass through FFmpeg).</summary>
+    public ObservableCollection<TemplateCard> Gallery { get; } = [];
+
+    private CancellationTokenSource? _galleryCts;
+
+    /// <summary>
+    /// Renders the thumbnails one after another over <paramref name="scene"/> (cached, so a second call
+    /// with the same frame and text is instant). A new call cancels the one still running.
+    /// </summary>
+    public async Task RefreshGalleryAsync(ThumbnailScene scene)
+    {
+        if (_thumbnails is null)
+        {
+            return;
+        }
+
+        if (_galleryCts is { } previous)
+        {
+            await previous.CancelAsync();
+        }
+
+        using var cts = new CancellationTokenSource();
+        _galleryCts = cts;
+        try
+        {
+            foreach (var card in Gallery.ToList())
+            {
+                var png = await Task.Run(() => _thumbnails.RenderAsync(card.Template, scene, cts.Token), cts.Token);
+                if (png is not null)
+                {
+                    card.SetThumbnail(png);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // a newer refresh took over
+        }
+        finally
+        {
+            if (_galleryCts == cts)
+            {
+                _galleryCts = null;
+            }
+        }
+    }
+
+    /// <summary>A click on a card applies that template (Ctrl+Z brings the previous look back).</summary>
+    [RelayCommand]
+    private void ApplyCard(TemplateCard card)
+    {
+        SelectedTemplate = card.Template;
+        ApplyTemplate();
+    }
+
+    /// <summary>A card is marked when the project looks exactly like its template (style and presentation).</summary>
+    private void MarkAppliedCard()
+    {
+        foreach (var card in Gallery)
+        {
+            card.IsSelected = _project is { } project && StyleTemplates.LooksLike(project, card.Template);
+        }
     }
 
     // ---------------------------------------------------------------- commands
@@ -625,7 +707,18 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
             Templates.Add(template);
         }
 
+        // Cards keep their thumbnail when the template itself did not change.
+        var old = Gallery.ToDictionary(c => c.Template.Name, StringComparer.Ordinal);
+        Gallery.Clear();
+        foreach (var template in Templates)
+        {
+            Gallery.Add(old.TryGetValue(template.Name, out var card) && card.Template == template ? card : new TemplateCard(template));
+        }
+
+        GalleryChanged?.Invoke(this, EventArgs.Empty);
+
         SelectedTemplate = Templates.FirstOrDefault(t => t.Name == previous) ?? Templates.FirstOrDefault();
+        MarkAppliedCard();
     }
 
     partial void OnHasProjectChanged(bool value) => ApplyTemplateCommand.NotifyCanExecuteChanged();

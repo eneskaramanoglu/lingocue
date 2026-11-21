@@ -284,6 +284,13 @@
     <Setter Property="CornerRadius" Value="7" />
   </Style>
 
+  <!-- A word speech recognition was unsure of (editor), in the warning color like its timeline marker. -->
+  <Style Selector="Button.doubtful">
+    <Setter Property="Foreground" Value="{DynamicResource WarningForegroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource WarningForegroundBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+
   <!-- Line list and QA list: flat rows with a hairline divider; selection is a tint plus an accent edge
        drawn by the item template. -->
   <Style Selector="ListBox.cues">

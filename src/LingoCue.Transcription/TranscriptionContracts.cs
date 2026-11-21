@@ -12,6 +12,7 @@ public sealed record TranscriptionModel(string Id, string DisplayName, string De
 /// <param name="Language">BCP 47 spoken language (<c>tr</c>); null = auto-detect.</param>
 /// <param name="BeamSearch">Decode with several candidates (more accurate, slower); engines without it ignore it.</param>
 /// <param name="Hints">Names and terms to spell as given (from the glossary); engines without prompts ignore them.</param>
+/// <param name="UseNeuralEngine">macOS: run Whisper's encoder on the Apple Neural Engine (downloads a ~1.2 GB Core ML encoder once).</param>
 public sealed record TranscriptionRequest(
     string MediaPath,
     TimeSpan Duration,
@@ -19,7 +20,8 @@ public sealed record TranscriptionRequest(
     string ModelId,
     bool Diarize = false,
     bool BeamSearch = false,
-    IReadOnlyList<string>? Hints = null);
+    IReadOnlyList<string>? Hints = null,
+    bool UseNeuralEngine = false);
 
 public sealed record TranscriptionResult(
     IReadOnlyList<Word> Words,

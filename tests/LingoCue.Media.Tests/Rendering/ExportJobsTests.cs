@@ -59,7 +59,7 @@ public sealed class ExportJobsTests(TestMedia media) : IClassFixture<TestMedia>,
         var project = TwoTrackProject(out var turkish, out _);
         var output = Path.Combine(_dir, "çıktı", "film.mp4");
 
-        var job = await ExportJobs.PrepareBurnInAsync(project, turkish, source, output, VideoEncoder.X264, 19, null, JobsRoot, ct);
+        var job = await ExportJobs.PrepareBurnInAsync(project, turkish, source, output, VideoEncoder.X264, 19, null, JobsRoot, cancellationToken: ct);
         File.ReadAllText(Path.Combine(job.WorkDirectory, FfmpegCommands.SubtitleFileName)).ShouldContain("ŞİĞ");
         await renderer.RenderAsync(job.Command, job.Duration, cancellationToken: ct);
         ExportJobs.Cleanup(job);
@@ -96,7 +96,7 @@ public sealed class ExportJobsTests(TestMedia media) : IClassFixture<TestMedia>,
         track.AddCue(TimeSpan.Zero, TimeSpan.FromSeconds(3), "ŞİĞ");
         var output = Path.Combine(_dir, $"{kind}.mp4");
 
-        var job = await ExportJobs.PrepareBurnInAsync(project, track, source, output, VideoEncoder.X264, 19, null, JobsRoot, ct);
+        var job = await ExportJobs.PrepareBurnInAsync(project, track, source, output, VideoEncoder.X264, 19, null, JobsRoot, cancellationToken: ct);
         await renderer.RenderAsync(job.Command, job.Duration, cancellationToken: ct);
         ExportJobs.Cleanup(job);
 
@@ -119,7 +119,7 @@ public sealed class ExportJobsTests(TestMedia media) : IClassFixture<TestMedia>,
         project.Presentation = new PresentationOptions { Bilingual = new BilingualOptions { Enabled = true, SecondaryTrackId = english.Id } };
         var output = Path.Combine(_dir, "film.mkv");
 
-        var job = await ExportJobs.PrepareSoftSubAsync(project, [turkish, english], source, output, SoftSubContainer.Mkv, null, JobsRoot, ct);
+        var job = await ExportJobs.PrepareSoftSubAsync(project, [turkish, english], source, output, SoftSubContainer.Mkv, null, JobsRoot, cancellationToken: ct);
         var firstAss = File.ReadAllText(Path.Combine(job.WorkDirectory, "track1.ass"));
         firstAss.ShouldContain("ŞİĞ");
         firstAss.ShouldNotContain("Style: Secondary");
@@ -151,8 +151,8 @@ public sealed class ExportJobsTests(TestMedia media) : IClassFixture<TestMedia>,
         var source = new MediaInfo("in.mp4", "mov", TimeSpan.FromSeconds(1), null, new VideoStreamInfo(0, "h264", 1280, 720, 25, 0), []);
         var project = TwoTrackProject(out var turkish, out _);
 
-        var burn = await ExportJobs.PrepareBurnInAsync(project, turkish, source, Path.Combine(_dir, "o.mp4"), VideoEncoder.X264, 19, fonts, JobsRoot, ct);
-        var mkv = await ExportJobs.PrepareSoftSubAsync(project, [turkish], source, Path.Combine(_dir, "o.mkv"), SoftSubContainer.Mkv, fonts, JobsRoot, ct);
+        var burn = await ExportJobs.PrepareBurnInAsync(project, turkish, source, Path.Combine(_dir, "o.mp4"), VideoEncoder.X264, 19, fonts, JobsRoot, cancellationToken: ct);
+        var mkv = await ExportJobs.PrepareSoftSubAsync(project, [turkish], source, Path.Combine(_dir, "o.mkv"), SoftSubContainer.Mkv, fonts, JobsRoot, cancellationToken: ct);
 
         Directory.GetFiles(Path.Combine(burn.WorkDirectory, FfmpegCommands.FontsFolderName)).Select(Path.GetFileName).ShouldBe(["Başlık.ttf"]);
         mkv.Command.Arguments.ShouldContain(Path.Combine(fonts, "Başlık.ttf"));

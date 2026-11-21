@@ -142,6 +142,34 @@ public static class StyleTemplates
         };
     }
 
+    /// <summary>
+    /// The project looks like the template: same style and presentation (bilingual track choices aside).
+    /// Colors may differ by a couple of steps per channel: color pickers round them through HSV.
+    /// </summary>
+    public static bool LooksLike(Project project, StyleTemplate template)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        ArgumentNullException.ThrowIfNull(template);
+        return Quantize(project.Style with { Name = "Default" }) == Quantize(template.Style with { Name = "Default" }) &&
+               Quantize(project.Presentation with { Bilingual = template.Presentation.Bilingual }) == Quantize(template.Presentation);
+    }
+
+    private static SubtitleStyle Quantize(SubtitleStyle s) => s with
+    {
+        PrimaryColor = Q(s.PrimaryColor),
+        SecondaryColor = Q(s.SecondaryColor),
+        OutlineColor = Q(s.OutlineColor),
+        BackColor = Q(s.BackColor),
+        Background = s.Background with { Color = Q(s.Background.Color), FrameColor = Q(s.Background.FrameColor) },
+    };
+
+    private static PresentationOptions Quantize(PresentationOptions p) => p with
+    {
+        Karaoke = p.Karaoke with { HighlightColor = Q(p.Karaoke.HighlightColor) },
+    };
+
+    private static AssColor Q(AssColor c) => new((byte)((c.R + 2) / 5), (byte)((c.G + 2) / 5), (byte)((c.B + 2) / 5), (byte)((c.A + 2) / 5));
+
     public static string Serialize(StyleTemplate template)
     {
         ArgumentNullException.ThrowIfNull(template);

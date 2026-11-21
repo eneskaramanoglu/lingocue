@@ -86,6 +86,8 @@ internal static class ServiceCollectionExtensions
         services.AddSingleton<SubtitleEditorViewModel>();
         services.AddSingleton<TimelineViewModel>();
         services.AddSingleton<QualityViewModel>();
+        services.AddSingleton(sp => new StyleThumbnails(sp.GetRequiredService<IMediaToolLocator>(), sp.GetRequiredService<IProcessRunner>(),
+            Path.Combine(Path.GetTempPath(), "LingoCue", "thumbnails"), sp.GetRequiredService<IFontCatalog>()));
         services.AddSingleton<StyleEditorViewModel>();
         services.AddSingleton<RenderQueueViewModel>();
         services.AddTransient<MainViewModel>();

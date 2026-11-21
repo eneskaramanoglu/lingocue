@@ -36,6 +36,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         Language = s.Transcription.Language ?? "auto";
         BeamSearchMode = BeamSearchModes.First(m => m.Value == s.Transcription.BeamSearch);
         UseGlossaryHints = s.Transcription.UseGlossaryHints;
+        UseNeuralEngine = s.Transcription.UseNeuralEngine;
         AutoCheckUpdates = s.Updates.AutoCheck;
         LocalBatchSize = s.Llm.LocalBatchSize;
         LocalParallelism = s.Llm.LocalParallelism;
@@ -44,6 +45,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
             var info = hardware.Read();
             _advice = HardwareAdvisor.Advise(info);
             HardwareText = HardwareAdvisor.Describe(info);
+            IsAppleSilicon = info.UnifiedMemory;
             AdviceText = DescribeAdvice(_advice);
         }
 
@@ -103,6 +105,12 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial bool UseGlossaryHints { get; set; }
+
+    /// <summary>Apple Silicon: the Neural Engine option is offered.</summary>
+    public bool IsAppleSilicon { get; }
+
+    [ObservableProperty]
+    public partial bool UseNeuralEngine { get; set; }
 
     /// <summary>Look for a new version at start-up, at most about once a day.</summary>
     [ObservableProperty]
@@ -304,6 +312,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
                 Language = Language == "auto" ? null : Language,
                 BeamSearch = BeamSearchMode?.Value,
                 UseGlossaryHints = UseGlossaryHints,
+                UseNeuralEngine = UseNeuralEngine,
             },
             Llm = current.Llm with
             {

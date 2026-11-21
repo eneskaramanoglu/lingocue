@@ -53,8 +53,13 @@
                 </DataTemplate>
               </ComboBox.ItemTemplate>
             </ComboBox>
-            <CheckBox Grid.Row="4" Grid.Column="1" IsChecked="{Binding UseGlossaryHints}"
-                      Content="Sözlükteki adları Whisper'a yazım ipucu olarak ver (özel isimler daha doğru yazılır)" />
+            <StackPanel Grid.Row="4" Grid.Column="1" Spacing="6">
+              <CheckBox IsChecked="{Binding UseGlossaryHints}"
+                        Content="Sözlükteki adları Whisper'a yazım ipucu olarak ver (özel isimler daha doğru yazılır)" />
+              <!-- Apple Silicon only: whisper.cpp uses the Core ML encoder when it sits next to the model. -->
+              <CheckBox IsChecked="{Binding UseNeuralEngine}" IsVisible="{Binding IsAppleSilicon}"
+                        Content="Neural Engine hızlandırması (Apple Silicon; ilk kullanımda ~1,2 GB indirilir, ilk çalıştırma birkaç dakika sürebilir)" />
+            </StackPanel>
             <TextBlock Grid.Row="5" Grid.ColumnSpan="2" Classes="muted" TextWrapping="Wrap"
                        Text="Whisper yereldir ve ücretsizdir. Gemini 3.5 Transcribe gürültülü ve çok konuşmacılı videolarda daha iyidir ama ücretlidir (~0,005 $/dk)." />
           </Grid>

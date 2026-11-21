@@ -23,6 +23,26 @@ dotnet run --project src/LingoCue.App
 
 Logs are written to `~/Library/Logs/LingoCue/`.
 
+## v1.1.0 — Gallery, rounded box, Neural Engine
+
+- [ ] **Neural Engine.**
+  - Tercihler → Genel shows "Neural Engine hızlandırması" (it is hidden on Windows). Turn it on and transcribe a short video.
+  - The first run downloads ~1.2 GB and may sit at "Neural Engine hazırlanıyor" for a few minutes.
+  - The status then names **Apple Neural Engine (CoreML) + Apple Metal (GPU)**.
+  - A second run starts quickly. Compare its time with the option off (it should be faster or similar).
+  - Turn the option off: the next run says "Apple Metal (GPU)" again, without downloading anything.
+- [ ] **Template gallery.** Open the Stil tab:
+  - The cards show the selected line over the video frame.
+  - Without a video they show the drawn skyline.
+  - A click applies the template and marks the card; Ctrl+Z undoes it.
+- [ ] **Rounded box.** Stil → Arka plan kutusu → Blok kutusu, then Köşe yuvarlaklığı 24:
+  - The box corners round in the preview and in a burned-in export (VideoToolbox), and the box fits the text with even padding.
+  - Try a project font from "Font dosyası ekle".
+  - A very long line that wraps keeps a square box.
+- [ ] **Doubtful words.** Use a recognized track with a "!" line, for example from a noisy clip:
+  - Orange bars appear under the doubtful words on the timeline.
+  - The word buttons under the editor play from just before each word.
+
 ## v1.0.0 — Packaging, updates, help
 
 Use the release `.dmg` for this section, not a source build. Packaging is what is being tested.
