@@ -7,8 +7,8 @@ spot-check older ones.
 
 **From a release (preferred):**
 
-1. Download `LingoCue-<version>-osx-arm64.zip` from the GitHub Release.
-2. Unzip (double-click), move `LingoCue.app` to `/Applications`.
+1. Download `LingoCue-<version>-osx-arm64.dmg` from the GitHub Release (0.12 and older: the `.zip`).
+2. Open it and drag `LingoCue` onto `Applications`.
 3. Remove the quarantine flag: `xattr -dr com.apple.quarantine /Applications/LingoCue.app`
 
 **From source (any branch):**
@@ -22,6 +22,27 @@ dotnet run --project src/LingoCue.App
 ```
 
 Logs are written to `~/Library/Logs/LingoCue/`.
+
+## v1.0.0 — Packaging, updates, help
+
+Use the release `.dmg` for this section, not a source build. Packaging is what is being tested.
+The v0.12.0 section below also still needs a Mac run (Metal, chip detection).
+
+- [ ] The `.dmg` opens a window with `LingoCue` and an `Applications` link; dragging copies the app.
+- [ ] Finder and the Dock show the LingoCue icon (blue tile with the subtitle glyph), not a generic app icon.
+- [ ] After the `xattr` command the app starts. Without it, macOS says the app is damaged; that is expected
+      and is in the user guide.
+- [ ] Yardım → LingoCue hakkında shows the right version and the component list.
+- [ ] Yardım → Güncellemeleri denetle on the newest version: "En güncel sürümü kullanıyorsunuz".
+      (Once a newer release exists: the banner offers "Sürüm sayfasını aç"; it opens the release page in
+      the browser.)
+- [ ] Tercihler → Genel → Güncellemeler: turn the check off, save, reopen: it stays off.
+- [ ] Yardım → Tanılama paketi oluştur: a zip appears on the Desktop and Finder shows it. Inside:
+      `ozet.txt` (the hardware line names the Apple chip and its memory),
+      `settings.json` without recent files, and `logs/`. No `/Users/<name>` path in any file (`~` instead).
+- [ ] Yardım → Log klasörünü aç opens `~/Library/Logs/LingoCue` in Finder.
+- [ ] Yardım → Kullanım kılavuzu and Hata bildir open GitHub pages in the browser.
+- [ ] Quit and reopen: no update banner appears again on the same day (checked at most once a day).
 
 ## v0.12.0 — Background box, hardware, Whisper accuracy
 
