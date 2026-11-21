@@ -20,7 +20,7 @@ public sealed record ThumbnailScene(string? VideoPath, TimeSpan At, string Text,
 /// <see cref="AssScriptBuilder"/> output as the preview and the burn-in, so the thumbnail is the real look.
 /// Results are cached by template, text and frame.
 /// </summary>
-public sealed class StyleThumbnails(IMediaToolLocator locator, IProcessRunner runner, string cacheDirectory)
+public sealed class StyleThumbnails(IMediaToolLocator locator, IProcessRunner runner, string cacheDirectory, Core.Fonts.IFontCatalog? fonts = null)
 {
     public const int Width = 480;
 
@@ -37,7 +37,7 @@ public sealed class StyleThumbnails(IMediaToolLocator locator, IProcessRunner ru
             return null;
         }
 
-        var script = Script(template, scene);
+        var script = Script(template, scene, fonts is null ? null : new Core.Fonts.FontTextMeasurer(fonts, scene.ProjectFontDirectory));
         var key = Hash(CacheVersion + "|" + script + "|" + scene.VideoPath + "|" + scene.At.Ticks.ToString(CultureInfo.InvariantCulture) + "|" + scene.BackgroundImage);
         var output = Path.Combine(cacheDirectory, key + ".png");
         if (File.Exists(output))
@@ -72,7 +72,7 @@ public sealed class StyleThumbnails(IMediaToolLocator locator, IProcessRunner ru
     /// frame time to 0, so the line spans 0 to an hour. Bilingual layout and karaoke need other tracks
     /// or word timings and are left out of the thumbnail.
     /// </summary>
-    internal static string Script(StyleTemplate template, ThumbnailScene scene)
+    internal static string Script(StyleTemplate template, ThumbnailScene scene, Core.Fonts.ITextMeasurer? measurer = null)
     {
         var project = new Project();
         StyleTemplates.Apply(template, project);
@@ -85,7 +85,7 @@ public sealed class StyleThumbnails(IMediaToolLocator locator, IProcessRunner ru
         };
         var track = project.EnsureActiveTrack();
         track.AddCue(TimeSpan.Zero, TimeSpan.FromHours(1), scene.Text);
-        return AssScriptBuilder.Build(project, track, scene.VideoWidth, scene.VideoHeight);
+        return AssScriptBuilder.Build(project, track, scene.VideoWidth, scene.VideoHeight, measurer: measurer);
     }
 
     /// <summary>Share of the frame a thumbnail shows: the subtitle area, enlarged so the text can be read.</summary>

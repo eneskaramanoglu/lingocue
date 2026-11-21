@@ -35,11 +35,12 @@ public sealed partial class SubtitlePreviewService : IDisposable
     public string PreviewPath => _path;
 
     /// <summary>Schedules a refresh with the latest state; repeated calls within 300 ms collapse into one.</summary>
-    public void Request(Project project, SubtitleTrack? track, int videoWidth, int videoHeight)
+    /// <param name="measurer">Measures text for rounded block boxes (they are square without it).</param>
+    public void Request(Project project, SubtitleTrack? track, int videoWidth, int videoHeight, Core.Fonts.ITextMeasurer? measurer = null)
     {
         ArgumentNullException.ThrowIfNull(project);
         var empty = new SubtitleTrack();
-        _pending = () => AssScriptBuilder.Build(project, track ?? empty, videoWidth, videoHeight);
+        _pending = () => AssScriptBuilder.Build(project, track ?? empty, videoWidth, videoHeight, measurer: measurer);
         _timer.Stop();
         _timer.Start();
     }

@@ -26,7 +26,7 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
     [
         nameof(FontName), nameof(FontSize), nameof(Bold), nameof(Italic), nameof(Underline), nameof(Spacing), nameof(UpperCase),
         nameof(PrimaryColor), nameof(OutlineColor), nameof(ShadowColor), nameof(Outline), nameof(Shadow),
-        nameof(SelectedBackground), nameof(BoxColor), nameof(BoxPaddingX), nameof(BoxPaddingY), nameof(FrameWidth), nameof(FrameColor),
+        nameof(SelectedBackground), nameof(BoxColor), nameof(BoxPaddingX), nameof(BoxPaddingY), nameof(FrameWidth), nameof(FrameColor), nameof(CornerRadius),
         nameof(Alignment), nameof(MarginV), nameof(MarginL), nameof(MarginR), nameof(FadeIn), nameof(FadeOut),
         nameof(SelectedKaraoke), nameof(HighlightColor),
         nameof(BilingualEnabled), nameof(SecondaryTrack), nameof(SecondaryFontName), nameof(SecondaryFontSize), nameof(SecondaryColor), nameof(Gap),
@@ -135,7 +135,7 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
     ];
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasBackground), nameof(HasSideBox), nameof(HasFrame), nameof(BackgroundInfo), nameof(OutlineInfo))]
+    [NotifyPropertyChangedFor(nameof(HasBackground), nameof(HasSideBox), nameof(HasFrame), nameof(BackgroundInfo), nameof(OutlineInfo), nameof(HasBlockBox))]
     public partial BackgroundChoice? SelectedBackground { get; set; }
 
     public bool HasBackground => SelectedBackground is { Kind: not BackgroundKind.None };
@@ -159,6 +159,12 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasFrame), nameof(BackgroundInfo))]
     public partial decimal FrameWidth { get; set; }
+
+    /// <summary>Rounded corners of the block box (0 = square).</summary>
+    [ObservableProperty]
+    public partial decimal CornerRadius { get; set; }
+
+    public bool HasBlockBox => SelectedBackground is { Kind: BackgroundKind.BlockBox };
 
     [ObservableProperty]
     public partial Color FrameColor { get; set; } = Colors.White;
@@ -289,6 +295,7 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
             BoxPaddingX = (decimal)background.PaddingX;
             BoxPaddingY = (decimal)background.PaddingY;
             FrameWidth = (decimal)background.FrameWidth;
+            CornerRadius = (decimal)background.CornerRadius;
             FrameColor = ToColor(background.FrameColor);
             Alignment = style.Alignment;
             MarginV = style.MarginV;
@@ -372,6 +379,7 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
                 PaddingX = (double)Math.Clamp(BoxPaddingX, 0, 400),
                 PaddingY = (double)Math.Clamp(BoxPaddingY, 0, 400),
                 FrameWidth = (double)Math.Clamp(FrameWidth, 0, 40),
+                CornerRadius = (double)Math.Clamp(CornerRadius, 0, 200),
                 FrameColor = ToAss(FrameColor),
             },
             Outline = (double)Math.Clamp(Outline, 0, 50),

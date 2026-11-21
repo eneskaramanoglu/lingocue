@@ -23,6 +23,9 @@ public interface IFontCatalog
 
     /// <summary>The best installed or project font with Korean letters, or null when there is none.</summary>
     string? SuggestHangulFamily(string? projectFontDirectory);
+
+    /// <summary>The face libass would use for a family with this weight and slant (project fonts first).</summary>
+    FontFace? FindFace(string family, bool bold, bool italic, string? projectFontDirectory) => null;
 }
 
 /// <summary>
@@ -86,6 +89,24 @@ public sealed class FontCatalog(IPlatformInfo platform) : IFontCatalog
         var withHangul = faces.Where(f => f.HasHangul).Select(f => f.Family).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         return PreferredHangulFamilies.FirstOrDefault(p => withHangul.Contains(p, StringComparer.OrdinalIgnoreCase))
                ?? withHangul.Order(StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+    }
+
+    public FontFace? FindFace(string family, bool bold, bool italic, string? projectFontDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(family);
+        var name = family.Trim();
+        var faces = ProjectFaces(projectFontDirectory).Where(f => Matches(f, name)).ToList();
+        if (faces.Count == 0)
+        {
+            faces = [.. _system.Value.Where(f => Matches(f, name))];
+        }
+
+        // Weight and slant as the subfamily names them ("Bold Italic", "Semibold", "Oblique").
+        return faces.OrderByDescending(f => (IsBold(f) == bold ? 2 : 0) + (IsItalic(f) == italic ? 1 : 0)).FirstOrDefault();
+
+        static bool IsBold(FontFace f) => f.Subfamily.Contains("Bold", StringComparison.OrdinalIgnoreCase) || f.Subfamily.Contains("Black", StringComparison.OrdinalIgnoreCase);
+
+        static bool IsItalic(FontFace f) => f.Subfamily.Contains("Italic", StringComparison.OrdinalIgnoreCase) || f.Subfamily.Contains("Oblique", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool Matches(FontFace face, string name)

@@ -19,14 +19,14 @@ public static class ExportJobs
 {
     public static async Task<RenderJob> PrepareBurnInAsync(
         Project project, SubtitleTrack track, MediaInfo media, string outputPath,
-        VideoEncoder encoder, int quality, string? projectFontDirectory, string jobsRoot, CancellationToken cancellationToken = default)
+        VideoEncoder encoder, int quality, string? projectFontDirectory, string jobsRoot, Core.Fonts.ITextMeasurer? measurer = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(track);
         ArgumentNullException.ThrowIfNull(media);
         var work = CreateWorkDirectory(jobsRoot);
         var (width, height) = media.Video is { } v ? (v.DisplayWidth, v.DisplayHeight) : (0, 0);
-        await File.WriteAllTextAsync(Path.Combine(work, FfmpegCommands.SubtitleFileName), AssScriptBuilder.Build(project, track, width, height), cancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(work, FfmpegCommands.SubtitleFileName), AssScriptBuilder.Build(project, track, width, height, measurer: measurer), cancellationToken);
         CopyFonts(projectFontDirectory, Path.Combine(work, FfmpegCommands.FontsFolderName));
 
         var command = FfmpegCommands.BurnIn(new BurnInRequest(media.FilePath, outputPath, media, work, encoder, quality));
@@ -36,7 +36,7 @@ public static class ExportJobs
     /// <param name="tracks">In player order; the first one is marked as the default track.</param>
     public static async Task<RenderJob> PrepareSoftSubAsync(
         Project project, IReadOnlyList<SubtitleTrack> tracks, MediaInfo media, string outputPath,
-        SoftSubContainer container, string? projectFontDirectory, string jobsRoot, CancellationToken cancellationToken = default)
+        SoftSubContainer container, string? projectFontDirectory, string jobsRoot, Core.Fonts.ITextMeasurer? measurer = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(tracks);
@@ -57,7 +57,7 @@ public static class ExportJobs
             {
                 // Styled ASS per track (each track is its own file, so no bilingual stacking).
                 path = Path.Combine(work, $"track{i + 1}.ass");
-                await File.WriteAllTextAsync(path, AssScriptBuilder.Build(project, track, width, height, allowBilingual: false), cancellationToken);
+                await File.WriteAllTextAsync(path, AssScriptBuilder.Build(project, track, width, height, allowBilingual: false, measurer: measurer), cancellationToken);
             }
             else
             {

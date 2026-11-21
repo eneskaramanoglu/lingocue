@@ -405,12 +405,15 @@ public partial class MainViewModel : ViewModelBase
         }
 
         var (width, height) = VideoSize();
-        _preview.Request(Project, Project.ActiveTrack, width, height);
+        _preview.Request(Project, Project.ActiveTrack, width, height, Measurer());
         if (immediate)
         {
             _preview.Flush();
         }
     }
+
+    /// <summary>Measures text with the fonts libass will use (project fonts first), for rounded block boxes.</summary>
+    private FontTextMeasurer? Measurer() => _fontCatalog is null ? null : new FontTextMeasurer(_fontCatalog, FontCatalog.ProjectFontDirectory(ProjectPath));
 
     private (int Width, int Height) VideoSize()
         => CurrentMedia?.Video is { } v ? (v.DisplayWidth, v.DisplayHeight) : (0, 0);

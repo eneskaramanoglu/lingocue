@@ -173,7 +173,11 @@
           <TextBlock Grid.Row="5" Text="Çerçeve rengi" VerticalAlignment="Center" IsVisible="{Binding HasFrame}" />
           <ColorPicker Grid.Row="5" Grid.Column="1" Color="{Binding FrameColor}" HorizontalAlignment="Left" IsVisible="{Binding HasFrame}" />
 
-          <TextBlock Grid.Row="6" Grid.ColumnSpan="2" Text="{Binding BackgroundInfo}" Classes="muted" TextWrapping="Wrap"
+          <TextBlock Grid.Row="6" Text="Köşe yuvarlaklığı" VerticalAlignment="Center" IsVisible="{Binding HasBlockBox}" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Value="{Binding CornerRadius}" Minimum="0" Maximum="200" Increment="2" FormatString="0" IsVisible="{Binding HasBlockBox}"
+                         ToolTip.Tip="0 = köşeli. Yuvarlak kutu yazının genişliği font dosyasından ölçülerek çizilir; ölçülemeyen ya da otomatik kaydırılacak kadar uzun satırlarda köşeli kutu kullanılır." />
+
+          <TextBlock Grid.Row="7" Grid.ColumnSpan="2" Text="{Binding BackgroundInfo}" Classes="muted" TextWrapping="Wrap"
                      IsVisible="{Binding BackgroundInfo, Converter={x:Static ObjectConverters.IsNotNull}}" />
         </Grid>
       </Expander>

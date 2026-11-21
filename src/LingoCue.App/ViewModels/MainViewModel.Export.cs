@@ -145,7 +145,7 @@ public partial class MainViewModel
         {
             var path = singlePath ?? Path.Combine(folder, SubtitleExportNames.For(ExportBaseName(), choice.Tracks, track) + extension);
             var document = format is AssFormat
-                ? AssScriptBuilder.BuildDocument(project, track, width, height, allowBilingual: choice.Tracks.Count == 1)
+                ? AssScriptBuilder.BuildDocument(project, track, width, height, allowBilingual: choice.Tracks.Count == 1, measurer: Measurer())
                 : SubtitleDocument.FromTrack(track);
             await SubtitleFile.WriteAsync(path, document, format, options);
             written.Add(path);
@@ -174,8 +174,8 @@ public partial class MainViewModel
         var jobsRoot = Path.Combine(Path.GetTempPath(), "LingoCue", "jobs");
         var fonts = FontCatalog.ProjectFontDirectory(ProjectPath);
         var job = burnIn
-            ? await ExportJobs.PrepareBurnInAsync(project, choice.Tracks[0], media, output, choice.Encoder, choice.Quality, fonts, jobsRoot)
-            : await ExportJobs.PrepareSoftSubAsync(project, choice.Tracks, media, output, choice.Container, fonts, jobsRoot);
+            ? await ExportJobs.PrepareBurnInAsync(project, choice.Tracks[0], media, output, choice.Encoder, choice.Quality, fonts, jobsRoot, Measurer())
+            : await ExportJobs.PrepareSoftSubAsync(project, choice.Tracks, media, output, choice.Container, fonts, jobsRoot, Measurer());
         RenderQueue.Enqueue(job);
         StatusText = $"Kuyruğa eklendi: {Path.GetFileName(output)} — ilerlemeyi sağ alttaki İşler'den izleyebilirsiniz.";
     }
