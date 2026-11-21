@@ -9,6 +9,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Velopack" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="LingoCue.Core.Tests" />
   </ItemGroup>
 

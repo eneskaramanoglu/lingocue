@@ -32,6 +32,7 @@ internal static class ServiceCollectionExtensions
     {
         services.AddSingleton(platform);
         services.AddSingleton<IHardwareInfoProvider, LingoCue.Infrastructure.Platform.HardwareInfoProvider>();
+        services.AddSingleton<Core.Updates.IUpdateService>(_ => new Infrastructure.Updates.UpdateService(new HttpClient { Timeout = TimeSpan.FromSeconds(20) }));
         services.AddSingleton<IFileManager, FileManager>();
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IFilePickerService, FilePickerService>();
