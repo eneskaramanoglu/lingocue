@@ -50,15 +50,15 @@ public static class AssScriptBuilder
         var culture = CultureFor(track.Language);
         var cues = track.Cues.Where(c => c.End > c.Start).ToList();
         var secondaryTrack = allowBilingual ? SecondaryTrackFor(project, track) : null;
-        var events = new List<Cue>();
-        var styles = new List<SubtitleStyle> { main };
+        var sink = new EventSink(x, y);
+        var styles = new List<SubtitleStyle> { EffectiveStyle(main) };
 
         if (secondaryTrack is null)
         {
             foreach (var cue in cues)
             {
                 // Every cue uses the project style; layer and margins of imported cues are kept.
-                AddEvents(events, cue, cue.Format with { Style = null }, presentation, main, culture);
+                AddEvents(sink, cue, cue.Format with { Style = null }, presentation, main, culture);
             }
         }
         else
@@ -71,15 +71,15 @@ public static class AssScriptBuilder
                 MarginL = main.MarginL,
                 MarginR = main.MarginR,
             };
-            styles.Add(secondary);
-            AddBilingualEvents(events, cues, secondaryTrack, main, secondary, bilingual.Gap, presentation, culture, x);
+            styles.Add(EffectiveStyle(secondary));
+            AddBilingualEvents(sink, cues, secondaryTrack, main, secondary, bilingual.Gap, presentation, culture, x);
         }
 
         return new SubtitleDocument
         {
             ScriptInfo = project.ScriptInfo with { PlayResX = x, PlayResY = y, Title = project.ScriptInfo.Title ?? "LingoCue" },
             Styles = styles,
-            Cues = events,
+            Cues = sink.Result(),
         };
     }
 
@@ -103,7 +103,7 @@ public static class AssScriptBuilder
     /// vertical margin is computed from the height of the other track's text shown at the same time.
     /// </summary>
     private static void AddBilingualEvents(
-        List<Cue> events, List<Cue> mainCues, SubtitleTrack secondaryTrack, SubtitleStyle main, SubtitleStyle secondary,
+        EventSink events, List<Cue> mainCues, SubtitleTrack secondaryTrack, SubtitleStyle main, SubtitleStyle secondary,
         int gap, PresentationOptions presentation, CultureInfo culture, int playResX)
     {
         var secondaryCues = secondaryTrack.Cues.Where(c => c.End > c.Start).ToList();
@@ -161,27 +161,40 @@ public static class AssScriptBuilder
     internal static int TextHeight(string text, SubtitleStyle style, int playResX)
     {
         var size = style.FontSize * style.ScaleY / 100;
+        var background = style.Background;
+        var edge = background.Kind == BackgroundKind.None
+            ? style.Outline
+            : background.PaddingY + (background.HasFrame ? background.FrameWidth : 0) + (background.Kind == BackgroundKind.BlockBox ? style.Outline : 0);
+        return (int)Math.Ceiling((LineCount(text, style, playResX) * size) + (2 * edge));
+    }
+
+    /// <summary>Estimated number of rendered lines, counting the wrapping of long lines.</summary>
+    internal static int LineCount(string text, SubtitleStyle style, int playResX)
+    {
+        var size = style.FontSize * style.ScaleY / 100;
         var available = Math.Max(1, playResX - style.MarginL - style.MarginR);
         var averageGlyph = size * 0.5 * style.ScaleX / 100;
-        var lines = SubtitleText.StripTags(text).Split('\n')
+        return SubtitleText.StripTags(text).Split('\n')
             .Sum(line => Math.Max(1, (int)Math.Ceiling(line.Length * averageGlyph / available)));
-        return (int)Math.Ceiling((lines * size) + (2 * style.Outline));
     }
 
     /// <summary>Events for one cue: plain, karaoke fill (one event) or active word (one event per word).</summary>
-    private static void AddEvents(List<Cue> events, Cue cue, CueFormatData format, PresentationOptions presentation, SubtitleStyle style, CultureInfo culture)
+    private static void AddEvents(EventSink sink, Cue cue, CueFormatData format, PresentationOptions presentation, SubtitleStyle style, CultureInfo culture)
     {
+        AddBackground(sink, cue, format, presentation, style, culture);
+        var prefix = BoxTags(style.Background);
+
         var karaoke = presentation.Karaoke;
         var timed = karaoke.Mode == KaraokeMode.Off ? null : KaraokeTiming.Align(cue);
         if (timed is null)
         {
-            events.Add(Event(cue, Decorate(cue.Text, presentation, culture), cue.Start, cue.End, format));
+            sink.Add(Event(cue, prefix + Decorate(cue.Text, presentation, culture), cue.Start, cue.End, format));
             return;
         }
 
         if (karaoke.Mode == KaraokeMode.Fill)
         {
-            events.Add(Event(cue, Decorate(FillText(cue, timed, karaoke.HighlightColor, style.PrimaryColor), presentation, culture), cue.Start, cue.End, format));
+            sink.Add(Event(cue, prefix + Decorate(FillText(cue, timed, karaoke.HighlightColor, style.PrimaryColor), presentation, culture), cue.Start, cue.End, format));
             return;
         }
 
@@ -210,7 +223,7 @@ public static class AssScriptBuilder
                 FadeOutMs = s == segments.Count - 1 ? presentation.FadeOutMs : 0,
             };
             var text = ActiveWordText(timed, active, karaoke.HighlightColor, style.PrimaryColor);
-            events.Add(Event(cue, Decorate(text, fades, culture), start, end, format));
+            sink.Add(Event(cue, prefix + Decorate(text, fades, culture), start, end, format));
         }
     }
 
@@ -257,6 +270,129 @@ public static class AssScriptBuilder
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// The ASS style line for a style with a LingoCue background: a line box is BorderStyle 3 painted
+    /// with the box color, a block box is the libass BorderStyle 4 rectangle painted with BackColour.
+    /// The exact padding is set per event (<see cref="BoxTags"/>); the style values are a fallback.
+    /// </summary>
+    internal static SubtitleStyle EffectiveStyle(SubtitleStyle style) => style.Background.Kind switch
+    {
+        BackgroundKind.LineBox => style with
+        {
+            BorderStyle = AssBorderStyle.OpaqueBox,
+            OutlineColor = style.Background.Color,
+            Outline = Math.Max(style.Background.PaddingX, style.Background.PaddingY),
+            Shadow = 0,
+        },
+        BackgroundKind.BlockBox => style with
+        {
+            BorderStyle = AssBorderStyle.Box,
+            BackColor = style.Background.Color,
+            Shadow = style.Background.PaddingY,
+        },
+        _ => style,
+    };
+
+    /// <summary>
+    /// Override tags giving the box its horizontal and vertical padding: line boxes grow with the
+    /// border size, the BorderStyle 4 rectangle with the shadow size.
+    /// </summary>
+    internal static string BoxTags(SubtitleBackground background, double extra = 0) => background.Kind switch
+    {
+        BackgroundKind.LineBox => $@"{{\xbord{Num(background.PaddingX + extra)}\ybord{Num(background.PaddingY + extra)}}}",
+        BackgroundKind.BlockBox => $@"{{\xshad{Num(background.PaddingX + extra)}\yshad{Num(background.PaddingY + extra)}}}",
+        _ => string.Empty,
+    };
+
+    /// <summary>
+    /// Events drawn under a cue's text: the frame (a copy of the text with invisible glyphs whose box
+    /// is larger by the frame width, painted in the frame color) or the full-width band.
+    /// </summary>
+    private static void AddBackground(EventSink sink, Cue cue, CueFormatData format, PresentationOptions presentation, SubtitleStyle style, CultureInfo culture)
+    {
+        var background = style.Background;
+        var plain = presentation with { Karaoke = new KaraokeOptions() };
+        switch (background.Kind)
+        {
+            case BackgroundKind.LineBox when background.HasFrame:
+                var lineFrame = $@"{{\1a&HFF&\2a&HFF&\3c{background.FrameColor.ToAssOverride()}\3a{Alpha(background.FrameColor)}\shad0}}";
+                sink.AddUnder(Event(cue, lineFrame + BoxTags(background, background.FrameWidth) + Decorate(cue.Text, plain, culture), cue.Start, cue.End, format));
+                break;
+            case BackgroundKind.BlockBox when background.HasFrame:
+                var blockFrame = $@"{{\1a&HFF&\2a&HFF&\3a&HFF&\4c{background.FrameColor.ToAssOverride()}\4a{Alpha(background.FrameColor)}}}";
+                sink.AddUnder(Event(cue, blockFrame + BoxTags(background, background.FrameWidth) + Decorate(cue.Text, plain, culture), cue.Start, cue.End, format));
+                break;
+            case BackgroundKind.Band:
+                sink.AddUnder(Event(cue, BandDrawing(cue.Text, format, style, sink.Width, sink.Height) + FadeTag(presentation.FadeInMs, presentation.FadeOutMs),
+                    cue.Start, cue.End, format with { MarginV = 0 }));
+                break;
+        }
+    }
+
+    /// <summary>A full-width rectangle (ASS vector drawing) as high as the text plus the vertical padding.</summary>
+    internal static string BandDrawing(string text, CueFormatData format, SubtitleStyle style, int playResX, int playResY)
+    {
+        var background = style.Background;
+        var size = style.FontSize * style.ScaleY / 100;
+        var block = LineCount(text, style, playResX) * size;
+        var height = block + (2 * background.PaddingY);
+        var marginV = format.MarginV > 0 ? format.MarginV : style.MarginV;
+        var top = VerticalPosition(style.Alignment) switch
+        {
+            Vertical.Top => marginV - background.PaddingY,
+            Vertical.Middle => (playResY - height) / 2,
+            _ => playResY - marginV - block - background.PaddingY,
+        };
+        var frame = background.HasFrame
+            ? $@"\bord{Num(background.FrameWidth)}\3c{background.FrameColor.ToAssOverride()}\3a{Alpha(background.FrameColor)}"
+            : @"\bord0";
+        return $@"{{\an7\pos(0,{Num(top)}){frame}\shad0\blur0\1c{background.Color.ToAssOverride()}\1a{Alpha(background.Color)}\p1}}"
+             + $"m 0 0 l {playResX} 0 l {playResX} {Num(height)} l 0 {Num(height)}{{\\p0}}";
+    }
+
+    private static string Alpha(AssColor color) => string.Create(CultureInfo.InvariantCulture, $"&H{255 - color.A:X2}&");
+
+    private static string Num(double value) => Math.Round(value, 2).ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Collects text events and the background events drawn under them. With any background event,
+    /// layers are spread out (text 2L+1, background 2L) so a box never shares a layer with text:
+    /// libass would push events on the same layer apart.
+    /// </summary>
+    private sealed class EventSink(int width, int height)
+    {
+        private readonly List<Cue> _text = [];
+        private readonly List<Cue> _under = [];
+
+        public int Width => width;
+
+        public int Height => height;
+
+        public void Add(Cue cue) => _text.Add(cue);
+
+        public void AddUnder(Cue cue) => _under.Add(cue);
+
+        public List<Cue> Result()
+        {
+            if (_under.Count == 0)
+            {
+                return _text;
+            }
+
+            foreach (var cue in _under)
+            {
+                cue.Format = cue.Format with { Layer = 2 * cue.Format.Layer };
+            }
+
+            foreach (var cue in _text)
+            {
+                cue.Format = cue.Format with { Layer = (2 * cue.Format.Layer) + 1 };
+            }
+
+            return [.. _under, .. _text];
+        }
     }
 
     private static int Centiseconds(TimeSpan t) => (int)Math.Round(t.TotalMilliseconds / 10, MidpointRounding.AwayFromZero);
@@ -323,6 +459,12 @@ public static class AssScriptBuilder
             MarginL = (int)Math.Round(style.MarginL * f),
             MarginR = (int)Math.Round(style.MarginR * f),
             MarginV = (int)Math.Round(style.MarginV * f),
+            Background = style.Background with
+            {
+                PaddingX = Math.Round(style.Background.PaddingX * f, 2),
+                PaddingY = Math.Round(style.Background.PaddingY * f, 2),
+                FrameWidth = Math.Round(style.Background.FrameWidth * f, 2),
+            },
         };
     }
 }

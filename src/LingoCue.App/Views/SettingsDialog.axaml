@@ -18,7 +18,21 @@
       <!-- General -->
       <TabItem Header="Genel">
         <ScrollViewer>
-          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10" Margin="0,12">
+          <StackPanel Spacing="12" Margin="0,12">
+          <!-- Hardware: what this machine can run, with a one-click suggestion. -->
+          <Border Classes="well" IsVisible="{Binding HasAdvice}">
+            <StackPanel Spacing="6">
+              <TextBlock Text="BU BİLGİSAYAR" Classes="section" />
+              <TextBlock Text="{Binding HardwareText}" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding AdviceText}" Classes="muted small" TextWrapping="Wrap" />
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Content="Önerilen ayarları uygula" Command="{Binding ApplyRecommendedCommand}" />
+                <TextBlock Text="{Binding AdviceStatus}" Classes="muted small" VerticalAlignment="Center" TextWrapping="Wrap"
+                           IsVisible="{Binding AdviceStatus, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="10">
             <TextBlock Text="Varsayılan transkripsiyon motoru" VerticalAlignment="Center" />
             <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Engines}" SelectedItem="{Binding SelectedEngine}">
               <ComboBox.ItemTemplate>
@@ -31,9 +45,20 @@
             <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding WhisperModels}" SelectedItem="{Binding WhisperModel}" />
             <TextBlock Grid.Row="2" Text="Konuşma dili" VerticalAlignment="Center" />
             <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding LanguageCodes}" SelectedItem="{Binding Language}" />
-            <TextBlock Grid.Row="3" Grid.ColumnSpan="2" Classes="muted" TextWrapping="Wrap"
+            <TextBlock Grid.Row="3" Text="Whisper doğruluğu" VerticalAlignment="Center" />
+            <ComboBox Grid.Row="3" Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding BeamSearchModes}" SelectedItem="{Binding BeamSearchMode}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:BeamSearchChoice">
+                  <TextBlock Text="{Binding Label}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <CheckBox Grid.Row="4" Grid.Column="1" IsChecked="{Binding UseGlossaryHints}"
+                      Content="Sözlükteki adları Whisper'a yazım ipucu olarak ver (özel isimler daha doğru yazılır)" />
+            <TextBlock Grid.Row="5" Grid.ColumnSpan="2" Classes="muted" TextWrapping="Wrap"
                        Text="Whisper yereldir ve ücretsizdir. Gemini 3.5 Transcribe gürültülü ve çok konuşmacılı videolarda daha iyidir ama ücretlidir (~0,005 $/dk)." />
           </Grid>
+          </StackPanel>
         </ScrollViewer>
       </TabItem>
 
@@ -66,6 +91,14 @@
                 </Grid>
                 <TextBlock Text="{Binding LocalStatus}" Classes="muted small" TextWrapping="Wrap"
                            IsVisible="{Binding LocalStatus, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <Grid ColumnDefinitions="Auto,140,Auto,140" ColumnSpacing="12">
+                  <TextBlock Text="İstek başına satır" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="1" Minimum="5" Maximum="40" Increment="5" Value="{Binding LocalBatchSize}" FormatString="0" />
+                  <TextBlock Grid.Column="2" Text="Aynı anda istek" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="3" Minimum="1" Maximum="4" Value="{Binding LocalParallelism}" FormatString="0"
+                                 ToolTip.Tip="1'den fazlası için ekran kartında boş bellek gerekir; Ollama'da OLLAMA_NUM_PARALLEL de en az bu kadar olmalı." />
+                </Grid>
+                <TextBlock Text="{Binding AdviceText}" Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding HasAdvice}" />
               </StackPanel>
             </Border>
             <TextBlock Text="GEMINI (BULUT)" Classes="section" Margin="0,6,0,0" />

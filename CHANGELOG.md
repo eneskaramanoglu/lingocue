@@ -6,7 +6,44 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [0.11.0] - 2026-11-20
+## [0.12.0] - 2026-11-21
+
+### Added
+- **Background box** (Stil → Arka plan kutusu).
+  - Four kinds: none, block box (one rectangle behind all lines; the text keeps its outline), line
+    box (a box behind each line) and full-width band.
+  - Box color with opacity, horizontal and vertical padding, and a frame with its own width and
+    color.
+  - The preview and the burned-in video draw it the same way (libass). Exported as an ASS file, it
+    may look different in players that do not use libass; the panel says so.
+  - The "Belgesel" template now uses the block box. New template: "Haber şeridi".
+- **Hardware detection.** The welcome screen and Tercihler → Genel show the graphics card and its
+  memory (on a Mac: the chip and its memory).
+  - "Önerilen ayarları uygula" picks the Whisper model, the accuracy mode and the local model batch
+    settings for this machine, and names the local model size that fits (4B to 30B).
+- **large-v3 (tam)**: the full Whisper model (3.1 GB) for GPUs with 6 GB or more.
+- **Whisper accuracy** (Tercihler → Genel): "En iyi" uses beam search with five candidates. It is
+  more accurate (for example "Boğaz'ın" with its apostrophe) and about twice as slow. "Otomatik"
+  turns it on when Whisper runs on a GPU.
+- **Glossary hints.** Names in the project glossary go to Whisper so it spells them as written.
+- **Doubtful lines.** Lines where Whisper was unsure, or that look invented (credits such as
+  "Altyazı M.K.", looping sentences, text in silent stretches), get the review mark (!).
+- **AMD and Intel hardware encoders** for export on Windows (AMF and Quick Sync), offered when they
+  work on the machine.
+- Local engine: lines per request and requests at a time are now settings.
+
+### Changed
+- Whisper decodes only the speech it finds and skips long silences and music-only stretches. Times
+  are mapped back to the video. On a test recording this was about 30% faster.
+- On a Mac, Whisper runs on the GPU through Metal. The device shown is the one whisper.cpp
+  actually used (for example "Apple Metal (GPU)", "Vulkan (GPU)" or "CPU").
+
+### Fixed
+- A sentence that came after a long silence could be missing from the transcript.
+- Importing an ASS file with BorderStyle 4 (the libass box) lost the box.
+- An apostrophe or comma no longer makes a correct word look doubtful.
+
+## [0.11.0] - 2026-11-21
 
 ### Added
 - **Korean.** Translations can now go into Korean.
@@ -326,7 +363,11 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   unsigned osx-arm64 `.app` zip.
 - Docs: plan, research notes, architecture overview, macOS test checklist, `CLAUDE.md`.
 
-[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.11.0...v0.12.0
+[0.11.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.10.0...v0.11.0
+[0.10.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.9.0...v0.10.0
+[0.9.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.5.0...v0.6.0

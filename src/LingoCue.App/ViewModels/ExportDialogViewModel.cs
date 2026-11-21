@@ -70,13 +70,19 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
         Encoders = [new(VideoEncoder.X264, "İşlemci (x264) — en iyi kalite/boyut, her yerde çalışır")];
         foreach (var status in hardware.Where(h => h.Available))
         {
-            Encoders.Add(new(status.Encoder, status.Encoder == VideoEncoder.Nvenc
-                ? "NVIDIA ekran kartı (NVENC) — çok daha hızlı, dosya biraz büyük"
-                : "Apple donanımı (VideoToolbox) — çok daha hızlı, dosya biraz büyük"));
+            Encoders.Add(new(status.Encoder, status.Encoder switch
+            {
+                VideoEncoder.Nvenc => "NVIDIA ekran kartı (NVENC) — çok daha hızlı, dosya biraz büyük",
+                VideoEncoder.Amf => "AMD ekran kartı (AMF) — çok daha hızlı, dosya biraz büyük",
+                VideoEncoder.Qsv => "Intel grafik (Quick Sync) — hızlı, dosya biraz büyük",
+                _ => "Apple donanımı (VideoToolbox) — çok daha hızlı, dosya biraz büyük",
+            }));
         }
 
         EncoderNote = hardware.FirstOrDefault(h => h.Present && !h.Available)?.Problem;
-        SelectedEncoder = Encoders[^1]; // hardware when it works: renders are long, speed matters most
+        // Hardware when it works (renders are long, speed matters most); the first one found is the
+        // fastest (a laptop's NVIDIA card before its Intel graphics).
+        SelectedEncoder = Encoders.Count > 1 ? Encoders[1] : Encoders[0];
 
         var warnings = new List<string>();
         if (media is not null)

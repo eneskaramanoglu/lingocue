@@ -23,6 +23,34 @@ dotnet run --project src/LingoCue.App
 
 Logs are written to `~/Library/Logs/LingoCue/`.
 
+## v0.12.0 — Background box, hardware, Whisper accuracy
+
+The Mac steps matter most here: Metal and the chip detection could not be tested on Windows.
+
+- [ ] Welcome screen → Hazırlık: "Donanım" shows the chip and memory, for example
+      "Apple M3 · 16 GB ortak bellek".
+- [ ] Tercihler → Genel: the "Bu bilgisayar" card suggests a Whisper model. With 16 GB it should
+      suggest large-v3 (tam) and a ~12B local model. "Önerilen ayarları uygula", then Kaydet: the
+      Whisper model and the local batch settings change.
+- [ ] **Whisper on the GPU.** Transcribe a short video. While recognizing, the status line names
+      the device, and it must be **Apple Metal (GPU)** (or "Apple Neural Engine (CoreML) + Apple
+      Metal (GPU)"), not CPU. If it says CPU, send `~/Library/Logs/LingoCue/` (the whisper.cpp
+      lines about Metal are logged).
+- [ ] Compare the times for "Hızlı" and "En iyi" (Tercihler → Genel → Whisper doğruluğu). "En iyi"
+      is expected to take about twice as long.
+- [ ] A video with a long pause (5 s or more) followed by speech: the sentence after the pause is in
+      the transcript, at the right time.
+- [ ] Add a name to the glossary (Sözlük), for example an unusual surname, then transcribe again:
+      the name is spelled as in the glossary.
+- [ ] Stil → Arka plan kutusu:
+  - [ ] Blok kutusu with a frame: one rectangle behind both lines in the preview, with the frame
+        around it.
+  - [ ] Satır kutusu: one box per line.
+  - [ ] Tam genişlik şerit: a band across the whole video.
+  - [ ] Change the color's opacity and the paddings: the preview follows at once.
+  - [ ] Burn in (VideoToolbox): the video looks the same as the preview.
+- [ ] The "Haber şeridi" template applies a dark blue band with a yellow frame.
+
 ## v0.11.0 — Korean, several languages, local engine
 
 Needs a project with a corrected Turkish track. A short track keeps Gemini costs near zero.

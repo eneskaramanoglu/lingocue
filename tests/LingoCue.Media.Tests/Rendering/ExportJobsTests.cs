@@ -73,6 +73,42 @@ public sealed class ExportJobsTests(TestMedia media) : IClassFixture<TestMedia>,
         pixel[1].ShouldBeLessThan((byte)60);
     }
 
+    [Theory]
+    [InlineData(BackgroundKind.None, 467)]     // control: the test picture is not magenta there
+    [InlineData(BackgroundKind.BlockBox, 467)] // inside the left padding of the text box
+    [InlineData(BackgroundKind.LineBox, 467)]
+    [InlineData(BackgroundKind.Band, 4)]       // far left: only a full-width band reaches it
+    public async Task Burn_in_paints_the_background_box(BackgroundKind kind, int x)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (renderer, probe, runner, tools) = Create();
+        var source = await probe.ProbeAsync(media.LandscapeClip, ct);
+        var project = new Project
+        {
+            Style = new SubtitleStyle
+            {
+                FontSize = 60,
+                MarginV = 40,
+                Background = new SubtitleBackground { Kind = kind, Color = new AssColor(255, 0, 255), PaddingX = 300, PaddingY = 8 },
+            },
+        };
+        var track = project.EnsureActiveTrack();
+        track.AddCue(TimeSpan.Zero, TimeSpan.FromSeconds(3), "ŞİĞ");
+        var output = Path.Combine(_dir, $"{kind}.mp4");
+
+        var job = await ExportJobs.PrepareBurnInAsync(project, track, source, output, VideoEncoder.X264, 19, null, JobsRoot, ct);
+        await renderer.RenderAsync(job.Command, job.Duration, cancellationToken: ct);
+        ExportJobs.Cleanup(job);
+
+        // 1080-reference script on a 720p video: the text's vertical middle (1080 - 40 - 30) is at y ≈ 673.
+        var raw = Path.Combine(_dir, $"{kind}.rgb");
+        var r = await runner.RunAsync(tools.FfmpegPath, ["-v", "error", "-y", "-ss", "1", "-i", output, "-frames:v", "1", "-vf", $"crop=2:2:{x}:673", "-f", "rawvideo", "-pix_fmt", "rgb24", raw], cancellationToken: ct);
+        r.ExitCode.ShouldBe(0, r.StandardError);
+        var pixel = await File.ReadAllBytesAsync(raw, ct);
+        var magenta = pixel[0] > 200 && pixel[1] < 60 && pixel[2] > 200;
+        magenta.ShouldBe(kind != BackgroundKind.None, $"{kind}: rgb {pixel[0]},{pixel[1]},{pixel[2]}");
+    }
+
     [Fact]
     public async Task Soft_sub_mkv_job_writes_one_styled_ass_per_track_without_bilingual_stacking()
     {

@@ -6,16 +6,26 @@ using LingoCue.Transcription.Models;
 using Microsoft.Extensions.Logging;
 using Whisper.net;
 using Whisper.net.LibraryLoader;
+using Whisper.net.Logger;
 
 namespace LingoCue.Transcription.Whisper;
 
 /// <summary>
 /// Local transcription with whisper.cpp through Whisper.net. GPU runtime order: CUDA → Vulkan → CPU
-/// on Windows, CoreML/Metal → CPU on macOS. Models are downloaded on first use.
+/// on Windows, CoreML → CPU on macOS; both macOS runtimes run on the GPU through Metal (the
+/// Whisper.net.Runtime.Metal package ships the shader) and the CoreML one falls back to Metal
+/// without its encoder model. The device actually used is read from whisper.cpp's log. Models are
+/// downloaded on first use.
 /// </summary>
 public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
 {
     private static readonly TimeSpan s_vadPadding = TimeSpan.FromMilliseconds(300);
+
+    /// <summary>Speech regions closer than this are decoded together, with their real pause.</summary>
+    private static readonly TimeSpan s_mergeGap = TimeSpan.FromSeconds(1);
+
+    /// <summary>Pause left between regions that were further apart, so Whisper still hears a break.</summary>
+    private static readonly TimeSpan s_joinGap = TimeSpan.FromMilliseconds(600);
     private readonly IAudioExtractor _audio;
     private readonly ModelDownloader _downloader;
     private readonly IPlatformInfo _platform;
@@ -77,44 +87,95 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
             var speech = await DetectSpeechAsync(vadPath, wav, cancellationToken);
             progress?.Report(new(TranscriptionStage.Recognizing, 0.32));
 
+            // whisper.cpp picks its backend while the model and state load; its log says which one.
+            var nativeLog = new List<string>();
+            using var logSubscription = LogProvider.AddLogger((level, message) =>
+            {
+                if (message is null)
+                {
+                    return;
+                }
+
+                lock (nativeLog)
+                {
+                    nativeLog.Add(message);
+                }
+
+                if (level is WhisperLogLevel.Error or WhisperLogLevel.Warning)
+                {
+                    LogNative(level.ToString(), message.TrimEnd());
+                }
+            });
+
             var factory = GetFactory(modelPath, request.ModelId);
-            var device = DescribeDevice();
+            var device = "?";
             var language = ToWhisperLanguage(request.Language);
-            LogStarting(request.ModelId, device, language);
 
             var builder = factory.CreateBuilder()
                 .WithLanguage(language)
                 .WithTokenTimestamps()
                 .WithProbabilities()
                 .WithProgressHandler(p => progress?.Report(new(TranscriptionStage.Recognizing, 0.32 + (p / 100.0 * 0.66), device)));
-            if (PromptFor(language) is { } prompt)
+            if (PromptFor(language, request.Hints) is { } prompt)
             {
                 builder = builder.WithPrompt(prompt);
+                if (request.Hints is { Count: > 0 })
+                {
+                    // Keep the names in front of every 30-second window, not only the first one.
+                    builder = builder.WithCarryInitialPrompt(true);
+                }
+            }
+
+            if (request.BeamSearch)
+            {
+                builder = builder.WithBeamSearchSamplingStrategy(b => b.WithBeamSize(BeamSize));
             }
 
             await using var processor = builder.Build();
+            device = DescribeDevice(nativeLog);
+            LogStarting(request.ModelId, device, language);
+
+            // Only the speech regions are decoded (see SpeechTimeline); times are mapped back afterwards.
+            var (samples, sampleRate) = WavSamples.Read(wav);
+            var timeline = speech.Count > 0
+                ? SpeechTimeline.Build(speech, request.Duration > TimeSpan.Zero ? request.Duration : TimeSpan.FromSeconds(samples.Length / (double)sampleRate),
+                    s_vadPadding, s_mergeGap, s_joinGap)
+                : null;
+            var input = timeline?.Pack(samples, sampleRate) ?? samples;
+            var originalLength = TimeSpan.FromSeconds(samples.Length / (double)sampleRate);
+            var packedLength = TimeSpan.FromSeconds(input.Length / (double)sampleRate);
+            LogPacked(originalLength, packedLength, timeline?.Pieces.Count ?? 0);
 
             var words = new List<Word>();
             string? detected = null;
+            string? previous = null;
             var dropped = 0;
-            await using (var stream = File.OpenRead(wav))
+            var suspicious = 0;
+            await foreach (var segment in processor.ProcessAsync(input, cancellationToken))
             {
-                await foreach (var segment in processor.ProcessAsync(stream, cancellationToken))
+                detected ??= segment.Language;
+                var start = timeline?.ToSource(segment.Start) ?? segment.Start;
+                var end = timeline?.ToSource(segment.End) ?? segment.End;
+                if (!WhisperTokenWords.OverlapsSpeech(start, end, speech, s_vadPadding))
                 {
-                    detected ??= segment.Language;
-                    if (!WhisperTokenWords.OverlapsSpeech(segment.Start, segment.End, speech, s_vadPadding))
-                    {
-                        dropped++;
-                        continue;
-                    }
+                    dropped++;
+                    continue;
+                }
 
-                    var tokens = segment.Tokens.Select(t => new RawToken(t.Text ?? string.Empty, t.Start, t.End, t.Probability, t.DtwTimestamp));
-                    words.AddRange(WhisperTokenWords.ToWords(tokens));
+                var tokens = segment.Tokens.Select(t => new RawToken(t.Text ?? string.Empty, t.Start, t.End, t.Probability, t.DtwTimestamp));
+                var segmentWords = WhisperTokenWords.ToWords(tokens);
+                var doubtful = WhisperHallucinations.IsSuspicious(segment.Text ?? string.Empty, previous, segment.NoSpeechProbability, segment.Probability);
+                suspicious += doubtful ? 1 : 0;
+                previous = segment.Text;
+                foreach (var word in segmentWords)
+                {
+                    var mapped = timeline is null ? word : word with { Start = timeline.ToSource(word.Start), End = timeline.ToSource(word.End) };
+                    words.Add(doubtful ? mapped with { Confidence = 0 } : mapped);
                 }
             }
 
             progress?.Report(new(TranscriptionStage.Finishing, 1, device));
-            LogFinished(words.Count, dropped, stopwatch.Elapsed);
+            LogFinished(words.Count, dropped, suspicious, stopwatch.Elapsed);
             return new TranscriptionResult(WordTimeline.Normalize(words), Id, request.ModelId, detected, stopwatch.Elapsed, device, 0m);
         }
         catch (Exception ex) when (WhisperLoadFailure(ex))
@@ -142,12 +203,50 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
     /// Whisper continues the style of its prompt. A short, punctuated Turkish sentence nudges it toward
     /// punctuated output with Turkish characters instead of a bare word stream.
     /// </summary>
-    internal static string? PromptFor(string whisperLanguage) => whisperLanguage switch
+    internal static string? PromptFor(string whisperLanguage, IReadOnlyList<string>? hints = null)
     {
-        "tr" => "Merhaba, hoş geldiniz. Bugün neler yapacağız? Evet, başlayalım.",
-        "en" => "Hello, welcome. What are we doing today? Yes, let's begin.",
-        _ => null,
-    };
+        var style = whisperLanguage switch
+        {
+            "tr" => "Merhaba, hoş geldiniz. Bugün neler yapacağız? Evet, başlayalım.",
+            "en" => "Hello, welcome. What are we doing today? Yes, let's begin.",
+            _ => null,
+        };
+
+        // Names from the glossary, spelled the way they should come out. Whisper reads at most 224
+        // prompt tokens (and the carried prompt takes room from the context), so the list is capped.
+        var names = new List<string>();
+        var length = 0;
+        foreach (var hint in hints ?? [])
+        {
+            var name = hint.Trim();
+            if (name.Length == 0 || name.Length > 40 || names.Contains(name, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (length + name.Length + 2 > MaxHintCharacters)
+            {
+                break;
+            }
+
+            names.Add(name);
+            length += name.Length + 2;
+        }
+
+        if (names.Count == 0)
+        {
+            return style;
+        }
+
+        var list = string.Join(", ", names) + ".";
+        return style is null ? list : $"{style} {list}";
+    }
+
+    /// <summary>Beam width used by the "En iyi" accuracy mode (the value OpenAI's Whisper uses).</summary>
+    internal const int BeamSize = 5;
+
+    /// <summary>Room for glossary names in the prompt (about 60 tokens of Turkish text).</summary>
+    internal const int MaxHintCharacters = 180;
 
     internal static string ToWhisperLanguage(string? language)
         => string.IsNullOrWhiteSpace(language) || language.Equals("auto", StringComparison.OrdinalIgnoreCase)
@@ -182,17 +281,14 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
         return _factory;
     }
 
-    private string DescribeDevice()
+    private string DescribeDevice(List<string> nativeLog)
     {
         var loaded = RuntimeOptions.LoadedLibrary;
-        var text = loaded switch
+        string text;
+        lock (nativeLog)
         {
-            RuntimeLibrary.Cuda or RuntimeLibrary.Cuda12 => "NVIDIA CUDA (GPU)",
-            RuntimeLibrary.Vulkan => "Vulkan (GPU)",
-            RuntimeLibrary.CoreML => "Apple CoreML",
-            RuntimeLibrary.Cpu or RuntimeLibrary.CpuNoAvx => "CPU",
-            _ => loaded?.ToString() ?? "?",
-        };
+            text = WhisperDevice.Describe(loaded?.ToString(), nativeLog);
+        }
 
         // NVIDIA driver present but CUDA runtime not used: CUDA Toolkit is missing.
         if (_platform.Platform == OsPlatform.Windows && loaded is not (RuntimeLibrary.Cuda or RuntimeLibrary.Cuda12) &&
@@ -221,9 +317,15 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
         }
     }
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "whisper.cpp {Level}: {Message}")]
+    private partial void LogNative(string level, string message);
+
     [LoggerMessage(Level = LogLevel.Information, Message = "Whisper {Model} on {Device}, language {Language}")]
     private partial void LogStarting(string model, string device, string language);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Whisper finished: {Words} words, {Dropped} segments dropped by VAD, {Elapsed}")]
-    private partial void LogFinished(int words, int dropped, TimeSpan elapsed);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Whisper finished: {Words} words, {Dropped} segments dropped by VAD, {Suspicious} flagged as possible hallucinations, {Elapsed}")]
+    private partial void LogFinished(int words, int dropped, int suspicious, TimeSpan elapsed);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Speech regions: {Pieces}, audio {Original} packed to {Packed}")]
+    private partial void LogPacked(TimeSpan original, TimeSpan packed, int pieces);
 }

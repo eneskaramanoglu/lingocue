@@ -39,6 +39,8 @@ public class FfmpegCommandsTests
     [Theory]
     [InlineData(VideoEncoder.Nvenc, "-c:v h264_nvenc -preset p5 -tune hq -rc vbr -cq 21 -b:v 0")]
     [InlineData(VideoEncoder.VideoToolbox, "-c:v h264_videotoolbox -q:v 69")]
+    [InlineData(VideoEncoder.Amf, "-c:v h264_amf -quality quality -rc cqp -qp_i 20 -qp_p 20 -qp_b 20")]
+    [InlineData(VideoEncoder.Qsv, "-c:v h264_qsv -preset slower -global_quality 20 -look_ahead 0 -pix_fmt nv12")]
     [InlineData(VideoEncoder.X264, "-c:v libx264 -preset veryfast -crf 19")]
     public void Encoders_map_the_quality(VideoEncoder encoder, string expected)
         => Joined(FfmpegCommands.BurnIn(new BurnInRequest("in.mp4", "out.mp4", Source(), "w", encoder, 19))).ShouldContain(expected);
@@ -149,6 +151,16 @@ public class FfmpegCommandsTests
 
         VideoRenderer.HasAssFilter(withLibass).ShouldBeTrue();
         VideoRenderer.HasAssFilter(withoutLibass).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Amd_and_intel_encoders_without_their_gpu_are_simply_not_offered()
+    {
+        const string amf = "[AMF @ 0x1] DLL amfrt64.dll failed to open\n[h264_amf @ 0x2] Failed to create  hardware device context (AMF) : Unknown error occurred";
+        const string qsv = "[h264_qsv @ 0x1] Error initializing an internal MFX session: unsupported (-3)";
+
+        HardwareEncoderStatus.FromProbe(VideoEncoder.Amf, 1, amf).ShouldBe(new HardwareEncoderStatus(VideoEncoder.Amf, false, false, null));
+        HardwareEncoderStatus.FromProbe(VideoEncoder.Qsv, 1, qsv).ShouldBe(new HardwareEncoderStatus(VideoEncoder.Qsv, false, false, null));
     }
 
     [Fact]

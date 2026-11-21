@@ -103,6 +103,13 @@ public sealed record HardwareEncoderStatus(VideoEncoder Encoder, bool Available,
             return new(encoder, false, false, null);
         }
 
+        // AMF and Quick Sync are compiled into Windows builds but need an AMD or Intel GPU; any
+        // failure there means "not this machine" (an Intel/AMD GPU that works opens them fine).
+        if (encoder is VideoEncoder.Amf or VideoEncoder.Qsv)
+        {
+            return new(encoder, false, false, null);
+        }
+
         var driver = Regex.Match(stderr, @"minimum required Nvidia driver for nvenc is (?<v>[\d.]+)", RegexOptions.IgnoreCase);
         if (driver.Success)
         {
@@ -194,7 +201,7 @@ public sealed class VideoRenderer(IMediaToolLocator locator, IProcessRunner runn
     {
         var tools = locator.Locate();
         var statuses = new List<HardwareEncoderStatus>();
-        foreach (var encoder in new[] { VideoEncoder.Nvenc, VideoEncoder.VideoToolbox })
+        foreach (var encoder in new[] { VideoEncoder.Nvenc, VideoEncoder.Amf, VideoEncoder.Qsv, VideoEncoder.VideoToolbox })
         {
             // Listed encoders are not enough (NVENC is compiled in even without an NVIDIA GPU):
             // encode one small frame with the same settings the export uses.

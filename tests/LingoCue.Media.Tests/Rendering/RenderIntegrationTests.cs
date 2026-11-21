@@ -182,7 +182,7 @@ public sealed class RenderIntegrationTests(TestMedia media) : IClassFixture<Test
 
         var statuses = await renderer.HardwareEncodersAsync(ct);
         (await renderer.HardwareEncodersAsync(ct)).ShouldBeSameAs(statuses); // cached
-        statuses.Select(s => s.Encoder).ShouldBe([VideoEncoder.Nvenc, VideoEncoder.VideoToolbox]);
+        statuses.Select(s => s.Encoder).ShouldBe([VideoEncoder.Nvenc, VideoEncoder.Amf, VideoEncoder.Qsv, VideoEncoder.VideoToolbox]);
         var available = statuses.Where(s => s.Available).Select(s => s.Encoder).ToList();
 
         var source = await probe.ProbeAsync(media.LandscapeClip, ct);

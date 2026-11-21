@@ -12,6 +12,8 @@ namespace LingoCue.App.ViewModels;
 
 public sealed record KaraokeChoice(KaraokeMode Mode, string Label);
 
+public sealed record BackgroundChoice(BackgroundKind Kind, string Label, string Hint);
+
 /// <summary>
 /// The "Stil" panel. Every edit is written to the project at once (style and presentation
 /// options) and raises <see cref="Changed"/>, so the preview — the real libass output — follows.
@@ -22,7 +24,8 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
     private static readonly HashSet<string> s_editable =
     [
         nameof(FontName), nameof(FontSize), nameof(Bold), nameof(Italic), nameof(Underline), nameof(Spacing), nameof(UpperCase),
-        nameof(PrimaryColor), nameof(OutlineColor), nameof(ShadowColor), nameof(UseBox), nameof(Outline), nameof(Shadow),
+        nameof(PrimaryColor), nameof(OutlineColor), nameof(ShadowColor), nameof(Outline), nameof(Shadow),
+        nameof(SelectedBackground), nameof(BoxColor), nameof(BoxPaddingX), nameof(BoxPaddingY), nameof(FrameWidth), nameof(FrameColor),
         nameof(Alignment), nameof(MarginV), nameof(MarginL), nameof(MarginR), nameof(FadeIn), nameof(FadeOut),
         nameof(SelectedKaraoke), nameof(HighlightColor),
         nameof(BilingualEnabled), nameof(SecondaryTrack), nameof(SecondaryFontName), nameof(SecondaryFontSize), nameof(SecondaryColor), nameof(Gap),
@@ -113,20 +116,72 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
     [ObservableProperty]
     public partial Color ShadowColor { get; set; } = Color.FromArgb(128, 0, 0, 0);
 
-    /// <summary>Opaque box behind the text instead of an outline; the box uses the outline color.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(OutlineLabel), nameof(OutlineColorLabel))]
-    public partial bool UseBox { get; set; }
-
-    public string OutlineLabel => UseBox ? "Kutu iç boşluğu" : "Kontur kalınlığı";
-
-    public string OutlineColorLabel => UseBox ? "Kutu rengi" : "Kontur rengi";
-
     [ObservableProperty]
     public partial decimal Outline { get; set; } = 2.5m;
 
     [ObservableProperty]
     public partial decimal Shadow { get; set; } = 1;
+
+    // ---- Background box
+    public IReadOnlyList<BackgroundChoice> BackgroundChoices { get; } =
+    [
+        new(BackgroundKind.None, "Yok", "Yalnızca kontur ve gölge."),
+        new(BackgroundKind.BlockBox, "Blok kutusu", "Tüm satırların arkasında tek dikdörtgen; yazının konturu kalır."),
+        new(BackgroundKind.LineBox, "Satır kutusu", "Her satırın arkasında ayrı kutu; kontur görünmez."),
+        new(BackgroundKind.Band, "Tam genişlik şerit", "Videonun bir ucundan öbür ucuna, yazı yüksekliğinde şerit."),
+    ];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBackground), nameof(HasSideBox), nameof(HasFrame), nameof(BackgroundInfo), nameof(OutlineInfo))]
+    public partial BackgroundChoice? SelectedBackground { get; set; }
+
+    public bool HasBackground => SelectedBackground is { Kind: not BackgroundKind.None };
+
+    /// <summary>The band spans the full width, so it has no horizontal padding.</summary>
+    public bool HasSideBox => SelectedBackground is { Kind: BackgroundKind.BlockBox or BackgroundKind.LineBox };
+
+    public bool HasFrame => HasBackground && FrameWidth > 0;
+
+    /// <summary>Box fill; the alpha channel sets the opacity.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BackgroundInfo))]
+    public partial Color BoxColor { get; set; } = Color.FromArgb(160, 0, 0, 0);
+
+    [ObservableProperty]
+    public partial decimal BoxPaddingX { get; set; } = 18;
+
+    [ObservableProperty]
+    public partial decimal BoxPaddingY { get; set; } = 8;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFrame), nameof(BackgroundInfo))]
+    public partial decimal FrameWidth { get; set; }
+
+    [ObservableProperty]
+    public partial Color FrameColor { get; set; } = Colors.White;
+
+    public string? OutlineInfo => SelectedBackground?.Kind == BackgroundKind.LineBox
+        ? "Satır kutusunda yazının konturu çizilmez; kutu konturun yerini alır."
+        : null;
+
+    public string? BackgroundInfo
+    {
+        get
+        {
+            var notes = new List<string>();
+            if (HasFrame && BoxColor.A < 250)
+            {
+                notes.Add("Kutu saydamken çerçeve rengi kutunun içinden de görünür; net bir çerçeve için kutuyu opak yapın.");
+            }
+
+            if (SelectedBackground?.Kind is BackgroundKind.BlockBox or BackgroundKind.Band)
+            {
+                notes.Add("Önizleme ve videoya gömme birebir aynıdır. Ayrı altyazı dosyası (ASS/MKV) olarak dışa aktarıldığında libass kullanmayan oynatıcılar bu kutuyu göstermeyebilir.");
+            }
+
+            return notes.Count == 0 ? null : string.Join(" ", notes);
+        }
+    }
 
     // ---- Position
     [ObservableProperty]
@@ -216,9 +271,22 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
             PrimaryColor = ToColor(style.PrimaryColor);
             OutlineColor = ToColor(style.OutlineColor);
             ShadowColor = ToColor(style.BackColor);
-            UseBox = style.BorderStyle == AssBorderStyle.OpaqueBox;
             Outline = (decimal)style.Outline;
             Shadow = (decimal)style.Shadow;
+            var background = SubtitleBackground.Of(style);
+            if (background.Kind != style.Background.Kind)
+            {
+                // A box from an older project or an imported ASS: its padding was the outline/shadow size.
+                Outline = 2.5m;
+                Shadow = 0;
+            }
+
+            SelectedBackground = BackgroundChoices.First(b => b.Kind == background.Kind);
+            BoxColor = ToColor(background.Color);
+            BoxPaddingX = (decimal)background.PaddingX;
+            BoxPaddingY = (decimal)background.PaddingY;
+            FrameWidth = (decimal)background.FrameWidth;
+            FrameColor = ToColor(background.FrameColor);
             Alignment = style.Alignment;
             MarginV = style.MarginV;
             MarginL = style.MarginL;
@@ -291,7 +359,17 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
             PrimaryColor = ToAss(PrimaryColor),
             OutlineColor = ToAss(OutlineColor),
             BackColor = ToAss(ShadowColor),
-            BorderStyle = UseBox ? AssBorderStyle.OpaqueBox : AssBorderStyle.Outline,
+            // The box comes from Background; the ASS border style follows it when the script is built.
+            BorderStyle = AssBorderStyle.Outline,
+            Background = new SubtitleBackground
+            {
+                Kind = SelectedBackground?.Kind ?? BackgroundKind.None,
+                Color = ToAss(BoxColor),
+                PaddingX = (double)Math.Clamp(BoxPaddingX, 0, 400),
+                PaddingY = (double)Math.Clamp(BoxPaddingY, 0, 400),
+                FrameWidth = (double)Math.Clamp(FrameWidth, 0, 40),
+                FrameColor = ToAss(FrameColor),
+            },
             Outline = (double)Math.Clamp(Outline, 0, 50),
             Shadow = (double)Math.Clamp(Shadow, 0, 50),
             Alignment = Math.Clamp(Alignment, 1, 9),

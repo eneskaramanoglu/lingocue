@@ -16,6 +16,7 @@
     <PackageReference Include="Whisper.net.Runtime.Cuda.Windows" />
     <PackageReference Include="Whisper.net.Runtime.Vulkan" />
     <PackageReference Include="Whisper.net.Runtime.CoreML" />
+    <PackageReference Include="Whisper.net.Runtime.Metal" />
   </ItemGroup>
 
   <ItemGroup>

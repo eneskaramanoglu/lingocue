@@ -47,6 +47,12 @@ public sealed record TranscriptionSettings
 
     /// <summary>BCP 47; null = auto-detect.</summary>
     public string? Language { get; init; } = "tr";
+
+    /// <summary>Beam search (5 candidates): more accurate, slower. Null = on when Whisper runs on a GPU.</summary>
+    public bool? BeamSearch { get; init; }
+
+    /// <summary>Glossary terms (names, places) are given to Whisper as spelling hints.</summary>
+    public bool UseGlossaryHints { get; init; } = true;
 }
 
 public sealed record LlmSettings
@@ -95,6 +101,12 @@ public sealed record LlmSettings
 
     /// <summary>Ollama model name (e.g. what <c>ollama list</c> shows); null = the only installed one.</summary>
     public string? LocalModel { get; init; }
+
+    /// <summary>Lines per request for a local model; larger GPUs keep longer batches valid.</summary>
+    public int LocalBatchSize { get; init; } = 10;
+
+    /// <summary>Requests at a time to Ollama; above 1 only with GPU memory to spare.</summary>
+    public int LocalParallelism { get; init; } = 1;
 
     public bool IsLocal => string.Equals(Provider, "ollama", StringComparison.OrdinalIgnoreCase);
 }

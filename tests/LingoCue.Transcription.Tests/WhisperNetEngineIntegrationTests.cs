@@ -11,7 +11,8 @@ namespace LingoCue.Transcription.Tests;
 
 /// <summary>
 /// Runs real whisper.cpp on a Turkish recording. Opt-in because it downloads a ~1 GB model:
-/// set LINGOCUE_WHISPER_TEST_AUDIO to a Turkish audio/video file (optionally LINGOCUE_WHISPER_TEST_MODEL).
+/// set LINGOCUE_WHISPER_TEST_AUDIO to a Turkish audio/video file (optionally LINGOCUE_WHISPER_TEST_MODEL, LINGOCUE_WHISPER_TEST_BEAM=1
+/// for beam search and LINGOCUE_WHISPER_TEST_HINTS for comma-separated glossary names).
 /// The expected words match the sample sentence used during development ("Merhaba, bugün İstanbul'dayız…").
 /// </summary>
 public class WhisperNetEngineIntegrationTests
@@ -40,7 +41,9 @@ public class WhisperNetEngineIntegrationTests
         var stages = new List<TranscriptionStage>();
 
         var result = await engine.TranscribeAsync(
-            new TranscriptionRequest(audio, info.Duration, "tr", model),
+            new TranscriptionRequest(audio, info.Duration, "tr", model,
+                BeamSearch: Environment.GetEnvironmentVariable("LINGOCUE_WHISPER_TEST_BEAM") == "1",
+                Hints: Environment.GetEnvironmentVariable("LINGOCUE_WHISPER_TEST_HINTS")?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)),
             new Progress<TranscriptionProgress>(p => stages.Add(p.Stage)),
             ct);
 
@@ -48,6 +51,7 @@ public class WhisperNetEngineIntegrationTests
         var log = new System.Text.StringBuilder();
         var inv = System.Globalization.CultureInfo.InvariantCulture;
         log.AppendLine(inv, $"Device: {result.Device}; elapsed {result.Elapsed}; language {result.DetectedLanguage}").AppendLine(text);
+        log.AppendLine("Doubtful words: " + string.Join(", ", result.Words.Where(w => w.Confidence < 0.4).Select(w => $"{w.Text} ({w.Confidence:0.00})")));
         foreach (var cue in Segmenter.Segment(result.Words))
         {
             log.AppendLine(inv, $"{cue.Start:mm\\:ss\\.fff} -> {cue.End:mm\\:ss\\.fff}  {cue.Text.Replace('\n', '|')}");

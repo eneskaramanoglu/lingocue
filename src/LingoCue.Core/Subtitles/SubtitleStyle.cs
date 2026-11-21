@@ -7,6 +7,72 @@ public enum AssBorderStyle
 
     /// <summary>Opaque box behind the text; libass paints the box with <see cref="SubtitleStyle.OutlineColor"/> and its shadow with <see cref="SubtitleStyle.BackColor"/>.</summary>
     OpaqueBox = 3,
+
+    /// <summary>
+    /// libass extension: one rectangle behind the whole event (all lines), filled with
+    /// <see cref="SubtitleStyle.BackColor"/>, padded by the shadow size; the text keeps its outline.
+    /// </summary>
+    Box = 4,
+}
+
+/// <summary>What LingoCue draws behind the text. Turned into ASS by <c>AssScriptBuilder</c>.</summary>
+public enum BackgroundKind
+{
+    /// <summary>Nothing added; the style's own border style is used as is.</summary>
+    None,
+
+    /// <summary>A box behind each line (ASS BorderStyle 3); the text loses its outline.</summary>
+    LineBox,
+
+    /// <summary>One rectangle behind all lines (libass BorderStyle 4); the text keeps its outline.</summary>
+    BlockBox,
+
+    /// <summary>A band across the full video width, as high as the text.</summary>
+    Band,
+}
+
+/// <summary>Background box settings. Sizes are script pixels on the 1080-high reference canvas.</summary>
+public sealed record SubtitleBackground
+{
+    public BackgroundKind Kind { get; init; }
+
+    /// <summary>Box fill; alpha sets the opacity.</summary>
+    public AssColor Color { get; init; } = new(0, 0, 0, 160);
+
+    /// <summary>Space between the text and the box edge, left and right.</summary>
+    public double PaddingX { get; init; } = 18;
+
+    /// <summary>Space between the text and the box edge, above and below.</summary>
+    public double PaddingY { get; init; } = 8;
+
+    /// <summary>Frame line around the box; 0 = no frame.</summary>
+    public double FrameWidth { get; init; }
+
+    public AssColor FrameColor { get; init; } = AssColor.White;
+
+    public bool HasFrame => Kind != BackgroundKind.None && FrameWidth > 0;
+
+    /// <summary>
+    /// The style's background, reading a plain ASS box (BorderStyle 3 painted with the outline color,
+    /// or BorderStyle 4 painted with the back color and padded by the shadow) as the matching background.
+    /// </summary>
+    public static SubtitleBackground Of(SubtitleStyle style)
+    {
+        ArgumentNullException.ThrowIfNull(style);
+        return style switch
+        {
+            { Background.Kind: not BackgroundKind.None } => style.Background,
+            { BorderStyle: AssBorderStyle.OpaqueBox } => new SubtitleBackground
+            {
+                Kind = BackgroundKind.LineBox, Color = style.OutlineColor, PaddingX = style.Outline, PaddingY = style.Outline,
+            },
+            { BorderStyle: AssBorderStyle.Box } => new SubtitleBackground
+            {
+                Kind = BackgroundKind.BlockBox, Color = style.BackColor, PaddingX = style.Shadow, PaddingY = style.Shadow,
+            },
+            _ => style.Background,
+        };
+    }
 }
 
 /// <summary>
@@ -64,6 +130,9 @@ public sealed record SubtitleStyle
 
     /// <summary>Font charset; 1 = default. 162 is Turkish but libass ignores it for Unicode text.</summary>
     public int Encoding { get; init; } = 1;
+
+    /// <summary>LingoCue background box; not part of the ASS style line (written as override tags and extra events).</summary>
+    public SubtitleBackground Background { get; init; } = new();
 }
 
 /// <summary>The <c>[Script Info]</c> section of an ASS file.</summary>
