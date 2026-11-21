@@ -79,13 +79,28 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
             var modelPath = await _downloader.EnsureAsync(ModelDirectory, modelFile,
                 Scale(progress, TranscriptionStage.DownloadingModel, 0, 0.2, modelFile.FileName), cancellationToken);
             var vadPath = await _downloader.EnsureAsync(ModelDirectory, WhisperModels.SileroVad, cancellationToken: cancellationToken);
+            if (_platform.Platform == OsPlatform.MacOS)
+            {
+                // whisper.cpp uses the Core ML encoder when its folder sits next to the model, Metal otherwise.
+                if (request.UseNeuralEngine)
+                {
+                    await CoreMlEncoder.EnsureAsync(ModelDirectory, request.ModelId, _downloader,
+                        Scale(progress, TranscriptionStage.DownloadingModel, 0, 0.2, "Neural Engine kodlayıcısı (~1,2 GB, bir kez)"), cancellationToken);
+                }
+                else
+                {
+                    CoreMlEncoder.SetEnabled(ModelDirectory, request.ModelId, enabled: false);
+                }
+            }
 
             await _audio.ExtractAsync(request.MediaPath, wav, AudioOutputFormat.Wav16kMono, totalForProgress: request.Duration,
                 progress: new Progress<double>(f => progress?.Report(new(TranscriptionStage.ExtractingAudio, 0.2 + (f * 0.1)))),
                 cancellationToken: cancellationToken);
 
             var speech = await DetectSpeechAsync(vadPath, wav, cancellationToken);
-            progress?.Report(new(TranscriptionStage.Recognizing, 0.32));
+            // Core ML compiles the encoder for this Mac on its first use; that can take minutes.
+            progress?.Report(new(TranscriptionStage.Recognizing, 0.32,
+                request.UseNeuralEngine && _platform.Platform == OsPlatform.MacOS ? "Neural Engine hazırlanıyor (ilk seferde birkaç dakika sürebilir)" : null));
 
             // whisper.cpp picks its backend while the model and state load; its log says which one.
             var nativeLog = new List<string>();

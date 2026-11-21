@@ -109,7 +109,8 @@ public partial class MainViewModel
             var settings = _settings?.Current.Transcription;
             var beam = settings?.BeamSearch ?? (_hardware is not null && HardwareAdvisor.Advise(_hardware.Read()).BeamSearch);
             var hints = settings?.UseGlossaryHints != false && Project is { } project ? AsrReview.SpellingHints(project.Glossary) : null;
-            var request = new TranscriptionRequest(media.FilePath, media.Duration, options.Language, options.ModelId, options.Diarize, beam, hints);
+            var request = new TranscriptionRequest(media.FilePath, media.Duration, options.Language, options.ModelId, options.Diarize, beam, hints,
+                UseNeuralEngine: settings?.UseNeuralEngine == true);
 
             // Native inference is CPU/GPU heavy; keep it off the UI thread.
             return await Task.Run(() => options.Engine.TranscribeAsync(request, progress, cts.Token), cts.Token);
