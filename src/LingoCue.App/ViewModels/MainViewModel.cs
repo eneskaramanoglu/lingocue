@@ -76,7 +76,8 @@ public partial class MainViewModel : ViewModelBase
         IMediaToolLocator? toolLocator = null,
         IHardwareInfoProvider? hardware = null,
         Core.Updates.IUpdateService? updates = null,
-        IFileManager? fileManager = null)
+        IFileManager? fileManager = null,
+        Services.DiagnosticsService? diagnostics = null)
     {
         _themeService = themeService;
         _files = files;
@@ -115,6 +116,7 @@ public partial class MainViewModel : ViewModelBase
         _hardware = hardware;
         _updates = updates;
         _fileManager = fileManager;
+        _diagnostics = diagnostics;
         RefreshReadiness();
         SelectedTheme = themeService.Current;
     }

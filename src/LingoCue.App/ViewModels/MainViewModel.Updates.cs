@@ -39,7 +39,7 @@ public partial class MainViewModel
     public string? UpdateText => Update switch
     {
         null => null,
-        _ when IsUpdateReady => $"LingoCue {Update.Version} indirildi. Kaydedilmemiş işiniz kaydedilip uygulama yeniden başlatılınca kurulur.",
+        _ when IsUpdateReady => $"LingoCue {Update.Version} indirildi; uygulama yeniden başlatılınca kurulur.",
         { CanInstallInPlace: true } => $"LingoCue {Update.Version} indiriliyor… %{UpdateDownloadPercent ?? 0}",
         _ => $"LingoCue {Update.Version} çıktı (şu an {_updates?.CurrentVersion}). Yeni sürümü sürüm sayfasından indirebilirsiniz.",
     };

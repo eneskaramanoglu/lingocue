@@ -107,9 +107,16 @@
         </MenuItem>
       </MenuItem>
       <MenuItem Header="_Yardım">
+        <MenuItem Header="_Kullanım kılavuzu" Command="{Binding OpenUserGuideCommand}" />
         <MenuItem Header="_Klavye kısayolları…" Click="OnShowShortcuts" />
         <Separator />
         <MenuItem Header="_Güncellemeleri denetle" Command="{Binding CheckForUpdatesCommand}" />
+        <Separator />
+        <MenuItem Header="_Tanılama paketi oluştur…" Command="{Binding CreateDiagnosticsCommand}" />
+        <MenuItem Header="_Log klasörünü aç" Command="{Binding OpenLogFolderCommand}" />
+        <MenuItem Header="_Hata bildir (GitHub)" Command="{Binding ReportIssueCommand}" />
+        <Separator />
+        <MenuItem Header="LingoCue _hakkında" Click="OnShowAbout" />
       </MenuItem>
     </Menu>
         <!-- Document name; the dot means unsaved changes. -->
