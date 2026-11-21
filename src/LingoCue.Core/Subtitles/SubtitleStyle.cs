@@ -51,6 +51,28 @@ public sealed record SubtitleBackground
     public AssColor FrameColor { get; init; } = AssColor.White;
 
     public bool HasFrame => Kind != BackgroundKind.None && FrameWidth > 0;
+
+    /// <summary>
+    /// The style's background, reading a plain ASS box (BorderStyle 3 painted with the outline color,
+    /// or BorderStyle 4 painted with the back color and padded by the shadow) as the matching background.
+    /// </summary>
+    public static SubtitleBackground Of(SubtitleStyle style)
+    {
+        ArgumentNullException.ThrowIfNull(style);
+        return style switch
+        {
+            { Background.Kind: not BackgroundKind.None } => style.Background,
+            { BorderStyle: AssBorderStyle.OpaqueBox } => new SubtitleBackground
+            {
+                Kind = BackgroundKind.LineBox, Color = style.OutlineColor, PaddingX = style.Outline, PaddingY = style.Outline,
+            },
+            { BorderStyle: AssBorderStyle.Box } => new SubtitleBackground
+            {
+                Kind = BackgroundKind.BlockBox, Color = style.BackColor, PaddingX = style.Shadow, PaddingY = style.Shadow,
+            },
+            _ => style.Background,
+        };
+    }
 }
 
 /// <summary>

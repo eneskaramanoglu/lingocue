@@ -85,15 +85,31 @@ public static class StyleTemplates
             {
                 FontName = "Georgia",
                 FontSize = 46,
-                BorderStyle = AssBorderStyle.OpaqueBox,
-                // libass (like VSFilter) paints the box with the outline color; keep both the same.
-                OutlineColor = new AssColor(0, 0, 0, 170),
-                BackColor = new AssColor(0, 0, 0, 170),
-                Outline = 10,
+                Outline = 0,
                 Shadow = 0,
                 MarginV = 60,
+                Background = new SubtitleBackground { Kind = BackgroundKind.BlockBox, Color = new AssColor(0, 0, 0, 170), PaddingX = 22, PaddingY = 10 },
             },
             Presentation = new PresentationOptions { FadeInMs = 200, FadeOutMs = 200 },
+        },
+        new()
+        {
+            Name = "Haber şeridi",
+            BuiltIn = true,
+            Style = new SubtitleStyle
+            {
+                FontName = "Arial",
+                FontSize = 48,
+                Bold = true,
+                Outline = 0,
+                Shadow = 0,
+                MarginV = 70,
+                Background = new SubtitleBackground
+                {
+                    Kind = BackgroundKind.Band, Color = new AssColor(12, 28, 64, 225), PaddingY = 14,
+                    FrameWidth = 3, FrameColor = new AssColor(255, 196, 0),
+                },
+            },
         },
     ];
 

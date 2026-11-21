@@ -124,6 +124,24 @@ public class BackgroundBoxTests
     }
 
     [Fact]
+    public void A_plain_ass_box_opens_as_the_matching_background()
+    {
+        var red = new AssColor(255, 0, 0, 170);
+
+        var line = SubtitleBackground.Of(new SubtitleStyle { BorderStyle = AssBorderStyle.OpaqueBox, OutlineColor = red, Outline = 10 });
+        var block = SubtitleBackground.Of(new SubtitleStyle { BorderStyle = AssBorderStyle.Box, BackColor = red, Shadow = 6 });
+
+        (line.Kind, line.Color, line.PaddingX).ShouldBe((BackgroundKind.LineBox, red, 10));
+        (block.Kind, block.Color, block.PaddingY).ShouldBe((BackgroundKind.BlockBox, red, 6));
+        SubtitleBackground.Of(new SubtitleStyle()).Kind.ShouldBe(BackgroundKind.None);
+    }
+
+    [Fact]
+    public void Built_in_templates_with_boxes_use_the_background_settings()
+        => StyleTemplates.BuiltIn.Where(t => t.Style.Background.Kind != BackgroundKind.None).Select(t => t.Name)
+            .ShouldBe(["Belgesel", "Haber şeridi"]);
+
+    [Fact]
     public void Normalizing_an_imported_style_scales_the_box_too()
     {
         var style = new SubtitleStyle { Background = new SubtitleBackground { Kind = BackgroundKind.BlockBox, PaddingX = 20, PaddingY = 10, FrameWidth = 2 } };

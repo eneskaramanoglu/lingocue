@@ -96,16 +96,12 @@
           <TextBlock Text="Yazı rengi" VerticalAlignment="Center" />
           <ColorPicker Grid.Column="1" Color="{Binding PrimaryColor}" HorizontalAlignment="Left" />
 
-          <TextBlock Grid.Row="1" Text="Kenarlık" VerticalAlignment="Center" />
-          <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="12">
-            <RadioButton GroupName="border" Content="Kontur" IsChecked="{Binding !UseBox}" />
-            <RadioButton GroupName="border" Content="Arka plan kutusu" IsChecked="{Binding UseBox}" />
-          </StackPanel>
+          <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding OutlineInfo}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding OutlineInfo, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
-          <TextBlock Grid.Row="2" Text="{Binding OutlineLabel}" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Text="Kontur kalınlığı" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding Outline}" Minimum="0" Maximum="50" Increment="0.5" FormatString="0.#" />
 
-          <TextBlock Grid.Row="3" Text="{Binding OutlineColorLabel}" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Text="Kontur rengi" VerticalAlignment="Center" />
           <ColorPicker Grid.Row="3" Grid.Column="1" Color="{Binding OutlineColor}" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="4" Text="Gölge" VerticalAlignment="Center" />
@@ -113,6 +109,42 @@
 
           <TextBlock Grid.Row="5" Text="Gölge rengi" VerticalAlignment="Center" />
           <ColorPicker Grid.Row="5" Grid.Column="1" Color="{Binding ShadowColor}" HorizontalAlignment="Left" />
+        </Grid>
+      </Expander>
+
+      <!-- Background box: drawn by libass in the preview and in burn-in alike (AssScriptBuilder). -->
+      <Expander Header="Arka plan kutusu" IsExpanded="True" HorizontalAlignment="Stretch">
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+          <TextBlock Text="Tür" VerticalAlignment="Center" />
+          <ComboBox Grid.Column="1" ItemsSource="{Binding BackgroundChoices}" SelectedItem="{Binding SelectedBackground}" HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:BackgroundChoice">
+                <StackPanel Spacing="1">
+                  <TextBlock Text="{Binding Label}" />
+                  <TextBlock Text="{Binding Hint}" Classes="muted small" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+
+          <TextBlock Grid.Row="1" Text="Kutu rengi" VerticalAlignment="Center" IsVisible="{Binding HasBackground}" />
+          <ColorPicker Grid.Row="1" Grid.Column="1" Color="{Binding BoxColor}" HorizontalAlignment="Left" IsVisible="{Binding HasBackground}"
+                       ToolTip.Tip="Saydamlığı renk seçicinin alfa (A) değeriyle ayarlayın." />
+
+          <TextBlock Grid.Row="2" Text="Yatay iç boşluk" VerticalAlignment="Center" IsVisible="{Binding HasSideBox}" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding BoxPaddingX}" Minimum="0" Maximum="400" Increment="2" FormatString="0" IsVisible="{Binding HasSideBox}" />
+
+          <TextBlock Grid.Row="3" Text="Dikey iç boşluk" VerticalAlignment="Center" IsVisible="{Binding HasBackground}" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding BoxPaddingY}" Minimum="0" Maximum="400" Increment="2" FormatString="0" IsVisible="{Binding HasBackground}" />
+
+          <TextBlock Grid.Row="4" Text="Çerçeve kalınlığı" VerticalAlignment="Center" IsVisible="{Binding HasBackground}" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Value="{Binding FrameWidth}" Minimum="0" Maximum="40" Increment="1" FormatString="0.#" IsVisible="{Binding HasBackground}" />
+
+          <TextBlock Grid.Row="5" Text="Çerçeve rengi" VerticalAlignment="Center" IsVisible="{Binding HasFrame}" />
+          <ColorPicker Grid.Row="5" Grid.Column="1" Color="{Binding FrameColor}" HorizontalAlignment="Left" IsVisible="{Binding HasFrame}" />
+
+          <TextBlock Grid.Row="6" Grid.ColumnSpan="2" Text="{Binding BackgroundInfo}" Classes="muted" TextWrapping="Wrap"
+                     IsVisible="{Binding BackgroundInfo, Converter={x:Static ObjectConverters.IsNotNull}}" />
         </Grid>
       </Expander>
 
