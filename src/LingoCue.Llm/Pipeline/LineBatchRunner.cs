@@ -271,7 +271,7 @@ public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatc
         for (var attempt = 0; attempt <= options.MaxRetries; attempt++)
         {
             var response = await CallWithBackoffAsync(messages, chatOptions, options, cancellationToken);
-            usage.Add(response.Usage?.InputTokenCount ?? 0, response.Usage?.OutputTokenCount ?? 0);
+            usage.Add(response.Usage?.InputTokenCount ?? 0, response.Usage?.OutputTokenCount ?? 0, response.Usage?.CachedInputTokenCount ?? 0);
 
             var parsed = LineJson.TryParse(response.Text, out var parseError);
             var errors = new List<string>();
@@ -385,11 +385,11 @@ public sealed partial class LineBatchRunner(IChatClient client, ILogger<LineBatc
 
         public LlmUsage Value { get; private set; } = LlmUsage.Zero;
 
-        public void Add(long input, long output)
+        public void Add(long input, long output, long cached)
         {
             lock (_gate)
             {
-                Value = Value.Add(input, output);
+                Value = Value.Add(input, output, cached);
             }
         }
     }

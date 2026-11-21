@@ -30,13 +30,15 @@ public enum LineStatus
 
 public sealed record LineResult(int Id, string Text, LineStatus Status, string? Note = null);
 
-public sealed record LlmUsage(long InputTokens, long OutputTokens, int Requests)
+/// <param name="CachedInputTokens">Part of <paramref name="InputTokens"/> the provider served from its prompt cache (billed at a discount).</param>
+public sealed record LlmUsage(long InputTokens, long OutputTokens, int Requests, long CachedInputTokens = 0)
 {
     public static LlmUsage Zero { get; } = new(0, 0, 0);
 
-    public LlmUsage Add(long input, long output) => new(InputTokens + input, OutputTokens + output, Requests + 1);
+    public LlmUsage Add(long input, long output, long cached = 0) => new(InputTokens + input, OutputTokens + output, Requests + 1, CachedInputTokens + cached);
 
-    public LlmUsage Add(LlmUsage other) => new(InputTokens + other.InputTokens, OutputTokens + other.OutputTokens, Requests + other.Requests);
+    public LlmUsage Add(LlmUsage other)
+        => new(InputTokens + other.InputTokens, OutputTokens + other.OutputTokens, Requests + other.Requests, CachedInputTokens + other.CachedInputTokens);
 }
 
 public sealed record PipelineOptions

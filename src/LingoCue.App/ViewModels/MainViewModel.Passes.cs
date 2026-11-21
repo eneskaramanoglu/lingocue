@@ -225,9 +225,14 @@ public partial class MainViewModel
         RefreshPreview(immediate: true);
 
         var usage = result.TotalUsage;
-        var cost = _resolver?.Provider.PriceFor(modelId) is { } price
-            ? string.Create(CultureInfo.InvariantCulture, $" · ücretli anahtarla ~{price.Cost(usage.InputTokens, usage.OutputTokens):0.000} $")
+        var price = _resolver?.Provider.PriceFor(modelId);
+        var cost = price is null ? string.Empty : string.Create(CultureInfo.InvariantCulture, $" · ücretli anahtarla ~{price.Cost(usage):0.000} $");
+        // Tokens Gemini served from its prompt cache (the same system prompt, context and glossary in every batch).
+        var cached = usage.CachedInputTokens > 0
+            ? string.Create(CultureInfo.GetCultureInfo("tr-TR"), $" · {usage.CachedInputTokens:N0} token önbellekten") +
+              (price is { } p && p.CacheSavings(usage) > 0 ? string.Create(CultureInfo.InvariantCulture, $" (~{p.CacheSavings(usage):0.000} $ tasarruf)") : string.Empty)
             : string.Empty;
+        cost += cached;
         var suggestions = result.NewGlossarySuggestions > 0 ? $" · sözlüğe {result.NewGlossarySuggestions} öneri eklendi" : string.Empty;
         var tr = CultureInfo.GetCultureInfo("tr-TR");
         var counts = kind == TrackPassKind.Correction
