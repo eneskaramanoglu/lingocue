@@ -105,6 +105,7 @@ public partial class MainViewModel : ViewModelBase
         _renderer = renderer;
         _fontCatalog = fontCatalog;
         StyleEditor.FontAdded += (_, _) => UpdateFontsDirectory();
+        StyleEditor.GalleryChanged += (_, _) => RefreshGallery();
         StyleEditor.Changed += (_, _) =>
         {
             MarkDirty("style");
@@ -149,6 +150,29 @@ public partial class MainViewModel : ViewModelBase
 
     [RelayCommand]
     private void ShowStyle() => SelectedPanel = 1;
+
+    // The template gallery is drawn on the current frame each time the Stil tab is opened.
+    partial void OnSelectedPanelChanged(int value) => RefreshGallery();
+
+    private void RefreshGallery()
+    {
+        if (SelectedPanel == 1 && StyleEditor is { } style)
+        {
+            _ = style.RefreshGalleryAsync(GalleryScene());
+        }
+    }
+
+    /// <summary>The selected line (or the first one, or a sample) over the video frame where it is spoken.</summary>
+    private Media.Rendering.ThumbnailScene GalleryScene()
+    {
+        var cue = Editor?.SelectedCue?.Model ?? Project?.ActiveTrack?.Cues.FirstOrDefault();
+        var text = cue?.Text is { Length: > 0 } t ? t : "Örnek altyazı satırı\nikinci satır";
+        var at = cue is null ? TimeSpan.FromSeconds(1) : cue.Start + ((cue.End - cue.Start) / 2);
+        var (width, height) = VideoSize();
+        var background = Path.Combine(AppContext.BaseDirectory, "Assets", "gallery-background.jpg");
+        return new Media.Rendering.ThumbnailScene(CurrentMedia?.FilePath, at, text, width > 0 ? width : 1920, height > 0 ? height : 1080,
+            File.Exists(background) ? background : null, FontCatalog.ProjectFontDirectory(ProjectPath));
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Title))]

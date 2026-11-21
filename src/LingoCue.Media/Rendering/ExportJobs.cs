@@ -109,7 +109,7 @@ public static class ExportJobs
         return work;
     }
 
-    private static void CopyFonts(string? from, string to)
+    internal static void CopyFonts(string? from, string to)
     {
         foreach (var file in ProjectFontFiles(from))
         {

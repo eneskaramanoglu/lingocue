@@ -142,6 +142,22 @@ public class BackgroundBoxTests
             .ShouldBe(["Belgesel", "Haber şeridi"]);
 
     [Fact]
+    public void A_project_looks_like_its_template_despite_color_picker_rounding()
+    {
+        var template = StyleTemplates.BuiltIn.First(t => t.Name == "Haber şeridi");
+        var project = new Project();
+        StyleTemplates.Apply(template, project);
+        var band = project.Style.Background;
+
+        project.Style = project.Style with { Background = band with { Color = band.Color with { B = (byte)(band.Color.B - 1) } } }; // HSV round trip
+        StyleTemplates.LooksLike(project, template).ShouldBeTrue();
+
+        project.Style = project.Style with { FontSize = 60 };
+        StyleTemplates.LooksLike(project, template).ShouldBeFalse();
+        StyleTemplates.LooksLike(project, StyleTemplates.BuiltIn[0]).ShouldBeFalse();
+    }
+
+    [Fact]
     public void Normalizing_an_imported_style_scales_the_box_too()
     {
         var style = new SubtitleStyle { Background = new SubtitleBackground { Kind = BackgroundKind.BlockBox, PaddingX = 20, PaddingY = 10, FrameWidth = 2 } };

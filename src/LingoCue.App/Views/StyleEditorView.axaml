@@ -30,6 +30,19 @@
     <Style Selector="NumericUpDown">
       <Setter Property="Background" Value="{DynamicResource SunkenBackgroundBrush}" />
     </Style>
+    <!-- Template cards: the thumbnail fills the top, an accent edge marks the applied template. -->
+    <Style Selector="Button.template">
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="ClipToBounds" Value="True" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Stretch" />
+    </Style>
+    <!-- On the template part: Fluent's hover and pressed states set the border there and would hide the mark. -->
+    <Style Selector="Button.template.selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
   </UserControl.Styles>
 
   <!-- Every control writes straight to the project; the video preview (libass) shows the result. -->
@@ -38,20 +51,37 @@
 
       <!-- Templates -->
       <StackPanel Spacing="6">
-        <TextBlock Text="ŞABLON" Classes="section" />
-        <ComboBox ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplate}" HorizontalAlignment="Stretch">
-          <ComboBox.ItemTemplate>
-            <DataTemplate x:DataType="proj:StyleTemplate">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <TextBlock Text="{Binding Name}" />
-                <TextBlock Text="· hazır" Classes="muted" IsVisible="{Binding BuiltIn}" />
-              </StackPanel>
+        <TextBlock Text="ŞABLONLAR" Classes="section" />
+        <TextBlock Classes="muted small" TextWrapping="Wrap"
+                   Text="Her kart, şablonun bu videodaki görünümüdür. Tıklayınca uygulanır; Ctrl+Z ile geri alabilirsiniz." />
+        <!-- Gallery: thumbnails are rendered by libass through FFmpeg, like the preview and the export. -->
+        <ItemsControl ItemsSource="{Binding Gallery}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:TemplateCard">
+              <Button Classes="template" Classes.selected="{Binding IsSelected}" Width="176" Padding="0"
+                      Command="{Binding $parent[ItemsControl].((vm:StyleEditorViewModel)DataContext).ApplyCardCommand}"
+                      CommandParameter="{Binding}" ToolTip.Tip="{Binding Name}">
+                <StackPanel>
+                  <Panel Height="99" Background="{DynamicResource SunkenBackgroundBrush}">
+                    <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" IsVisible="{Binding HasThumbnail}" />
+                    <TextBlock Text="Önizleme hazırlanıyor…" Classes="muted small" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding !HasThumbnail}" />
+                  </Panel>
+                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="10,7">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="110" />
+                    <TextBlock Text="· hazır" Classes="muted small" VerticalAlignment="Center" IsVisible="{Binding BuiltIn}" />
+                  </StackPanel>
+                </StackPanel>
+              </Button>
             </DataTemplate>
-          </ComboBox.ItemTemplate>
-        </ComboBox>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
         <WrapPanel ItemSpacing="6" LineSpacing="6">
-          <Button Content="Uygula" Classes="small accent" Command="{Binding ApplyTemplateCommand}"
-                  ToolTip.Tip="Seçili şablonun görünümünü projeye uygula" />
           <Button Classes="small" Content="Şablon olarak kaydet…" Command="{Binding SaveTemplateCommand}"
                   ToolTip.Tip="Şu anki görünümü tüm projelerde kullanmak üzere kaydet" />
           <Button Classes="small" Content="İçe aktar…" Command="{Binding ImportTemplateCommand}" />
