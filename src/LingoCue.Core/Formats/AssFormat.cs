@@ -242,7 +242,7 @@ public sealed class AssFormat : ISubtitleFormat
                 ScaleY = Dbl(f, "ScaleY", 100),
                 Spacing = Dbl(f, "Spacing", 0),
                 Angle = Dbl(f, "Angle", 0),
-                BorderStyle = Int(f, "BorderStyle", 1) == 3 ? AssBorderStyle.OpaqueBox : AssBorderStyle.Outline,
+                BorderStyle = Int(f, "BorderStyle", 1) switch { 3 => AssBorderStyle.OpaqueBox, 4 => AssBorderStyle.Box, _ => AssBorderStyle.Outline },
                 Outline = Dbl(f, "Outline", 2),
                 Shadow = Dbl(f, "Shadow", 0),
                 Alignment = alignment,
