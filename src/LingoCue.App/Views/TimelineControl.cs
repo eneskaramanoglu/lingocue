@@ -303,6 +303,17 @@ public sealed class TimelineControl : Control, ICustomHitTest
                     DrawText(context, row.OneLineText, new Point(x1 + 8 + (row.Number >= 100 ? 24 : row.Number >= 10 ? 18 : 12), top + 6), palette.Text, 11);
                 }
             }
+
+            // Where speech recognition was unsure: a warning-colored bar under each doubtful word.
+            foreach (var word in row.DoubtfulWords)
+            {
+                var wx1 = Math.Max(x1 + 4, TimeToX(word.Start));
+                var wx2 = Math.Min(x2 - 4, Math.Max(TimeToX(word.End), wx1 + 6));
+                if (wx2 > wx1)
+                {
+                    context.DrawRectangle(palette.WarningPen.Brush, null, new Rect(wx1, rect.Bottom - 9, wx2 - wx1, 4), 2, 2);
+                }
+            }
         }
     }
 

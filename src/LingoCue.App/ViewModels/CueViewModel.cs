@@ -158,6 +158,16 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Words speech recognition was unsure of, while the line still waits for review (only on the
+    /// recognized track itself: derived tracks have their own text).
+    /// </summary>
+    public IReadOnlyList<Word> DoubtfulWords => cue.SourceCueId is null && NeedsReview
+        ? [.. cue.Words.Where(w => w.Confidence < Core.Segmentation.AsrReview.DoubtfulConfidence)]
+        : [];
+
+    public bool HasDoubtfulWords => DoubtfulWords.Count > 0;
+
     /// <summary>Text for the grid cell: formatting tags hidden, line breaks shown as a separator.</summary>
     public string OneLineText => SubtitleText.StripTags(cue.Text).Replace("\n", " ⏎ ", StringComparison.Ordinal);
 
@@ -306,5 +316,7 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
         OnPropertyChanged(nameof(MarkGlyph));
         OnPropertyChanged(nameof(MarkTip));
         OnPropertyChanged(nameof(TextTip));
+        OnPropertyChanged(nameof(DoubtfulWords));
+        OnPropertyChanged(nameof(HasDoubtfulWords));
     }
 }
