@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LingoCue — Yapay zekâ destekli altyazı editörü</title>
+  <meta name="description" content="LingoCue videonuzdaki konuşmayı yazıya döker, yapay zekâyla düzeltir, birçok dile çevirir ve stilli altyazıyı videoya gömer. Windows ve Mac için ücretsiz ve açık kaynak.">
+  <link rel="canonical" href="https://lingocue.vercel.app/">
+  <link rel="alternate" hreflang="tr" href="https://lingocue.vercel.app/">
+  <link rel="alternate" hreflang="en" href="https://lingocue.vercel.app/en">
+  <link rel="alternate" hreflang="x-default" href="https://lingocue.vercel.app/">
+  <meta name="theme-color" content="#2f6feb">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/assets/icon-256.png">
+  <link rel="apple-touch-icon" href="/assets/icon-180.png">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="LingoCue">
+  <meta property="og:locale" content="tr_TR">
+  <meta property="og:title" content="LingoCue — Yapay zekâ destekli altyazı editörü">
+  <meta property="og:description" content="Konuşmayı yazıya dök, düzelt, çevir ve altyazıyı videoya göm. Windows ve Mac için ücretsiz, açık kaynak.">
+  <meta property="og:url" content="https://lingocue.vercel.app/">
+  <meta property="og:image" content="https://lingocue.vercel.app/assets/og-tr.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="/assets/site.css">
+  <script src="/assets/site.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">İçeriğe geç</a>
+
+  <!-- Icon sprite (Material Design Icons, Apache-2.0) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-mic" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/></symbol>
+    <symbol id="i-wand" viewBox="0 0 24 24"><path fill="currentColor" d="M7.5,5.6L5,7L6.4,4.5L5,2L7.5,3.4L10,2L8.6,4.5L10,7L7.5,5.6M19.5,15.4L22,14L20.6,16.5L22,19L19.5,17.6L17,19L18.4,16.5L17,14L19.5,15.4M22,2L20.6,4.5L22,7L19.5,5.6L17,7L18.4,4.5L17,2L19.5,3.4L22,2M13.34,12.78L15.78,10.34L13.66,8.22L11.22,10.66L13.34,12.78M14.37,7.29L16.71,9.63C17.1,10 17.1,10.65 16.71,11.04L5.04,22.71C4.65,23.1 4,23.1 3.63,22.71L1.29,20.37C0.9,20 0.9,19.35 1.29,18.96L12.96,7.29C13.35,6.9 14,6.9 14.37,7.29Z"/></symbol>
+    <symbol id="i-translate" viewBox="0 0 24 24"><path fill="currentColor" d="M12.87,15.07L10.33,12.56L10.36,12.53C12.1,10.59 13.34,8.36 14.07,6H17V4H10V2H8V4H1V6H12.17C11.5,7.92 10.44,9.75 9,11.35C8.07,10.32 7.3,9.19 6.69,8H4.69C5.42,9.63 6.42,11.17 7.67,12.56L2.58,17.58L4,19L9,14L12.11,17.11L12.87,15.07M18.5,10H16.5L12,22H14L15.12,19H19.87L21,22H23L18.5,10M15.88,17L17.5,12.67L19.12,17H15.88Z"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><path fill="currentColor" d="M17.5,12A1.5,1.5 0 0,1 16,10.5A1.5,1.5 0 0,1 17.5,9A1.5,1.5 0 0,1 19,10.5A1.5,1.5 0 0,1 17.5,12M14.5,8A1.5,1.5 0 0,1 13,6.5A1.5,1.5 0 0,1 14.5,5A1.5,1.5 0 0,1 16,6.5A1.5,1.5 0 0,1 14.5,8M9.5,8A1.5,1.5 0 0,1 8,6.5A1.5,1.5 0 0,1 9.5,5A1.5,1.5 0 0,1 11,6.5A1.5,1.5 0 0,1 9.5,8M6.5,12A1.5,1.5 0 0,1 5,10.5A1.5,1.5 0 0,1 6.5,9A1.5,1.5 0 0,1 8,10.5A1.5,1.5 0 0,1 6.5,12M12,3A9,9 0 0,0 3,12A9,9 0 0,0 12,21A1.5,1.5 0 0,0 13.5,19.5C13.5,19.11 13.35,18.76 13.11,18.5C12.88,18.23 12.73,17.88 12.73,17.5A1.5,1.5 0 0,1 14.23,16H16A5,5 0 0,0 21,11C21,6.58 16.97,3 12,3Z"/></symbol>
+    <symbol id="i-export" viewBox="0 0 24 24"><path fill="currentColor" d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path fill="currentColor" d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.1 14.8,9.5V11C15.4,11 16,11.6 16,12.3V15.8C16,16.4 15.4,17 14.7,17H9.2C8.6,17 8,16.4 8,15.7V12.2C8,11.6 8.6,11 9.2,11V9.5C9.2,8.1 10.6,7 12,7M12,8.2C11.2,8.2 10.5,8.7 10.5,9.5V11H13.5V9.5C13.5,8.7 12.8,8.2 12,8.2Z"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><path fill="currentColor" d="M21,16H3V4H21M21,2H3C1.89,2 1,2.89 1,4V16A2,2 0 0,0 3,18H10V20H8V22H16V20H14V18H21A2,2 0 0,0 23,16V4C23,2.89 22.1,2 21,2Z"/></symbol>
+    <symbol id="i-laptop" viewBox="0 0 24 24"><path fill="currentColor" d="M4,6H20V16H4M20,18A2,2 0 0,0 22,16V6C22,4.89 21.1,4 20,4H4C2.89,4 2,4.89 2,6V16A2,2 0 0,0 4,18H0V20H24V18H20Z"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21.09C14.5,21.36 14.66,21.67 15.17,21.58C19.14,20.17 22,16.42 22,12A10,10 0 0,0 12,2Z"/></symbol>
+  </svg>
+
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/assets/icon-256.png" alt="" width="30" height="30">LingoCue</a>
+      <nav class="nav" aria-label="Ana menü">
+        <a href="#ozellikler">Özellikler</a>
+        <a href="#nasil">Nasıl çalışır</a>
+        <a href="#gizlilik">Gizlilik</a>
+        <a href="#sss">SSS</a>
+        <a class="gh" href="https://github.com/eneskaramanoglu/lingocue" aria-label="GitHub"><svg width="22" height="22" aria-hidden="true"><use href="#i-github"></use></svg></a>
+        <a class="lang" href="/en" hreflang="en" lang="en">EN</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="wrap">
+        <span class="badge">Sürüm <span data-version>1.0.0</span> · Ücretsiz ve açık kaynak</span>
+        <h1>Videolarınıza dakikalar içinde <span>doğru altyazı</span>.</h1>
+        <p class="lead">LingoCue konuşmayı yazıya döker, yapay zekâyla düzeltir, istediğiniz dillere çevirir ve altyazıyı istediğiniz görünümle videonuza gömer.</p>
+        <div class="cta">
+          <a class="btn primary" id="download-primary" href="https://github.com/eneskaramanoglu/lingocue/releases/latest/download/LingoCue-win-Setup.exe">
+            <svg aria-hidden="true"><use href="#i-export"></use></svg> Windows için indir</a>
+          <a class="btn" id="download-secondary" href="https://github.com/eneskaramanoglu/lingocue/releases/latest/download/LingoCue-osx-arm64.dmg">
+            <svg aria-hidden="true"><use href="#i-laptop"></use></svg> Mac için indir</a>
+        </div>
+        <p class="cta-note">Windows 10/11 (64 bit) · macOS 13+ Apple Silicon (M1–M4) · <a href="#indir">kurulum ve gereksinimler</a></p>
+        <div class="shot">
+          <img src="/assets/img/editor.webp" width="1600" height="792"
+               alt="LingoCue düzenleyicisi: solda altyazılı video önizlemesi ve ses dalgalı zaman çizelgesi, sağda süreleri ve okuma hızlarıyla altyazı satırları">
+        </div>
+      </div>
+    </section>
+
+    <section id="ozellikler">
+      <div class="wrap">
+        <div class="kicker">Özellikler</div>
+        <h2>Altyazının bütün işi tek uygulamada</h2>
+        <p class="intro">Kayıttan yayına kadar: yazıya dökme, düzeltme, çeviri, görünüm ve dışa aktarma. Arayüz Türkçe; Türkçenin kurallarını (i/İ, ğ, ş, şapkalı yazımlar) bilir.</p>
+        <div class="grid">
+          <div class="card">
+            <div class="icon"><svg aria-hidden="true"><use href="#i-mic"></use></svg></div>
+            <h3>Konuşmayı yazıya dök</h3>
+            <p>Whisper bilgisayarınızda ve ekran kartınızda ücretsiz çalışır; kelime kelime zamanlama verir. Gürültülü kayıtlar için Gemini Transcribe da var.</p>
+          </div>
+          <div class="card">
+            <div class="icon"><svg aria-hidden="true"><use href="#i-wand"></use></svg></div>
+            <h3>Yapay zekâyla düzelt</h3>
+            <p>Yazım, noktalama ve özel isimler düzelir; satırlar okunur uzunlukta kalır. Sözlüğe eklediğiniz adlar her yerde aynı yazılır.</p>
+          </div>
+          <div class="card">
+            <div class="icon"><svg aria-hidden="true"><use href="#i-translate"></use></svg></div>
+            <h3>Birçok dile birden çevir</h3>
+            <p>İngilizce, Korece, Almanca, Japonca ve daha fazlası; her dil ayrı bir iz olur. Korece için Netflix okuma kuralları uygulanır.</p>
+          </div>
+          <div class="card">
+            <div class="icon"><svg aria-hidden="true"><use href="#i-palette"></use></svg></div>
+            <h3>İstediğiniz görünüm</h3>
+            <p>Font ve renkler, blok kutusu, satır kutusu ya da tam genişlik şerit, çerçeve, karaoke ve iki dilli altyazı. Hazır şablonlarla tek tıkla.</p>
+          </div>
+          <div class="card">
+            <div class="icon"><svg aria-hidden="true"><use href="#i-export"></use></svg></div>
+            <h3>Önizleme = çıktı</h3>
+            <p>Gördüğünüz önizleme, videoya gömülen altyazının ta kendisidir. NVIDIA, AMD, Intel ya da Apple donanımıyla hızlı dışa aktarma; SRT, VTT ve ASS da hazır.</p>
+          </div>
+          <div class="card">
+            <div class="icon"><svg aria-hidden="true"><use href="#i-shield"></use></svg></div>
+            <h3>Yerel ve gizli çalışabilir</h3>
+            <p>Whisper ve Ollama ile her şey bilgisayarınızda kalır; internet ve hesap gerekmez. Bulut motorlarını yalnızca siz seçerseniz kullanır.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="nasil">
+      <div class="wrap">
+        <div class="kicker">Nasıl çalışır</div>
+        <h2>Dört adımda altyazılı video</h2>
+        <p class="intro">Uygulamanın üst çubuğu işin sırasını gösterir; her adım ayrı bir iz üretir, orijinal hiç kaybolmaz.</p>
+        <div class="steps">
+          <div class="step"><h3>Transkribe</h3><p>Videoyu sürükleyin. Konuşma kelime zamanlarıyla yazıya dökülür ve okunur satırlara bölünür; emin olunmayan satırlar işaretlenir.</p></div>
+          <div class="step"><h3>Düzelt</h3><p>Yapay zekâ yazımı ve noktalamayı düzeltir. Değişen satırları tek tek görür, isterseniz orijinale dönersiniz.</p></div>
+          <div class="step"><h3>Çevir</h3><p>Bir ya da birkaç dil seçin. Videonun bağlamı bir kez okunur; terimler ve hitap tutarlı kalır.</p></div>
+          <div class="step"><h3>Dışa aktar</h3><p>Altyazıyı videoya gömün, ayrı iz olarak ekleyin ya da altyazı dosyası olarak kaydedin.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="stil">
+      <div class="wrap">
+        <div class="split">
+          <div>
+            <div class="kicker">Stil</div>
+            <h2>Altyazınız markanıza benzesin</h2>
+            <p class="intro">Arka plan kutusunun rengini, saydamlığını ve iç boşluklarını ayarlayın, çerçeve ekleyin; önizleme anında güncellenir.</p>
+            <ul class="checks">
+              <li>Blok kutusu, satır kutusu ya da tam genişlik şerit</li>
+              <li>Karaoke: kelimeler konuşuldukça renklenir (Shorts tarzı)</li>
+              <li>İki dilli mod: çeviri ana altyazının altında</li>
+              <li>Projeye font ekleme; eksik Türkçe/Korece harf uyarısı</li>
+            </ul>
+          </div>
+          <div class="frame"><img src="/assets/img/style-options.webp" width="1600" height="792" alt="Stil paneli: arka plan kutusu türü listesi açık; Yok, Blok kutusu, Satır kutusu ve Tam genişlik şerit seçenekleri"></div>
+        </div>
+        <div class="gallery">
+          <figure><div class="frame"><img src="/assets/img/style-block.webp" width="1280" height="720" loading="lazy" alt="Blok kutusu ve altında İngilizce çeviri olan iki dilli altyazı"></div><figcaption>Blok kutusu + iki dilli</figcaption></figure>
+          <figure><div class="frame"><img src="/assets/img/style-band.webp" width="1280" height="720" loading="lazy" alt="Videonun bir ucundan öbür ucuna lacivert şerit ve sarı çerçeveli altyazı"></div><figcaption>Tam genişlik şerit + çerçeve</figcaption></figure>
+          <figure><div class="frame"><img src="/assets/img/style-line.webp" width="1280" height="720" loading="lazy" alt="Her satırın arkasında beyaz kutu olan koyu renkli altyazı"></div><figcaption>Satır kutusu</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="ceviri">
+      <div class="wrap">
+        <div class="split reverse">
+          <div>
+            <div class="kicker">Çeviri</div>
+            <h2>Bir tıkla birden çok dil</h2>
+            <p class="intro">Hedef dilleri seçin, maliyeti önceden görün. Her dil ayrı bir iz olur; zamanlama birebir korunur.</p>
+            <ul class="checks">
+              <li>Önce videonun özeti, tonu ve konuşmacıları çıkarılır</li>
+              <li>Sözlükteki terimler ve kilitli satırlar korunur</li>
+              <li>Yarıda kalan satırlar yeniden denenir, bitenler için tekrar ödenmez</li>
+              <li>Ücretsiz Gemini anahtarı ya da yerel model (Ollama) ile de çalışır</li>
+            </ul>
+          </div>
+          <div class="frame"><img src="/assets/img/translate.webp" width="777" height="616" loading="lazy" alt="Çevir penceresi: hedef dil olarak İngilizce seçili, motor Gemini, tahmini maliyet yaklaşık 0,009 dolar"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="gizlilik">
+      <div class="wrap">
+        <div class="kicker">Gizlilik ve maliyet</div>
+        <h2>Ne nerede çalışır, ne kadar tutar?</h2>
+        <p class="intro">Hesap ya da abonelik yok. Hangi motoru kullanacağınızı siz seçersiniz; anahtarlarınız Windows Kimlik Bilgisi Yöneticisi'nde ya da macOS Anahtar Zinciri'nde saklanır.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Motor</th><th>Ne için</th><th>Maliyet</th><th>Verileriniz</th></tr></thead>
+            <tbody>
+              <tr><td>Whisper (yerel)</td><td>Yazıya dökme</td><td class="free">Ücretsiz</td><td>Video bilgisayardan çıkmaz</td></tr>
+              <tr><td>Ollama (yerel)</td><td>Düzeltme, çeviri</td><td class="free">Ücretsiz</td><td>Metin bilgisayardan çıkmaz</td></tr>
+              <tr><td>Gemini Transcribe</td><td>Yazıya dökme</td><td>~0,005 $/dakika</td><td>Ses Google'a gönderilir</td></tr>
+              <tr><td>Gemini Flash / Pro</td><td>Düzeltme, çeviri</td><td>Kısa bir video için genelde 1 sentin altında</td><td>Metin Google'a gönderilir</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">Uygulama günde en fazla bir kez GitHub'a yalnızca en son sürüm numarasını sorar (ayarlardan kapatılabilir). Bu site çerez ya da takip kullanmaz.</p>
+      </div>
+    </section>
+
+    <section class="alt download" id="indir">
+      <div class="wrap">
+        <div class="kicker">İndir</div>
+        <h2>LingoCue <span data-version>1.0.0</span></h2>
+        <p class="intro" style="margin-left:auto;margin-right:auto">Ücretsiz ve açık kaynak (MIT). Güncellemeler uygulamanın içinden gelir.</p>
+        <div class="grid">
+          <div class="card" data-os="windows">
+            <h3><svg aria-hidden="true"><use href="#i-monitor"></use></svg> Windows 10 / 11</h3>
+            <p>Kurulum yönetici izni istemez; uygulama kendini günceller.</p>
+            <a class="btn primary" href="https://github.com/eneskaramanoglu/lingocue/releases/latest/download/LingoCue-win-Setup.exe"><svg aria-hidden="true"><use href="#i-export"></use></svg> Kurulumu indir <small>(.exe)</small></a>
+            <p class="note">“Windows bilgisayarınızı korudu” uyarısı çıkarsa: <b>Ek bilgi → Yine de çalıştır</b> (uygulama ücretli bir sertifikayla imzalı değil). Kurmadan denemek için <a href="https://github.com/eneskaramanoglu/lingocue/releases/latest/download/LingoCue-win-Portable.zip">taşınabilir zip</a>.</p>
+          </div>
+          <div class="card" data-os="mac">
+            <h3><svg aria-hidden="true"><use href="#i-laptop"></use></svg> macOS 13+ · Apple Silicon</h3>
+            <p>M1, M2, M3 ve M4 işlemcili Mac'ler. Ekran kartı Metal ile kullanılır.</p>
+            <a class="btn primary" href="https://github.com/eneskaramanoglu/lingocue/releases/latest/download/LingoCue-osx-arm64.dmg"><svg aria-hidden="true"><use href="#i-export"></use></svg> Disk görüntüsünü indir <small>(.dmg)</small></a>
+            <p class="note">LingoCue'yu Uygulamalar'a sürükleyin. Apple onayı (notarization) olmadığı için ilk açılıştan önce Terminal'de bir kez:</p>
+            <pre><code>xattr -dr com.apple.quarantine /Applications/LingoCue.app</code></pre>
+          </div>
+          <div class="card">
+            <h3><svg aria-hidden="true"><use href="#i-export"></use></svg> FFmpeg (ikisinde de gerekli)</h3>
+            <p>Ses ve video FFmpeg ile işlenir; bir kez kurun:</p>
+            <pre><code>winget install Gyan.FFmpeg</code></pre>
+            <pre><code>brew install ffmpeg-full</code></pre>
+            <p class="note">Ayrıntılı anlatım: <a href="https://github.com/eneskaramanoglu/lingocue/blob/main/docs/KULLANIM.md">Türkçe kullanım kılavuzu</a> · <a href="https://github.com/eneskaramanoglu/lingocue/releases">tüm sürümler</a></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sss">
+      <div class="wrap">
+        <div class="kicker">SSS</div>
+        <h2>Sık sorulanlar</h2>
+        <details><summary>Gerçekten ücretsiz mi?</summary><p>Evet. LingoCue MIT lisanslı açık kaynak bir uygulamadır. Yerel motorlar (Whisper, Ollama) tamamen ücretsizdir; Gemini'yi kullanırsanız Google kullandığınız kadar ücretlendirir ve uygulama işlemden önce tahmini maliyeti gösterir. Ücretsiz Gemini anahtarı için ayrı bir ayar var.</p></details>
+        <details><summary>İnternet bağlantısı gerekir mi?</summary><p>Yerel motorlarla hayır: Whisper modeli ilk kullanımda bir kez iner (~1 GB), sonra her şey çevrimdışı çalışır. Gemini kullanırsanız bağlantı gerekir.</p></details>
+        <details><summary>Ekran kartım yoksa ya da zayıfsa?</summary><p>Whisper işlemcide de çalışır, yalnızca daha yavaştır. Uygulama ekran kartınızı tanır ve Tercihler → Genel'de size uygun modeli ve ayarları önerir: 4 GB'lık bir kart rahatça yeter.</p></details>
+        <details><summary>Hangi dilleri destekliyor?</summary><p>Konuşma tanıma Whisper'ın desteklediği onlarca dilde çalışır; Türkçe ve İngilizce için ayrıca ayarlanmıştır. Çeviri İngilizce, Korece, Almanca, Fransızca, İspanyolca, İtalyanca, Arapça, Rusça, Japonca ve Azerbaycan Türkçesi'ne yapılabilir. Uygulamanın arayüzü Türkçedir.</p></details>
+        <details><summary>Intel işlemcili Mac'te çalışır mı?</summary><p>Şimdilik hayır; Mac sürümü Apple Silicon (M1–M4) içindir.</p></details>
+        <details><summary>Güncellemeler nasıl geliyor?</summary><p>Windows'ta kurulumla yüklenen sürüm güncellemeyi arka planda indirir ve “Yeniden başlat ve güncelle” der. Mac'te uygulama yeni sürümü haber verir ve indirme sayfasını açar.</p></details>
+        <details><summary>Bir hata buldum, nasıl bildiririm?</summary><p>Uygulamada Yardım → Tanılama paketi oluştur ile masaüstüne bir zip kaydedin, sonra Yardım → Hata bildir ile <a href="https://github.com/eneskaramanoglu/lingocue/issues">GitHub'da</a> bir kayıt açıp zip'i ekleyin. Paket otomatik gönderilmez; anahtarlarınız içinde yoktur.</p></details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© 2026 LingoCue · MIT lisansı</span>
+      <nav aria-label="Alt menü">
+        <a href="https://github.com/eneskaramanoglu/lingocue">GitHub</a>
+        <a href="https://github.com/eneskaramanoglu/lingocue/blob/main/docs/KULLANIM.md">Kullanım kılavuzu</a>
+        <a href="https://github.com/eneskaramanoglu/lingocue/releases">Sürümler</a>
+        <a href="https://github.com/eneskaramanoglu/lingocue/blob/main/CHANGELOG.md">Değişiklikler</a>
+        <a href="/en" hreflang="en" lang="en">English</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

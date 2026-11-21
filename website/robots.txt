@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://lingocue.vercel.app/sitemap.xml

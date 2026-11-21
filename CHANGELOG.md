@@ -6,6 +6,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+- Website (`website/`, Turkish and English) for Vercel: features, screenshots, privacy and costs, downloads and FAQ.
+- Releases also carry `LingoCue-osx-arm64.dmg` under a fixed name, so the latest Mac download has a stable link.
+
 ## [1.0.0] - 2026-11-21
 
 The first version packaged for everyday use: installers, updates and help.

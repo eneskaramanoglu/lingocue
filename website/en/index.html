@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LingoCue — AI-assisted subtitle editor</title>
+  <meta name="description" content="LingoCue turns speech into subtitles, corrects them with AI, translates them into several languages and burns styled subtitles into your video. Free and open source for Windows and Mac.">
+  <link rel="canonical" href="https://lingocue.vercel.app/en">
+  <link rel="alternate" hreflang="tr" href="https://lingocue.vercel.app/">
+  <link rel="alternate" hreflang="en" href="https://lingocue.vercel.app/en">
+  <link rel="alternate" hreflang="x-default" href="https://lingocue.vercel.app/">
+  <meta name="theme-color" content="#2f6feb">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/assets/icon-256.png">
+  <link rel="apple-touch-icon" href="/assets/icon-180.png">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="LingoCue">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:title" content="LingoCue — AI-assisted subtitle editor">
+  <meta property="og:description" content="Transcribe, correct, translate and burn in styled subtitles. Free and open source for Windows and Mac.">
+  <meta property="og:url" content="https://lingocue.vercel.app/en">
+  <meta property="og:image" content="https://lingocue.vercel.app/assets/og-en.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="/assets/site.css">
+  <script src="/assets/site.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <!-- Icon sprite (Material Design Icons, Apache-2.0) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-mic" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/></symbol>
+    <symbol id="i-wand" viewBox="0 0 24 24"><path fill="currentColor" d="M7.5,5.6L5,7L6.4,4.5L5,2L7.5,3.4L10,2L8.6,4.5L10,7L7.5,5.6M19.5,15.4L22,14L20.6,16.5L22,19L19.5,17.6L17,19L18.4,16.5L17,14L19.5,15.4M22,2L20.6,4.5L22,7L19.5,5.6L17,7L18.4,4.5L17,2L19.5,3.4L22,2M13.34,12.78L15.78,10.34L13.66,8.22L11.22,10.66L13.34,12.78M14.37,7.29L16.71,9.63C17.1,10 17.1,10.65 16.71,11.04L5.04,22.71C4.65,23.1 4,23.1 3.63,22.71L1.29,20.37C0.9,20 0.9,19.35 1.29,18.96L12.96,7.29C13.35,6.9 14,6.9 14.37,7.29Z"/></symbol>
+    <symbol id="i-translate" viewBox="0 0 24 24"><path fill="currentColor" d="M12.87,15.07L10.33,12.56L10.36,12.53C12.1,10.59 13.34,8.36 14.07,6H17V4H10V2H8V4H1V6H12.17C11.5,7.92 10.44,9.75 9,11.35C8.07,10.32 7.3,9.19 6.69,8H4.69C5.42,9.63 6.42,11.17 7.67,12.56L2.58,17.58L4,19L9,14L12.11,17.11L12.87,15.07M18.5,10H16.5L12,22H14L15.12,19H19.87L21,22H23L18.5,10M15.88,17L17.5,12.67L19.12,17H15.88Z"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><path fill="currentColor" d="M17.5,12A1.5,1.5 0 0,1 16,10.5A1.5,1.5 0 0,1 17.5,9A1.5,1.5 0 0,1 19,10.5A1.5,1.5 0 0,1 17.5,12M14.5,8A1.5,1.5 0 0,1 13,6.5A1.5,1.5 0 0,1 14.5,5A1.5,1.5 0 0,1 16,6.5A1.5,1.5 0 0,1 14.5,8M9.5,8A1.5,1.5 0 0,1 8,6.5A1.5,1.5 0 0,1 9.5,5A1.5,1.5 0 0,1 11,6.5A1.5,1.5 0 0,1 9.5,8M6.5,12A1.5,1.5 0 0,1 5,10.5A1.5,1.5 0 0,1 6.5,9A1.5,1.5 0 0,1 8,10.5A1.5,1.5 0 0,1 6.5,12M12,3A9,9 0 0,0 3,12A9,9 0 0,0 12,21A1.5,1.5 0 0,0 13.5,19.5C13.5,19.11 13.35,18.76 13.11,18.5C12.88,18.23 12.73,17.88 12.73,17.5A1.5,1.5 0 0,1 14.23,16H16A5,5 0 0,0 21,11C21,6.58 16.97,3 12,3Z"/></symbol>
+    <symbol id="i-export" viewBox="0 0 24 24"><path fill="currentColor" d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path fill="currentColor" d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.1 14.8,9.5V11C15.4,11 16,11.6 16,12.3V15.8C16,16.4 15.4,17 14.7,17H9.2C8.6,17 8,16.4 8,15.7V12.2C8,11.6 8.6,11 9.2,11V9.5C9.2,8.1 10.6,7 12,7M12,8.2C11.2,8.2 10.5,8.7 10.5,9.5V11H13.5V9.5C13.5,8.7 12.8,8.2 12,8.2Z"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><path fill="currentColor" d="M21,16H3V4H21M21,2H3C1.89,2 1,2.89 1,4V16A2,2 0 0,0 3,18H10V20H8V22H16V20H14V18H21A2,2 0 0,0 23,16V4C23,2.89 22.1,2 21,2Z"/></symbol>
+    <symbol id="i-laptop" viewBox="0 0 24 24"><path fill="currentColor" d="M4,6H20V16H4M20,18A2,2 0 0,0 22,16V6C22,4.89 21.1,4 20,4H4C2.89,4 2,4.89 2,6V16A2,2 0 0,0 4,18H0V20H24V18H20Z"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21.09C14.5,21.36 14.66,21.67 15.17,21.58C19.14,20.17 22,16.42 22,12A10,10 0 0,0 12,2Z"/></symbol>
+  </svg>
+
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/en"><img src="/assets/icon-256.png" alt="" width="30" height="30">LingoCue</a>
+      <nav class="nav" aria-label="Main menu">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#faq">FAQ</a>
+        <a class="gh" href="https://github.com/eneskaramanoglu/lingocue" aria-label="GitHub"><svg width="22" height="22" aria-hidden="true"><use href="#i-github"></use></svg></a>
+        <a class="lang" href="/" hreflang="tr" lang="tr">TR</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="wrap">
+        <span class="badge">Version <span data-version>1.0.0</span> · Free and open source</span>
+        <h1>Accurate subtitles for your videos <span>in minutes</span>.</h1>
+        <p class="lead">LingoCue turns speech into text, corrects it with AI, translates it into the languages you need and burns the subtitles into your video in the style you choose.</p>
+        <div class="cta">
+          <a class="btn primary" id="download-primary" href="https://github.com/eneskaramanoglu/lingocue/releases/latest/download/LingoCue-win-Setup.exe">
+            <svg aria-hidden="true"><use href="#i-export"></use></svg> Download for Windows</a>
+          <a class="btn" id="download-secondary" href="https://github.com/eneskaramanoglu/lingocue/releases/latest/download/LingoCue-osx-arm64.dmg">
+            <svg aria-hidden="true"><use href="#i-laptop"></use></svg> Download for Mac</a>
+        </div>
+        <p class="cta-note">Windows 10/11 (64-bit) · macOS 13+ on Apple Silicon (M1–M4) · The app's interface is in Turkish · <a href="#download">install and requirements</a></p>
+        <div class="shot">
+          <img src="/assets/img/editor.webp" width="1600" height="792"
+               alt="The LingoCue editor: video preview with subtitles and a waveform timeline on the left, subtitle lines with timings and reading speed on the right">
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="wrap">
+        <div class="kicker">Features</div>
+        <h2>All of subtitling in one app</h2>
+        <p class="intro">From recording to release: transcription, correction, translation, styling and export. Built for Turkish first, with its casing and spelling rules, and useful for many other languages.</p>
+        <div class="grid">
+          <div class="card">
+            <div class="icon"><svg aria-hidden="true"><use href="#i-mic"></use></svg></div>
+            <h3>Speech to text</h3>
+            <p>Whisper runs free on your own computer and graphics card, with word-level timing. Gemini Transcribe is there for noisy recordings.</p>
+          </div>
+          <div class="card">
+            <div class="icon"><svg aria-hidden="true"><use href="#i-wand"></use></svg></div>
+            <h3>AI correction</h3>
+            <p>Spelling, punctuation and names get fixed while lines stay readable. Names in your glossary are spelled the same everywhere.</p>
+          </div>
+          <div class="card">
+            <div class="icon"><svg aria-hidden="true"><use href="#i-translate"></use></svg></div>
+            <h3>Several languages at once</h3>
+            <p>English, Korean, German, Japanese and more; each language becomes its own track. Korean follows Netflix's reading rules.</p>
+          </div>
+          <div class="card">
+            <div class="icon"><svg aria-hidden="true"><use href="#i-palette"></use></svg></div>
+            <h3>Your style</h3>
+            <p>Fonts and colors, a block box, line boxes or a full-width band, frames, karaoke and bilingual subtitles. Templates apply it in one click.</p>
+          </div>
+          <div class="card">
+            <div class="icon"><svg aria-hidden="true"><use href="#i-export"></use></svg></div>
+            <h3>Preview equals output</h3>
+            <p>What you see in the preview is exactly what gets burned in. Fast export on NVIDIA, AMD, Intel or Apple hardware; SRT, VTT and ASS too.</p>
+          </div>
+          <div class="card">
+            <div class="icon"><svg aria-hidden="true"><use href="#i-shield"></use></svg></div>
+            <h3>Local and private if you want</h3>
+            <p>With Whisper and Ollama everything stays on your computer: no internet, no account. Cloud engines are used only when you choose them.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="how">
+      <div class="wrap">
+        <div class="kicker">How it works</div>
+        <h2>Four steps to a subtitled video</h2>
+        <p class="intro">The app's top bar shows the order of work. Each step makes its own track, so the original is never lost.</p>
+        <div class="steps">
+          <div class="step"><h3>Transcribe</h3><p>Drop in a video. Speech becomes word-timed text, split into readable lines; doubtful lines are flagged.</p></div>
+          <div class="step"><h3>Correct</h3><p>AI fixes spelling and punctuation. You see every changed line and can go back to the original.</p></div>
+          <div class="step"><h3>Translate</h3><p>Pick one or more languages. The video's context is read once, so terms and tone stay consistent.</p></div>
+          <div class="step"><h3>Export</h3><p>Burn the subtitles in, add them as a separate track, or save a subtitle file.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="style">
+      <div class="wrap">
+        <div class="split">
+          <div>
+            <div class="kicker">Style</div>
+            <h2>Subtitles that match your brand</h2>
+            <p class="intro">Set the background box color, opacity and padding, add a frame; the preview updates instantly.</p>
+            <ul class="checks">
+              <li>Block box, line boxes or a full-width band</li>
+              <li>Karaoke: words light up as they are spoken (Shorts style)</li>
+              <li>Bilingual mode: the translation under the main subtitle</li>
+              <li>Project fonts, with a warning for missing Turkish or Korean letters</li>
+            </ul>
+          </div>
+          <div class="frame"><img src="/assets/img/style-options.webp" width="1600" height="792" alt="The style panel with the background box list open: none, block box, line box and full-width band"></div>
+        </div>
+        <div class="gallery">
+          <figure><div class="frame"><img src="/assets/img/style-block.webp" width="1280" height="720" loading="lazy" alt="A block box with an English translation underneath"></div><figcaption>Block box + bilingual</figcaption></figure>
+          <figure><div class="frame"><img src="/assets/img/style-band.webp" width="1280" height="720" loading="lazy" alt="A dark blue full-width band with a yellow frame"></div><figcaption>Full-width band + frame</figcaption></figure>
+          <figure><div class="frame"><img src="/assets/img/style-line.webp" width="1280" height="720" loading="lazy" alt="Dark text on a white box behind each line"></div><figcaption>Line boxes</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="translation">
+      <div class="wrap">
+        <div class="split reverse">
+          <div>
+            <div class="kicker">Translation</div>
+            <h2>Many languages in one click</h2>
+            <p class="intro">Choose the target languages and see the cost up front. Each language becomes its own track with the exact same timing.</p>
+            <ul class="checks">
+              <li>The video's summary, tone and speakers are read first</li>
+              <li>Glossary terms and locked lines are kept</li>
+              <li>Unfinished lines are retried without paying again for finished ones</li>
+              <li>Works with a free Gemini key or a local model (Ollama)</li>
+            </ul>
+          </div>
+          <div class="frame"><img src="/assets/img/translate.webp" width="777" height="616" loading="lazy" alt="The translate dialog (in Turkish): English selected as the target, Gemini as the engine, estimated cost about 0.009 dollars"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy">
+      <div class="wrap">
+        <div class="kicker">Privacy and cost</div>
+        <h2>What runs where, and what does it cost?</h2>
+        <p class="intro">No account, no subscription. You choose the engines; API keys stay in Windows Credential Manager or the macOS Keychain.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Engine</th><th>Used for</th><th>Cost</th><th>Your data</th></tr></thead>
+            <tbody>
+              <tr><td>Whisper (local)</td><td>Transcription</td><td class="free">Free</td><td>The video stays on your computer</td></tr>
+              <tr><td>Ollama (local)</td><td>Correction, translation</td><td class="free">Free</td><td>The text stays on your computer</td></tr>
+              <tr><td>Gemini Transcribe</td><td>Transcription</td><td>~$0.005 per minute</td><td>Audio is sent to Google</td></tr>
+              <tr><td>Gemini Flash / Pro</td><td>Correction, translation</td><td>Usually under one cent for a short video</td><td>Text is sent to Google</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">At most once a day the app asks GitHub for the latest version number only (you can turn this off). This website uses no cookies and no tracking.</p>
+      </div>
+    </section>
+
+    <section class="alt download" id="download">
+      <div class="wrap">
+        <div class="kicker">Download</div>
+        <h2>LingoCue <span data-version>1.0.0</span></h2>
+        <p class="intro" style="margin-left:auto;margin-right:auto">Free and open source (MIT). Updates arrive inside the app.</p>
+        <div class="grid">
+          <div class="card" data-os="windows">
+            <h3><svg aria-hidden="true"><use href="#i-monitor"></use></svg> Windows 10 / 11</h3>
+            <p>Installs without admin rights and updates itself.</p>
+            <a class="btn primary" href="https://github.com/eneskaramanoglu/lingocue/releases/latest/download/LingoCue-win-Setup.exe"><svg aria-hidden="true"><use href="#i-export"></use></svg> Download installer <small>(.exe)</small></a>
+            <p class="note">If you see “Windows protected your PC”: <b>More info → Run anyway</b> (the app is not signed with a paid certificate). To try it without installing: <a href="https://github.com/eneskaramanoglu/lingocue/releases/latest/download/LingoCue-win-Portable.zip">portable zip</a>.</p>
+          </div>
+          <div class="card" data-os="mac">
+            <h3><svg aria-hidden="true"><use href="#i-laptop"></use></svg> macOS 13+ · Apple Silicon</h3>
+            <p>Macs with M1, M2, M3 and M4 chips. The GPU is used through Metal.</p>
+            <a class="btn primary" href="https://github.com/eneskaramanoglu/lingocue/releases/latest/download/LingoCue-osx-arm64.dmg"><svg aria-hidden="true"><use href="#i-export"></use></svg> Download disk image <small>(.dmg)</small></a>
+            <p class="note">Drag LingoCue to Applications. The app is not notarized by Apple, so run this once in Terminal before the first start:</p>
+            <pre><code>xattr -dr com.apple.quarantine /Applications/LingoCue.app</code></pre>
+          </div>
+          <div class="card">
+            <h3><svg aria-hidden="true"><use href="#i-export"></use></svg> FFmpeg (needed on both)</h3>
+            <p>Audio and video are processed with FFmpeg; install it once:</p>
+            <pre><code>winget install Gyan.FFmpeg</code></pre>
+            <pre><code>brew install ffmpeg-full</code></pre>
+            <p class="note">More: <a href="https://github.com/eneskaramanoglu/lingocue/blob/main/docs/KULLANIM.md">user guide (Turkish)</a> · <a href="https://github.com/eneskaramanoglu/lingocue/releases">all releases</a></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="wrap">
+        <div class="kicker">FAQ</div>
+        <h2>Frequently asked questions</h2>
+        <details><summary>Is it really free?</summary><p>Yes. LingoCue is open source under the MIT license. The local engines (Whisper, Ollama) are completely free; if you use Gemini, Google charges for what you use and the app shows an estimate before each run. There is a setting for free Gemini keys.</p></details>
+        <details><summary>Is the interface available in English?</summary><p>Not yet: the app is in Turkish. Transcription works in dozens of languages, and translation goes into English, Korean, German, French, Spanish, Italian, Arabic, Russian, Japanese and Azerbaijani.</p></details>
+        <details><summary>Do I need an internet connection?</summary><p>Not with the local engines: the Whisper model downloads once (~1 GB) on first use, then everything works offline. Gemini needs a connection.</p></details>
+        <details><summary>What if I have no graphics card, or a weak one?</summary><p>Whisper also runs on the CPU, just slower. The app detects your graphics card and suggests a model and settings that fit; a 4 GB card is plenty.</p></details>
+        <details><summary>Does it run on Intel Macs?</summary><p>Not for now: the Mac version is for Apple Silicon (M1–M4).</p></details>
+        <details><summary>How do updates work?</summary><p>On Windows, the installed version downloads updates in the background and offers “restart and update”. On a Mac the app tells you about a new version and opens the download page.</p></details>
+        <details><summary>I found a bug. How do I report it?</summary><p>In the app, Yardım → Tanılama paketi oluştur saves a zip to the desktop; then Yardım → Hata bildir opens a new issue on <a href="https://github.com/eneskaramanoglu/lingocue/issues">GitHub</a> where you can attach it. Nothing is sent automatically, and your keys are never in the package.</p></details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© 2026 LingoCue · MIT license</span>
+      <nav aria-label="Footer">
+        <a href="https://github.com/eneskaramanoglu/lingocue">GitHub</a>
+        <a href="https://github.com/eneskaramanoglu/lingocue/blob/main/docs/KULLANIM.md">User guide (TR)</a>
+        <a href="https://github.com/eneskaramanoglu/lingocue/releases">Releases</a>
+        <a href="https://github.com/eneskaramanoglu/lingocue/blob/main/CHANGELOG.md">Changelog</a>
+        <a href="/" hreflang="tr" lang="tr">Türkçe</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

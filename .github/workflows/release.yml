@@ -102,6 +102,9 @@ jobs:
           bash build/macos/make-app.sh publish/${{ matrix.rid }} artifacts ${{ steps.ver.outputs.version }}
           mkdir -p artifacts/upload
           bash build/macos/make-dmg.sh artifacts/LingoCue.app artifacts/upload/LingoCue-${{ steps.ver.outputs.version }}-${{ matrix.rid }}.dmg
+          # Same image under a fixed name, so releases/latest/download/LingoCue-osx-arm64.dmg (the website's
+          # download link) always points to the newest version.
+          cp artifacts/upload/LingoCue-${{ steps.ver.outputs.version }}-${{ matrix.rid }}.dmg artifacts/upload/LingoCue-${{ matrix.rid }}.dmg
           rm -rf artifacts/LingoCue.app
 
       - uses: actions/upload-artifact@v7
