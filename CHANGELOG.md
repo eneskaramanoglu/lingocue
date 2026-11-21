@@ -6,40 +6,66 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-22
+
 ### Added
+- **Template gallery** (Stil). Every template is a card with a thumbnail of how it looks on your video: the
+  selected line over the frame where it is spoken. Thumbnails are drawn by the same subtitle renderer as the
+  preview and the export. A click applies the template; Ctrl+Z undoes it. The card that matches the project is
+  marked.
+- **Rounded block box** (Stil → Arka plan kutusu → Köşe yuvarlaklığı).
+  - The box is sized from the text measured in the font file. On test lines it lands within a pixel of the
+    square box.
+  - Lines that cannot be measured (missing font) or are too long for the margins keep the square box.
+- **Doubtful words.** On a recognized track, a line waiting for review shows where speech recognition was
+  unsure: warning-colored bars on the timeline at those words, and buttons under the editor that play from
+  just before each word.
+- **Apple Neural Engine** (Tercihler → Genel, Apple Silicon). Whisper's encoder can run on the Neural Engine.
+  The Core ML encoder (~1.2 GB) downloads once; the first run can take a few minutes while macOS prepares it.
+- **Prompt cache.** After a correction or translation the status says how many tokens Gemini served from its
+  cache and about how much that saved. Gemini only caches when the shared start of the prompt is long enough
+  (large glossaries and contexts).
 - Website (`website/`, Turkish and English) for Vercel: features, screenshots, privacy and costs, downloads and FAQ.
 - Releases also carry `LingoCue-osx-arm64.dmg` under a fixed name, so the latest Mac download has a stable link.
+
+### Fixed
+- The export dialog showed "large-v3-q50" for a track named "large-v3-q5_0" (the underscore was read as a
+  keyboard shortcut marker).
+
+### Changed
+- The main window's view model is split into smaller parts; the planning logic of runs moved into tested library
+  code. Nothing changes in use.
 
 ## [1.0.0] - 2026-11-21
 
 The first version packaged for everyday use: installers, updates and help.
 
 ### Added
-- **Windows installer.** `LingoCue-win-Setup.exe` installs per user in `%LocalAppData%ingocue` with
-  no admin rights, adds desktop and start menu shortcuts, and uninstalls from windows settings. your
-  settings and models are kept. `lingocue-win-portable.zip` runs without installing.
-- **automatic updates.**
-  - at start-up, at most once a day, the app checks github for a new version. only the version number
-    is asked. you can turn this off in tercihler → genel.
-  - an installed windows copy downloads the update in the background (usually a small delta) and
-    offers "yeniden başlat ve güncelle". it asks about unsaved work and running exports first.
-  - on macos and with the portable zip, a banner links to the release page.
-  - yardım → güncellemeleri denetle checks right away.
-- **macos disk image.** `lingocue-x.y.z-osx-arm64.dmg` with a link to applications, and an app icon.
-- **app icon** on both systems.
-- **diagnostics package** (yardım → tanılama paketi oluştur): a zip on the desktop with a summary,
-  recent logs and settings, ready to attach to a bug report. the home folder path is hidden, the
-  recent-files list is left out and api keys are never in it. nothing is sent automatically.
-- **unexpected errors** are shown with an offer to make the package; the app keeps running so you can
+- **Windows installer.** `LingoCue-win-Setup.exe` installs per user in `%LocalAppData%\LingoCue` with
+  no admin rights, adds Desktop and Start menu shortcuts, and uninstalls from Windows Settings. Your
+  settings and models are kept. `LingoCue-win-Portable.zip` runs without installing.
+- **Automatic updates.**
+  - At start-up, at most once a day, the app checks GitHub for a new version. Only the version number
+    is asked. You can turn this off in Tercihler → Genel.
+  - An installed Windows copy downloads the update in the background (usually a small delta) and
+    offers "Yeniden başlat ve güncelle". It asks about unsaved work and running exports first.
+  - On macOS and with the portable zip, a banner links to the release page.
+  - Yardım → Güncellemeleri denetle checks right away.
+- **macOS disk image.** `LingoCue-x.y.z-osx-arm64.dmg` with a link to Applications, and an app icon.
+- **App icon** on both systems.
+- **Diagnostics package** (Yardım → Tanılama paketi oluştur): a zip on the desktop with a summary,
+  recent logs and settings, ready to attach to a bug report. The home folder path is hidden, the
+  recent-files list is left out and API keys are never in it. Nothing is sent automatically.
+- **Unexpected errors** are shown with an offer to make the package; the app keeps running so you can
   save your work.
-- **help menu:** user guide, log folder, bug report on github, and "lingocue hakkında" with the version
+- **Help menu:** user guide, log folder, bug report on GitHub, and "LingoCue hakkında" with the version
   and the licenses of the components.
-- **user guide in turkish:** [docs/kullanim.md](docs/kullanim.md).
+- **User guide in Turkish:** [docs/KULLANIM.md](docs/KULLANIM.md).
 
-### changed
-- release downloads are now an installer (windows) and a disk image (macos) instead of zip files.
-  copies of 0.12 or older that ran from a zip do not update themselves: install 1.0 once with
-  setup.exe or the .dmg.
+### Changed
+- Release downloads are now an installer (Windows) and a disk image (macOS) instead of zip files.
+  Copies of 0.12 or older that ran from a zip do not update themselves: install 1.0 once with
+  Setup.exe or the .dmg.
 
 ## [0.12.0] - 2026-11-21
 
@@ -398,7 +424,8 @@ The first version packaged for everyday use: installers, updates and help.
   unsigned osx-arm64 `.app` zip.
 - Docs: plan, research notes, architecture overview, macOS test checklist, `CLAUDE.md`.
 
-[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/eneskaramanoglu/lingocue/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/eneskaramanoglu/lingocue/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.12.0...v1.0.0
 [0.12.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/eneskaramanoglu/lingocue/compare/v0.10.0...v0.11.0

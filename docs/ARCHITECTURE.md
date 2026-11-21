@@ -159,6 +159,25 @@ track cues ──► LineItem(id, text, duration, speaker, locked)
 - The editor links a derived track to its source through `SourceTrackId`/`SourceCueId` to show the
   original text and the changed-only filter.
 
+## Gallery, rounded box, doubtful words, Neural Engine, cache (v1.1.0)
+
+- **MainViewModel** is split by area into partial files: Open, Export, Transcription, Passes, Welcome, History, Updates and Help. Logic without UI lives in libraries with tests:
+  - `PassPlanning.Options` and `AddTrack` (Llm),
+  - `AsrTracks.Add` and `SubtitleExportNames` (Core).
+- **Rounded block box.** libass cannot round its BorderStyle 4 box, so `AssScriptBuilder` draws a `\p1` rounded rectangle one layer below the text when it is given an `ITextMeasurer`.
+  - `FontTextMeasurer` finds the face libass will use (`IFontCatalog.FindFace`: family, bold, italic, project fonts first).
+  - It sums `hmtx` advances through `cmap` and scales by `size / (usWinAscent + usWinDescent)`, as libass does (`FontMetrics`).
+  - Lines it cannot measure, or wider than the margins, use the `"<style> Box"` fallback style (square BorderStyle 4).
+  - The preview, the export jobs, the ASS export and the thumbnails all pass a measurer.
+  - `RoundedBoxTests` renders both boxes with FFmpeg and compares their edges.
+- **Template gallery.** `StyleThumbnails` (Media) writes the template's script (`AssScriptBuilder`, one line spanning 0–1 h because input seeking resets frame time).
+  - It renders one frame with FFmpeg's `ass` filter (or over `Assets/gallery-background.jpg` when there is no video), crops to the subtitle area and caches by script and frame.
+  - `StyleTemplates.LooksLike` marks the applied card and tolerates the colour pickers' HSV rounding.
+- **Doubtful words.** `CueViewModel.DoubtfulWords`: words under `AsrReview.DoubtfulConfidence` on a recognized track while the line waits for review. The timeline draws a bar at each word's time; the editor's word buttons call `PlayWord`.
+- **Neural Engine.** `CoreMlEncoder` downloads the whisper.cpp Core ML encoder (pinned SHA256) and unpacks it next to the model under whisper.cpp's name (quantization suffix dropped).
+  - Turning it off renames the folder to `.off`, so whisper.cpp falls back to Metal.
+- **Prompt cache.** `LlmUsage.CachedInputTokens` comes from `UsageDetails.CachedInputTokenCount`. `LlmPrice.Cost(LlmUsage)` charges cached input at `CachedInputShare` (25 %). `PromptCacheTests` guards that every batch shares the same system prompt.
+
 ## Packaging, updates and diagnostics (v1.0.0)
 
 - **Packages.** `release.yml` builds both platforms on a `v*` tag.
