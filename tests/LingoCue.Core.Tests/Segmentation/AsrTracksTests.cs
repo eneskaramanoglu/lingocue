@@ -41,7 +41,7 @@ public class AsrTracksTests
         SubtitleExportNames.For("film", [tr, en], en).ShouldBe("film.en");
         SubtitleExportNames.For("film", [tr, fixedTr, en], tr).ShouldBe("film.tr.Kaynak-Whisper");
         SubtitleExportNames.For("film", [tr, fixedTr], fixedTr).ShouldBe("film.tr.Düzeltilmiş");
-        SubtitleExportNames.BaseName(null, @"C:\x\proje.lingocue").ShouldBe("proje");
+        SubtitleExportNames.BaseName(null, Path.Combine("x", "proje.lingocue")).ShouldBe("proje"); // the running OS's path style
         SubtitleExportNames.BaseName(null, null).ShouldBe("altyazi");
     }
 }
