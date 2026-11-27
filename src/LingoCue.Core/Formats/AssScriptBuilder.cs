@@ -50,12 +50,38 @@ public static class AssScriptBuilder
         var main = project.Style with { Name = MainStyleName };
 
         var culture = CultureFor(track.Language);
-        var cues = track.Cues.Where(c => c.End > c.Start).ToList();
-        var secondaryTrack = allowBilingual ? SecondaryTrackFor(project, track) : null;
+        List<Cue> cues;
+        List<Cue>? secondCues = null;
+        var secondCulture = culture;
+        if (SubtitlePlans.AppliesTo(project, track))
+        {
+            // Per-language plan: each line's top and bottom come from the plan. A one-track output gets
+            // both lines in one subtitle.
+            if (allowBilingual)
+            {
+                var planned = SubtitlePlans.Resolve(project, track);
+                cues = [.. planned.Main];
+                secondCues = planned.HasSecond ? [.. planned.Second] : null;
+            }
+            else
+            {
+                cues = [.. SubtitlePlans.Flatten(project, track).Cues];
+            }
+        }
+        else
+        {
+            cues = [.. track.Cues.Where(c => c.End > c.Start)];
+            if ((allowBilingual ? SecondaryTrackFor(project, track) : null) is { } secondaryTrack)
+            {
+                secondCues = [.. secondaryTrack.Cues.Where(c => c.End > c.Start)];
+                secondCulture = CultureFor(secondaryTrack.Language);
+            }
+        }
+
         var sink = new EventSink(x, y, measurer);
         var styles = new List<SubtitleStyle>(StylesFor(main, measurer));
 
-        if (secondaryTrack is null)
+        if (secondCues is null)
         {
             foreach (var cue in cues)
             {
@@ -74,7 +100,7 @@ public static class AssScriptBuilder
                 MarginR = main.MarginR,
             };
             styles.AddRange(StylesFor(secondary, measurer));
-            AddBilingualEvents(sink, cues, secondaryTrack, main, secondary, bilingual.Gap, presentation, culture, x);
+            AddBilingualEvents(sink, cues, secondCues, secondCulture, main, secondary, bilingual.Gap, presentation, culture, x);
         }
 
         return new SubtitleDocument
@@ -105,11 +131,9 @@ public static class AssScriptBuilder
     /// vertical margin is computed from the height of the other track's text shown at the same time.
     /// </summary>
     private static void AddBilingualEvents(
-        EventSink events, List<Cue> mainCues, SubtitleTrack secondaryTrack, SubtitleStyle main, SubtitleStyle secondary,
+        EventSink events, List<Cue> mainCues, List<Cue> secondaryCues, CultureInfo secondaryCulture, SubtitleStyle main, SubtitleStyle secondary,
         int gap, PresentationOptions presentation, CultureInfo culture, int playResX)
     {
-        var secondaryCues = secondaryTrack.Cues.Where(c => c.End > c.Start).ToList();
-        var secondaryCulture = CultureFor(secondaryTrack.Language);
         var position = VerticalPosition(main.Alignment);
         var plain = presentation with { Karaoke = new KaraokeOptions() };
 
