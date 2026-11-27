@@ -100,6 +100,27 @@ public sealed class RenderIntegrationTests(TestMedia media) : IClassFixture<Test
     }
 
     [Theory]
+    [InlineData(VideoFormat.Hevc10, "hevc", "yuv420p10le")]
+    [InlineData(VideoFormat.ProRes422Hq, "prores", "yuv422p10le")]
+    public async Task High_quality_burn_in_writes_10_bit_video_with_the_subtitles(VideoFormat format, string codec, string pixelFormat)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (renderer, probe, runner, tools) = Create();
+        var source = await probe.ProbeAsync(media.LandscapeClip, ct);
+        var output = Path.Combine(OutputDir(), format == VideoFormat.ProRes422Hq ? "Ana kopya.mov" : "Yüksek kalite.mp4");
+
+        await renderer.RenderAsync(FfmpegCommands.BurnIn(new BurnInRequest(media.LandscapeClip, output, source, WorkFolderWithRedSquare(), VideoEncoder.X264, 19, format)),
+            source.Duration, cancellationToken: ct);
+
+        var result = await probe.ProbeAsync(output, ct);
+        (result.Video!.Codec, result.Video.PixelFormat).ShouldBe((codec, pixelFormat));
+        result.Duration.TotalSeconds.ShouldBe(source.Duration.TotalSeconds, tolerance: 0.15);
+        result.AudioStreams.ShouldHaveSingleItem();
+        var inside = await PixelAsync(runner, tools, output, 100, 100);
+        inside[0].ShouldBeGreaterThan((byte)200); // the red square is in the picture
+    }
+
+    [Theory]
     [InlineData(OverlayCodec.Animation, "qtrle")]
     [InlineData(OverlayCodec.ProRes4444, "prores")]
     public async Task Overlay_is_transparent_except_the_subtitles_and_matches_the_source(OverlayCodec codec, string expectedCodec)

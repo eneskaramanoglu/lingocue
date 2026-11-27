@@ -87,8 +87,18 @@
     </StackPanel>
 
     <!-- Burn-in -->
-    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8" IsVisible="{Binding IsBurnIn}">
+    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8" IsVisible="{Binding IsBurnIn}">
       <TextBlock Text="İz" VerticalAlignment="Center" />
+      <TextBlock Grid.Row="1" Text="Biçim" VerticalAlignment="Center" />
+      <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding VideoFormats}" SelectedItem="{Binding SelectedVideoFormat}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:VideoFormatChoice">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding FormatNote}" Classes="muted" TextWrapping="Wrap"
+                 IsVisible="{Binding FormatNote, Converter={x:Static ObjectConverters.IsNotNull}}" />
       <ComboBox Grid.Column="1" ItemsSource="{Binding AllTracks}" SelectedItem="{Binding BurnTrack}" HorizontalAlignment="Stretch">
         <ComboBox.ItemTemplate>
           <DataTemplate x:DataType="sub:SubtitleTrack">
@@ -100,19 +110,20 @@
         </ComboBox.ItemTemplate>
       </ComboBox>
 
-      <TextBlock Grid.Row="1" Text="Kodlayıcı" VerticalAlignment="Center" />
-      <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Encoders}" SelectedItem="{Binding SelectedEncoder}" HorizontalAlignment="Stretch">
+      <TextBlock Grid.Row="3" Text="Kodlayıcı" VerticalAlignment="Center" IsVisible="{Binding UsesEncoder}" />
+      <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Encoders}" SelectedItem="{Binding SelectedEncoder}" HorizontalAlignment="Stretch"
+                IsVisible="{Binding UsesEncoder}">
         <ComboBox.ItemTemplate>
           <DataTemplate x:DataType="vm:EncoderChoice">
             <TextBlock Text="{Binding Label}" />
           </DataTemplate>
         </ComboBox.ItemTemplate>
       </ComboBox>
-      <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding EncoderNote}" Classes="issues" TextWrapping="Wrap"
+      <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding EncoderNote}" Classes="issues" TextWrapping="Wrap"
                  IsVisible="{Binding EncoderNote, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
-      <TextBlock Grid.Row="3" Text="Kalite" VerticalAlignment="Center" />
-      <DockPanel Grid.Row="3" Grid.Column="1">
+      <TextBlock Grid.Row="5" Text="Kalite" VerticalAlignment="Center" IsVisible="{Binding UsesQuality}" />
+      <DockPanel Grid.Row="5" Grid.Column="1" IsVisible="{Binding UsesQuality}">
         <TextBlock DockPanel.Dock="Right" Text="{Binding QualityText}" VerticalAlignment="Center" Margin="12,0,0,0" MinWidth="200" />
         <!-- Slider runs from small file (left) to high quality (right): CRF is inverted. -->
         <Slider Minimum="-26" Maximum="-16" Value="{Binding Quality, Converter={x:Static vm:NegateConverter.Instance}}"

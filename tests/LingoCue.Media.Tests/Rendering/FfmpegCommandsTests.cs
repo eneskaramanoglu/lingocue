@@ -205,4 +205,30 @@ public class FfmpegCommandsTests
 
         script.ShouldBe("[Script Info]\nYCbCr Matrix: None\nPlayResX: 1920\n");
     }
+
+    [Fact]
+    public void High_quality_formats_keep_10_bits_and_the_source_colors()
+    {
+        var source = Source() with
+        {
+            Video = new VideoStreamInfo(0, "hevc", 3840, 2160, 29.97, 0, "yuv420p10le", "arib-std-b67", "30000/1001", "bt2020", "bt2020nc", "tv"),
+        };
+
+        var hevc = Joined(FfmpegCommands.BurnIn(new BurnInRequest("in.mp4", "out.mp4", source, "w", VideoEncoder.X264, 19, VideoFormat.Hevc10)));
+        hevc.ShouldContain("-vf format=yuv420p10le,ass=subtitles.ass");
+        hevc.ShouldContain("-c:v libx265 -preset medium -crf 17 -pix_fmt yuv420p10le");
+        hevc.ShouldContain("-tag:v hvc1");
+        hevc.ShouldContain("-color_primaries bt2020 -color_trc arib-std-b67 -colorspace bt2020nc -color_range tv");
+        hevc.ShouldEndWith("-f mp4 out.mp4");
+
+        var prores = Joined(FfmpegCommands.BurnIn(new BurnInRequest("in.mp4", "out.mov", source, "w", VideoEncoder.Nvenc, 19, VideoFormat.ProRes422Hq)));
+        prores.ShouldContain("-vf format=yuv422p10le,ass=");
+        prores.ShouldContain("-c:v prores_ks -profile:v 3 -pix_fmt yuv422p10le");
+        prores.ShouldEndWith("-f mov out.mov");
+        prores.ShouldNotContain("faststart");
+
+        Joined(FfmpegCommands.BurnIn(new BurnInRequest("in.mp4", "out.mp4", source, "w", VideoEncoder.Nvenc, 19, VideoFormat.Hevc10)))
+            .ShouldContain("-c:v hevc_nvenc -preset p5 -tune hq -rc vbr -cq 21 -b:v 0 -profile:v main10 -pix_fmt p010le");
+        Joined(FfmpegCommands.BurnIn(new BurnInRequest("in.mp4", "out.mp4", Source(), "w"))).ShouldNotContain("format=yuv4");
+    }
 }

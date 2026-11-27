@@ -165,7 +165,8 @@ public partial class MainViewModel
 
         var burnIn = choice.Kind == ExportKind.BurnIn;
         var overlay = choice.Kind == ExportKind.Overlay;
-        var extension = overlay ? ".mov" : burnIn || choice.Container == SoftSubContainer.Mp4 ? ".mp4" : ".mkv";
+        var extension = overlay || (burnIn && choice.VideoFormat == VideoFormat.ProRes422Hq) ? ".mov"
+            : burnIn || choice.Container == SoftSubContainer.Mp4 ? ".mp4" : ".mkv";
         var suffix = overlay ? "altyazi-katmani" : burnIn ? "altyazili" : "altyazi-izli";
         if (await _files!.SaveVideoAsync($"{ExportBaseName()}.{suffix}", extension) is not { } output)
         {
@@ -177,7 +178,7 @@ public partial class MainViewModel
         var job = overlay
             ? await ExportJobs.PrepareOverlayAsync(project, choice.Tracks[0], media, output, choice.OverlayCodec, fonts, jobsRoot, Measurer())
             : burnIn
-            ? await ExportJobs.PrepareBurnInAsync(project, choice.Tracks[0], media, output, choice.Encoder, choice.Quality, fonts, jobsRoot, Measurer())
+            ? await ExportJobs.PrepareBurnInAsync(project, choice.Tracks[0], media, output, choice.Encoder, choice.Quality, fonts, jobsRoot, Measurer(), choice.VideoFormat)
             : await ExportJobs.PrepareSoftSubAsync(project, choice.Tracks, media, output, choice.Container, fonts, jobsRoot, Measurer());
         RenderQueue.Enqueue(job);
         StatusText = $"Kuyruğa eklendi: {Path.GetFileName(output)} — ilerlemeyi sağ alttaki İşler'den izleyebilirsiniz.";

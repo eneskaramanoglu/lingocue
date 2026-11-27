@@ -19,7 +19,8 @@ public static class ExportJobs
 {
     public static async Task<RenderJob> PrepareBurnInAsync(
         Project project, SubtitleTrack track, MediaInfo media, string outputPath,
-        VideoEncoder encoder, int quality, string? projectFontDirectory, string jobsRoot, Core.Fonts.ITextMeasurer? measurer = null, CancellationToken cancellationToken = default)
+        VideoEncoder encoder, int quality, string? projectFontDirectory, string jobsRoot, Core.Fonts.ITextMeasurer? measurer = null,
+        VideoFormat format = VideoFormat.H264, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(track);
@@ -29,7 +30,7 @@ public static class ExportJobs
         await File.WriteAllTextAsync(Path.Combine(work, FfmpegCommands.SubtitleFileName), AssScriptBuilder.Build(project, track, width, height, measurer: measurer), cancellationToken);
         CopyFonts(projectFontDirectory, Path.Combine(work, FfmpegCommands.FontsFolderName));
 
-        var command = FfmpegCommands.BurnIn(new BurnInRequest(media.FilePath, outputPath, media, work, encoder, quality));
+        var command = FfmpegCommands.BurnIn(new BurnInRequest(media.FilePath, outputPath, media, work, encoder, quality, format));
         return new RenderJob($"Gömülü video · {Path.GetFileName(outputPath)}", command, media.Duration, work, Warnings(media));
     }
 

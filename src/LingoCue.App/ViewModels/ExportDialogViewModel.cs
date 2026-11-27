@@ -31,7 +31,10 @@ public sealed partial class TrackChoice(SubtitleTrack track, bool selected) : Ob
     public partial bool IsSelected { get; set; } = selected;
 }
 
-public sealed record EncoderChoice(VideoEncoder Encoder, string Label);
+/// <param name="Hevc10">The encoder can make the 10-bit HEVC format (x264 stands for x265 there).</param>
+public sealed record EncoderChoice(VideoEncoder Encoder, string Label, bool Hevc10 = true);
+
+public sealed record VideoFormatChoice(VideoFormat Format, string Label);
 
 public sealed record SubtitleFormatChoice(ISubtitleFormat Format, string Label);
 
@@ -45,7 +48,8 @@ public sealed record ExportChoice(
     int Quality,
     SoftSubContainer Container,
     bool SplitByLanguage = false,
-    OverlayCodec OverlayCodec = OverlayCodec.Animation);
+    OverlayCodec OverlayCodec = OverlayCodec.Animation,
+    VideoFormat VideoFormat = VideoFormat.H264);
 
 public sealed record OverlayCodecChoice(OverlayCodec Codec, string Label);
 
@@ -80,6 +84,7 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
         ];
         SelectedFormat = Formats[0];
         SelectedOverlayCodec = OverlayCodecs[0];
+        SelectedVideoFormat = VideoFormats[0];
 
         Encoders = [new(VideoEncoder.X264, "İşlemci (x264) — en iyi kalite/boyut, her yerde çalışır")];
         foreach (var status in hardware.Where(h => h.Available))
@@ -90,7 +95,7 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
                 VideoEncoder.Amf => "AMD ekran kartı (AMF) — çok daha hızlı, dosya biraz büyük",
                 VideoEncoder.Qsv => "Intel grafik (Quick Sync) — hızlı, dosya biraz büyük",
                 _ => "Apple donanımı (VideoToolbox) — çok daha hızlı, dosya biraz büyük",
-            }));
+            }, status.Hevc10));
         }
 
         EncoderNote = hardware.FirstOrDefault(h => h.Present && !h.Available)?.Problem;
@@ -224,6 +229,38 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
 
     public string? EncoderNote { get; }
 
+    /// <summary>H.264 for sharing; HEVC 10 bit or ProRes 422 HQ as a high-quality master.</summary>
+    public IReadOnlyList<VideoFormatChoice> VideoFormats { get; } =
+    [
+        new(VideoFormat.H264, "H.264 · MP4 — paylaşım (YouTube, sosyal medya), 8 bit"),
+        new(VideoFormat.Hevc10, "HEVC 10 bit · MP4 — yüksek kalite, 4K ve 10 bit kaynaklar için"),
+        new(VideoFormat.ProRes422Hq, "ProRes 422 HQ · MOV — kurgu için ana kopya (4K'da dakikası ~2,6 GB)"),
+    ];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UsesQuality), nameof(UsesEncoder), nameof(FormatNote))]
+    public partial VideoFormatChoice SelectedVideoFormat { get; set; }
+
+    /// <summary>ProRes has a fixed quality and is encoded on the CPU.</summary>
+    public bool UsesQuality => SelectedVideoFormat.Format != VideoFormat.ProRes422Hq;
+
+    public bool UsesEncoder => SelectedVideoFormat.Format != VideoFormat.ProRes422Hq;
+
+    /// <summary>The encoder that will really run: HEVC on a device without 10-bit HEVC falls back to x265.</summary>
+    private VideoEncoder EffectiveEncoder => SelectedVideoFormat.Format == VideoFormat.Hevc10 && !SelectedEncoder.Hevc10
+        ? VideoEncoder.X264
+        : SelectedEncoder.Encoder;
+
+    public string? FormatNote => SelectedVideoFormat.Format switch
+    {
+        VideoFormat.Hevc10 when !SelectedEncoder.Hevc10 => "Seçili donanım HEVC 10 bit kodlayamıyor; işlemci (x265) kullanılacak. Daha yavaştır (4K'da gerçek sürenin ~2 katı).",
+        VideoFormat.Hevc10 when SelectedEncoder.Encoder == VideoEncoder.X264 => "İşlemciyle x265 kullanılır: en iyi kalite/boyut ama yavaş (4K'da gerçek sürenin ~2 katı).",
+        VideoFormat.ProRes422Hq => "ProRes işlemciyle kodlanır ve kalite ayarı yoktur. Görüntü yine de bir kez yeniden kodlanır; hiç kayıp istemiyorsanız \"Altyazı katmanı\"nı kullanın.",
+        _ => null,
+    };
+
+    partial void OnSelectedEncoderChanged(EncoderChoice value) => OnPropertyChanged(nameof(FormatNote));
+
     /// <summary>x264 CRF: 16 = very high quality, 19 = visually lossless (default), 24 = small file.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(QualityText))]
@@ -270,7 +307,7 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
         IReadOnlyList<SubtitleTrack> tracks = Kind is ExportKind.BurnIn or ExportKind.Overlay
             ? [BurnTrack!]
             : [.. Tracks.Where(t => t.IsSelected).SelectMany(t => SplitByLanguage && HasMixedTrack ? TrackOperations.SplitByLanguage(t.Track) : [t.Track])];
-        return new ExportChoice(Kind, tracks, SelectedFormat.Format, IsSrt && PremiereBom, SelectedEncoder.Encoder,
-            (int)Math.Round(Quality), UseMkv ? SoftSubContainer.Mkv : SoftSubContainer.Mp4, SplitByLanguage && HasMixedTrack, SelectedOverlayCodec.Codec);
+        return new ExportChoice(Kind, tracks, SelectedFormat.Format, IsSrt && PremiereBom, EffectiveEncoder,
+            (int)Math.Round(Quality), UseMkv ? SoftSubContainer.Mkv : SoftSubContainer.Mp4, SplitByLanguage && HasMixedTrack, SelectedOverlayCodec.Codec, SelectedVideoFormat.Format);
     }
 }
