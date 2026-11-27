@@ -113,6 +113,12 @@ public sealed record LlmSettings
     /// <summary>Requests at a time to Ollama; above 1 only with GPU memory to spare.</summary>
     public int LocalParallelism { get; init; } = 1;
 
+    /// <summary>
+    /// Let thinking models (gemma4, qwen3) reason before answering. Off by default: on an M2 it made a
+    /// translation about 12× slower with the same result.
+    /// </summary>
+    public bool LocalThinking { get; init; }
+
     public bool IsLocal => string.Equals(Provider, "ollama", StringComparison.OrdinalIgnoreCase);
 }
 

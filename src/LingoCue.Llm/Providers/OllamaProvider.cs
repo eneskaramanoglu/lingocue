@@ -11,7 +11,10 @@ namespace LingoCue.Llm.Providers;
 /// and there are no rate limits. The model list is whatever the user has pulled (<c>ollama pull …</c>).
 /// Talks to Ollama's own HTTP API directly, so no extra package is needed.
 /// </summary>
-public sealed class OllamaProvider(HttpClient http, Func<string> baseUrl) : ILlmProvider
+/// <param name="http">Client for Ollama's HTTP API.</param>
+/// <param name="baseUrl">Server address, read on every call so a settings change applies at once.</param>
+/// <param name="thinking">Whether thinking models may reason before answering (settings: <c>LocalThinking</c>); off when null.</param>
+public sealed class OllamaProvider(HttpClient http, Func<string> baseUrl, Func<bool>? thinking = null) : ILlmProvider
 {
     public const string ProviderId = "ollama";
 
@@ -42,7 +45,8 @@ public sealed class OllamaProvider(HttpClient http, Func<string> baseUrl) : ILlm
             .OrderBy(m => m.Id, StringComparer.OrdinalIgnoreCase)];
     }
 
-    public IChatClient CreateChatClient(string modelId) => new OllamaChatClient(http, Url("api/chat"), modelId);
+    public IChatClient CreateChatClient(string modelId)
+        => new OllamaChatClient(http, Url("api/chat"), modelId) { Thinking = thinking?.Invoke() ?? false };
 
     /// <summary>Local runs cost nothing.</summary>
     public LlmPrice? PriceFor(string modelId) => new(0, 0, HasFreeTier: true);
@@ -67,37 +71,60 @@ public sealed class OllamaProvider(HttpClient http, Func<string> baseUrl) : ILlm
 
 /// <summary>
 /// <see cref="IChatClient"/> over Ollama's <c>/api/chat</c> (non-streaming). A JSON schema response
-/// format is passed as Ollama's <c>format</c>, so small local models still return valid JSON.
+/// format is passed as Ollama's <c>format</c>, so small local models still return valid JSON. Models
+/// whose runner has no structured output (Ollama answers 501 "structured output is unavailable", e.g.
+/// gemma4) are asked again without it; the prompts already ask for JSON and the parser strips fences.
+/// Thinking is off unless <see cref="Thinking"/> is set (<c>think: false</c>): on gemma4 it made a 3-line
+/// translation take 127 s instead of 10 s with the same result. Models that reject the switch are asked
+/// again without it.
 /// </summary>
 public sealed class OllamaChatClient(HttpClient http, Uri chatUrl, string model) : IChatClient
 {
+    // Remembered for this client (one model), so later batches skip the call Ollama refused.
+    private volatile bool _structuredOutputUnavailable;
+    private volatile bool _thinkSwitchUnsupported;
+
     /// <summary>Context window requested from Ollama; batches with context lines need more than its 2048 default.</summary>
     public int ContextLength { get; init; } = 8192;
+
+    /// <summary>Sent as Ollama's <c>think</c>: true lets thinking models reason before answering (much slower).</summary>
+    public bool Thinking { get; init; }
 
     public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(messages);
-        var request = new ChatRequest
+        List<ChatMessageDto> dtos = [.. messages.Select(m => new ChatMessageDto { Role = m.Role.Value, Content = m.Text })];
+        var format = _structuredOutputUnavailable ? null : options?.ResponseFormat switch
         {
-            Model = model,
-            Messages = [.. messages.Select(m => new ChatMessageDto { Role = m.Role.Value, Content = m.Text })],
-            Format = options?.ResponseFormat switch
-            {
-                ChatResponseFormatJson { Schema: { } schema } => schema,
-                ChatResponseFormatJson => JsonSerializer.SerializeToElement("json", OllamaJson.Default.String),
-                _ => null,
-            },
-            Options = new ModelOptions { Temperature = options?.Temperature, ContextLength = ContextLength },
+            ChatResponseFormatJson { Schema: { } schema } => schema,
+            ChatResponseFormatJson => JsonSerializer.SerializeToElement("json", OllamaJson.Default.String),
+            _ => (JsonElement?)null,
         };
+        bool? think = _thinkSwitchUnsupported ? null : Thinking;
 
-        HttpResponseMessage response;
-        try
+        var response = await PostAsync(dtos, format, think, options, cancellationToken);
+
+        // At most one retry per refused feature.
+        for (var attempt = 0; attempt < 2 && !response.IsSuccessStatusCode; attempt++)
         {
-            response = await http.PostAsJsonAsync(chatUrl, request, OllamaJson.Default.ChatRequest, cancellationToken);
-        }
-        catch (HttpRequestException ex)
-        {
-            throw OllamaProvider.NotRunning(ex);
+            var error = await response.Content.ReadAsStringAsync(cancellationToken); // buffered; still readable below
+            if (format is not null && error.Contains("structured output", StringComparison.OrdinalIgnoreCase))
+            {
+                _structuredOutputUnavailable = true;
+                format = null;
+            }
+            else if (think is not null && error.Contains("thinking", StringComparison.OrdinalIgnoreCase))
+            {
+                _thinkSwitchUnsupported = true;
+                think = null;
+            }
+            else
+            {
+                break;
+            }
+
+            response.Dispose();
+            response = await PostAsync(dtos, format, think, options, cancellationToken);
         }
 
         using (response)
@@ -120,6 +147,27 @@ public sealed class OllamaChatClient(HttpClient http, Uri chatUrl, string model)
                 ModelId = model,
                 Usage = new UsageDetails { InputTokenCount = result.PromptEvalCount, OutputTokenCount = result.EvalCount },
             };
+        }
+    }
+
+    private async Task<HttpResponseMessage> PostAsync(List<ChatMessageDto> messages, JsonElement? format, bool? think, ChatOptions? options, CancellationToken cancellationToken)
+    {
+        var request = new ChatRequest
+        {
+            Model = model,
+            Messages = messages,
+            Format = format,
+            Think = think,
+            Options = new ModelOptions { Temperature = options?.Temperature, ContextLength = ContextLength },
+        };
+
+        try
+        {
+            return await http.PostAsJsonAsync(chatUrl, request, OllamaJson.Default.ChatRequest, cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw OllamaProvider.NotRunning(ex);
         }
     }
 
@@ -153,6 +201,10 @@ internal sealed class ChatRequest
     /// <summary>A JSON schema, the string "json", or absent.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JsonElement? Format { get; init; }
+
+    /// <summary>Ollama's reasoning switch; false keeps thinking models (gemma4, qwen3) from writing long hidden reasoning.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Think { get; init; }
 
     public ModelOptions? Options { get; init; }
 }
