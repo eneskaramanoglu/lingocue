@@ -35,7 +35,7 @@
       <RadioButton Classes="choice" GroupName="kind" IsChecked="{Binding IsBurnIn}" IsEnabled="{Binding CanBurnIn}">
         <StackPanel Spacing="6">
           <TextBlock Text="Videoya göm" FontWeight="SemiBold" />
-          <TextBlock Text="Altyazı görüntünün parçası olur, önizlemedeki gibi. MP4." Classes="muted small" TextWrapping="Wrap" />
+          <TextBlock Text="Altyazı görüntünün parçası olur, önizlemedeki gibi. MP4 veya MOV." Classes="muted small" TextWrapping="Wrap" />
         </StackPanel>
       </RadioButton>
       <RadioButton Classes="choice" GroupName="kind" IsChecked="{Binding IsSoftSub}" IsEnabled="{Binding HasVideo}">
