@@ -67,37 +67,35 @@ public sealed class OllamaProvider(HttpClient http, Func<string> baseUrl) : ILlm
 
 /// <summary>
 /// <see cref="IChatClient"/> over Ollama's <c>/api/chat</c> (non-streaming). A JSON schema response
-/// format is passed as Ollama's <c>format</c>, so small local models still return valid JSON.
+/// format is passed as Ollama's <c>format</c>, so small local models still return valid JSON. Models
+/// whose runner has no structured output (Ollama answers 501 "structured output is unavailable", e.g.
+/// gemma4) are asked again without it; the prompts already ask for JSON and the parser strips fences.
 /// </summary>
 public sealed class OllamaChatClient(HttpClient http, Uri chatUrl, string model) : IChatClient
 {
+    private volatile bool _structuredOutputUnavailable;
+
     /// <summary>Context window requested from Ollama; batches with context lines need more than its 2048 default.</summary>
     public int ContextLength { get; init; } = 8192;
 
     public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(messages);
-        var request = new ChatRequest
+        List<ChatMessageDto> dtos = [.. messages.Select(m => new ChatMessageDto { Role = m.Role.Value, Content = m.Text })];
+        var format = _structuredOutputUnavailable ? null : options?.ResponseFormat switch
         {
-            Model = model,
-            Messages = [.. messages.Select(m => new ChatMessageDto { Role = m.Role.Value, Content = m.Text })],
-            Format = options?.ResponseFormat switch
-            {
-                ChatResponseFormatJson { Schema: { } schema } => schema,
-                ChatResponseFormatJson => JsonSerializer.SerializeToElement("json", OllamaJson.Default.String),
-                _ => null,
-            },
-            Options = new ModelOptions { Temperature = options?.Temperature, ContextLength = ContextLength },
+            ChatResponseFormatJson { Schema: { } schema } => schema,
+            ChatResponseFormatJson => JsonSerializer.SerializeToElement("json", OllamaJson.Default.String),
+            _ => (JsonElement?)null,
         };
 
-        HttpResponseMessage response;
-        try
+        var response = await PostAsync(dtos, format, options, cancellationToken);
+        if (format is not null && await IsStructuredOutputUnavailableAsync(response, cancellationToken))
         {
-            response = await http.PostAsJsonAsync(chatUrl, request, OllamaJson.Default.ChatRequest, cancellationToken);
-        }
-        catch (HttpRequestException ex)
-        {
-            throw OllamaProvider.NotRunning(ex);
+            // Remembered for this client (one model), so later batches skip the failing call.
+            _structuredOutputUnavailable = true;
+            response.Dispose();
+            response = await PostAsync(dtos, format: null, options, cancellationToken);
         }
 
         using (response)
@@ -121,6 +119,38 @@ public sealed class OllamaChatClient(HttpClient http, Uri chatUrl, string model)
                 Usage = new UsageDetails { InputTokenCount = result.PromptEvalCount, OutputTokenCount = result.EvalCount },
             };
         }
+    }
+
+    private async Task<HttpResponseMessage> PostAsync(List<ChatMessageDto> messages, JsonElement? format, ChatOptions? options, CancellationToken cancellationToken)
+    {
+        var request = new ChatRequest
+        {
+            Model = model,
+            Messages = messages,
+            Format = format,
+            Options = new ModelOptions { Temperature = options?.Temperature, ContextLength = ContextLength },
+        };
+
+        try
+        {
+            return await http.PostAsJsonAsync(chatUrl, request, OllamaJson.Default.ChatRequest, cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw OllamaProvider.NotRunning(ex);
+        }
+    }
+
+    private static async Task<bool> IsStructuredOutputUnavailableAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return false;
+        }
+
+        // The body is buffered, so it can still be read for the error message afterwards.
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        return body.Contains("structured output", StringComparison.OrdinalIgnoreCase);
     }
 
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(

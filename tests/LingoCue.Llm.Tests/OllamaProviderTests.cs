@@ -72,6 +72,42 @@ public class OllamaProviderTests
     }
 
     [Fact]
+    public async Task Without_structured_output_the_request_is_repeated_without_a_schema_and_remembered()
+    {
+        // gemma4 on Ollama 0.40 answers this way when "format" carries a schema.
+        var (provider, handler) = Create((_, body) => body.Contains("\"format\"", StringComparison.Ordinal)
+            ? (HttpStatusCode.NotImplemented, """{"error":"structured output is unavailable"}""")
+            : (HttpStatusCode.OK, """{"message":{"role":"assistant","content":"```json\n{\"lines\":[]}\n```"},"done":true}"""));
+        using var client = provider.CreateChatClient("gemma4:12b");
+        var schema = JsonDocument.Parse("""{"type":"object"}""").RootElement;
+        var options = new ChatOptions { ResponseFormat = ChatResponseFormat.ForJsonSchema(schema, "subtitle_lines") };
+        var ct = TestContext.Current.CancellationToken;
+
+        var first = await client.GetResponseAsync([new ChatMessage(ChatRole.User, "hi")], options, ct);
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "again")], options, ct);
+
+        LineJson.StripFences(first.Text).ShouldBe("""{"lines":[]}""");
+        handler.Requests.Count.ShouldBe(3); // schema refused once, then plain requests only
+        handler.Requests[0].Body.ShouldContain("\"format\"");
+        handler.Requests[1].Body.ShouldNotContain("\"format\"");
+        handler.Requests[2].Body.ShouldNotContain("\"format\"");
+    }
+
+    [Fact]
+    public async Task Other_server_errors_are_not_retried()
+    {
+        var (provider, handler) = Create((_, _) => (HttpStatusCode.InternalServerError, """{"error":"model runner has unexpectedly stopped"}"""));
+        using var client = provider.CreateChatClient("gemma4:12b");
+        var schema = JsonDocument.Parse("""{"type":"object"}""").RootElement;
+
+        var ex = await Should.ThrowAsync<LlmException>(() => client.GetResponseAsync([new ChatMessage(ChatRole.User, "hi")],
+            new ChatOptions { ResponseFormat = ChatResponseFormat.ForJsonSchema(schema, "x") }, TestContext.Current.CancellationToken));
+
+        ex.Message.ShouldContain("runner has unexpectedly stopped");
+        handler.Requests.ShouldHaveSingleItem();
+    }
+
+    [Fact]
     public async Task A_missing_model_says_how_to_pull_it()
     {
         var (provider, _) = Create((_, _) => (HttpStatusCode.NotFound, """{"error":"model 'x' not found"}"""));
