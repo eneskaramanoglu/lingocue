@@ -60,7 +60,11 @@ internal static class FfprobeJsonParser
             FrameRate: rate,
             Rotation: ParseRotation(stream),
             PixelFormat: GetString(stream, "pix_fmt"),
-            ColorTransfer: GetString(stream, "color_transfer"));
+            ColorTransfer: GetString(stream, "color_transfer"),
+            FrameRateText: GetString(stream, "r_frame_rate"),
+            ColorPrimaries: GetString(stream, "color_primaries"),
+            ColorSpace: GetString(stream, "color_space"),
+            ColorRange: GetString(stream, "color_range"));
     }
 
     private static AudioStreamInfo ParseAudio(JsonElement stream)

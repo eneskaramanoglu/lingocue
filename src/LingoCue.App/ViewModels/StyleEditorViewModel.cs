@@ -321,6 +321,7 @@ public sealed partial class StyleEditorViewModel : ViewModelBase
             SecondaryFontSize = (decimal)bilingual.SecondaryStyle.FontSize;
             SecondaryColor = ToColor(bilingual.SecondaryStyle.PrimaryColor);
             Gap = bilingual.Gap;
+            LoadPlan(project, activeTrack);
         }
         finally
         {

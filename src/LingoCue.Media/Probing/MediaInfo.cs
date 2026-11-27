@@ -23,8 +23,17 @@ public sealed record VideoStreamInfo(
     double FrameRate,
     int Rotation,
     string? PixelFormat = null,
-    string? ColorTransfer = null)
+    string? ColorTransfer = null,
+    string? FrameRateText = null,
+    string? ColorPrimaries = null,
+    string? ColorSpace = null,
+    string? ColorRange = null)
 {
+    /// <summary>The exact nominal rate for FFmpeg (<c>30000/1001</c>, <c>25/1</c>), so an overlay matches every frame.</summary>
+    public string RateForFfmpeg => FrameRateText is { Length: > 0 } text && text != "0/0"
+        ? text
+        : FrameRate > 0 ? FrameRate.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) : "25";
+
     public int DisplayWidth => Rotation is 90 or 270 ? Height : Width;
 
     public int DisplayHeight => Rotation is 90 or 270 ? Width : Height;

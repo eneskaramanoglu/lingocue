@@ -86,7 +86,8 @@ public interface IVideoRenderer
 
 /// <param name="Present">The encoder exists in this FFmpeg build and on this kind of machine.</param>
 /// <param name="Problem">Why a present encoder cannot be used, in Turkish for the UI (e.g. an old driver).</param>
-public sealed record HardwareEncoderStatus(VideoEncoder Encoder, bool Available, bool Present, string? Problem)
+/// <param name="Hevc10">The device also encodes HEVC Main10 (10 bit), used by the high-quality format.</param>
+public sealed record HardwareEncoderStatus(VideoEncoder Encoder, bool Available, bool Present, string? Problem, bool Hevc10 = false)
 {
     public static HardwareEncoderStatus FromProbe(VideoEncoder encoder, int exitCode, string stderr)
     {
@@ -211,7 +212,19 @@ public sealed class VideoRenderer(IMediaToolLocator locator, IProcessRunner runn
                 "-frames:v", "1", .. FfmpegCommands.VideoEncoderArguments(encoder, 19), "-f", "null", "-",
             ];
             var result = await runner.RunAsync(tools.FfmpegPath, args);
-            statuses.Add(HardwareEncoderStatus.FromProbe(encoder, result.ExitCode, result.StandardError));
+            var status = HardwareEncoderStatus.FromProbe(encoder, result.ExitCode, result.StandardError);
+            if (status.Available)
+            {
+                // Older GPUs encode H.264 but not 10-bit HEVC (e.g. NVIDIA before Pascal).
+                string[] hevc =
+                [
+                    "-nostdin", "-hide_banner", "-v", "error", "-f", "lavfi", "-i", "color=c=black:s=320x240:d=0.1", "-vf", "format=yuv420p10le",
+                    "-frames:v", "1", .. FfmpegCommands.VideoEncoderArguments(encoder, 19, VideoFormat.Hevc10), "-f", "null", "-",
+                ];
+                status = status with { Hevc10 = (await runner.RunAsync(tools.FfmpegPath, hevc)).ExitCode == 0 };
+            }
+
+            statuses.Add(status);
         }
 
         return statuses;

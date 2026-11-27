@@ -6,6 +6,44 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-27
+
+### Added
+- **Subtitles per spoken language** (Stil → Dile göre altyazı). Each language spoken in the track gets its
+  own rule for the line on top and the one below: nothing, the original or a translation. Example: Turkish
+  speech without subtitles, English speech with Turkish, Korean speech with Turkish on top and English below.
+  - The plan is used by the preview, burn-in, the overlay, ASS, and SRT/VTT/MP4 subtitles. In SRT/VTT/MP4
+    the two lines are written into one subtitle.
+  - Translations the plan lacks are listed, and "Eksik çevirileri yap" sends only those lines (for
+    example only the Korean lines, to English).
+  - The plan is saved with the project and in style templates.
+- **Subtitle overlay for Premiere Pro and DaVinci Resolve** (Dışa aktar → Altyazı katmanı). A
+  transparent MOV with only the subtitles, matching the video's size, exact frame rate and length.
+  - Put it on the track above the video; the editor does the only encode, so the picture is never
+    re-encoded by LingoCue.
+  - QuickTime Animation (lossless, small) or ProRes 4444.
+  - Measured on 4K at 29.97 fps with a subtitle every 3 s: 2 minutes of Animation took 38 s and 8 MB, so about
+    13 min and 160 MB for 40 minutes. ProRes 4444 is ~600 MB per minute.
+  - Fades are left out of the overlay by default (a checkbox includes them). During a fade every frame is
+    stored whole, which made the same overlay about ten times larger (79 MB for 2 minutes). The editor can add
+    its own transitions.
+- **High-quality burn-in formats** (Videoya göm → Biçim).
+  - HEVC 10 bit (MP4): uses the graphics card when it can encode 10-bit HEVC, otherwise x265.
+  - ProRes 422 HQ (MOV): an editing master, about 2.6 GB per minute in 4K.
+  - Both keep 10 bits through the subtitle step and copy the source's color tags (BT.709, BT.2020, HLG/PQ).
+- **Local models: thinking mode** (Tercihler → Dil modeli → Düşünme modu). Off by default; see below.
+
+### Changed
+- **Local models (Ollama) no longer "think" during correction and translation.** Thinking models (gemma4,
+  qwen3) wrote long hidden reasoning. On an M2 with gemma4:12b a 6-line translation went from about 8.5 minutes
+  (6682 output tokens) to about 45 seconds (167 tokens), with the same translations. Models that do not support
+  the switch are asked again without it.
+
+### Fixed
+- **Ollama models without structured output** (for example gemma4 on Ollama 0.40) failed every translation
+  with "structured output is unavailable". The request is now repeated without the JSON schema; the prompts
+  already ask for JSON, so the answers still parse.
+
 ## [1.2.0] - 2026-11-27
 
 ### Added

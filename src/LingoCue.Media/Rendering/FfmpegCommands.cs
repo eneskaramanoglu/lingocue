@@ -21,6 +21,19 @@ public enum VideoEncoder
     Qsv,
 }
 
+/// <summary>The picture format of a burned-in video.</summary>
+public enum VideoFormat
+{
+    /// <summary>H.264, 8 bit 4:2:0, MP4: plays everywhere; meant for sharing.</summary>
+    H264,
+
+    /// <summary>HEVC Main10, 10 bit 4:2:0, MP4: high quality for 4K, keeps 10-bit and HDR sources' depth.</summary>
+    Hevc10,
+
+    /// <summary>Apple ProRes 422 HQ, 10 bit 4:2:2, MOV: an editing master, near lossless, very large files.</summary>
+    ProRes422Hq,
+}
+
 public enum SoftSubContainer
 {
     /// <summary>MP4 with <c>mov_text</c> tracks: plays everywhere, no styling.</summary>
@@ -45,7 +58,8 @@ public sealed record BurnInRequest(
     MediaInfo Source,
     string WorkDirectory,
     VideoEncoder Encoder = VideoEncoder.X264,
-    int Quality = 19);
+    int Quality = 19,
+    VideoFormat Format = VideoFormat.H264);
 
 /// <param name="Path">Subtitle file: SRT for MP4, ASS for MKV.</param>
 /// <param name="Language">ISO 639-2 code written into the container (e.g. <c>tur</c>, <c>eng</c>).</param>
@@ -59,6 +73,30 @@ public sealed record SoftSubRequest(
     IReadOnlyList<SoftSubTrack> Tracks,
     string WorkDirectory,
     IReadOnlyList<string>? FontFiles = null);
+
+public enum OverlayCodec
+{
+    /// <summary>QuickTime Animation (RLE, lossless): tiny files, since frames without subtitles cost almost nothing.</summary>
+    Animation,
+
+    /// <summary>Apple ProRes 4444 with alpha: the most widely supported editing codec, much larger files.</summary>
+    ProRes4444,
+}
+
+/// <summary>
+/// A transparent video of the subtitles alone, as long as the source and at its exact frame rate, for an
+/// editor's upper video track (Premiere Pro, DaVinci Resolve). The editor makes the only encode of the picture.
+/// </summary>
+/// <param name="WorkDirectory">Folder holding <c>subtitles.ass</c> and <c>fonts</c> (see <see cref="BurnInRequest"/>).</param>
+/// <param name="FrameRate">Exact nominal rate as FFmpeg reads it, e.g. <c>30000/1001</c>.</param>
+public sealed record OverlayRequest(
+    string OutputPath,
+    int Width,
+    int Height,
+    string FrameRate,
+    TimeSpan Duration,
+    string WorkDirectory,
+    OverlayCodec Codec = OverlayCodec.Animation);
 
 /// <summary>Builds the FFmpeg command lines for burn-in and soft-subtitle exports.</summary>
 public static class FfmpegCommands
@@ -78,13 +116,54 @@ public static class FfmpegCommands
         args.AddRange(["-map", "0:v:0", "-map", "0:a:0?"]);
 
         // The same libass renderer as the preview; fonts from the project are copied into ./fonts.
-        args.AddRange(["-vf", $"ass={SubtitleFileName}:fontsdir={FontsFolderName}"]);
-        args.AddRange(VideoEncoderArguments(request.Encoder, request.Quality));
+        // 10-bit formats keep 10 bits through the subtitle filter, so gradients do not band.
+        var depth = request.Format == VideoFormat.H264 ? string.Empty : request.Format == VideoFormat.ProRes422Hq ? "format=yuv422p10le," : "format=yuv420p10le,";
+        args.AddRange(["-vf", $"{depth}ass={SubtitleFileName}:fontsdir={FontsFolderName}"]);
+        args.AddRange(VideoEncoderArguments(request.Encoder, request.Quality, request.Format));
+        args.AddRange(ColorArguments(request.Source));
         args.AddRange(AudioArguments(request.Source, SoftSubContainer.Mp4));
 
         // Keep every frame's timestamp: phone videos often have a variable frame rate.
-        args.AddRange(["-fps_mode", "passthrough", "-map_metadata", "0", "-movflags", "+faststart", "-f", "mp4", request.OutputPath]);
+        args.AddRange(["-fps_mode", "passthrough", "-map_metadata", "0"]);
+        args.AddRange(request.Format == VideoFormat.ProRes422Hq
+            ? ["-f", "mov", request.OutputPath]
+            : ["-movflags", "+faststart", "-f", "mp4", request.OutputPath]);
         return new FfmpegCommand(args, request.WorkDirectory, request.OutputPath);
+    }
+
+    public static FfmpegCommand Overlay(OverlayRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.Width <= 0 || request.Height <= 0 || request.Duration <= TimeSpan.Zero)
+        {
+            throw new ArgumentException("The overlay needs the video's size and duration.", nameof(request));
+        }
+
+        // A fully transparent canvas; libass draws onto it with alpha=1, so the subtitles keep their own
+        // transparency (without it the ass filter leaves the alpha channel at zero).
+        var canvas = Inv($"color=c=black@0.0:s={request.Width}x{request.Height}:r={request.FrameRate}:d={request.Duration.TotalSeconds:0.###},format=rgba");
+        var args = new List<string>(s_common) { "-f", "lavfi", "-i", canvas };
+        args.AddRange(["-vf", $"ass={SubtitleFileName}:fontsdir={FontsFolderName}:alpha=1"]);
+        args.AddRange(request.Codec switch
+        {
+            // A key frame every 5 s keeps seeking quick; between them only changed rows are stored.
+            OverlayCodec.Animation => ["-c:v", "qtrle", "-pix_fmt", "argb", "-g", Inv($"{KeyFrameInterval(request.FrameRate)}")],
+            _ => ["-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le", "-vendor", "apl0"],
+        });
+        args.AddRange(["-an", "-f", "mov", request.OutputPath]);
+        return new FfmpegCommand(args, request.WorkDirectory, request.OutputPath);
+    }
+
+    /// <summary>Frames in five seconds at an FFmpeg rate (<c>30000/1001</c> → 150).</summary>
+    internal static int KeyFrameInterval(string frameRate)
+    {
+        var parts = frameRate.Split('/');
+        var rate = parts.Length == 2 &&
+                   double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var n) &&
+                   double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var d) && d > 0
+            ? n / d
+            : double.TryParse(frameRate, NumberStyles.Float, CultureInfo.InvariantCulture, out var plain) ? plain : 25;
+        return Math.Max(1, (int)Math.Round(rate * 5));
     }
 
     public static FfmpegCommand SoftSub(SoftSubRequest request)
@@ -138,9 +217,34 @@ public static class FfmpegCommands
         return new FfmpegCommand(args, request.WorkDirectory, request.OutputPath);
     }
 
-    internal static IEnumerable<string> VideoEncoderArguments(VideoEncoder encoder, int quality)
+    internal static IEnumerable<string> VideoEncoderArguments(VideoEncoder encoder, int quality, VideoFormat format = VideoFormat.H264)
     {
         var crf = Math.Clamp(quality, 10, 35);
+        if (format == VideoFormat.ProRes422Hq)
+        {
+            // ProRes is intra-frame with a fixed quality per profile; the slider does not apply.
+            return ["-c:v", "prores_ks", "-profile:v", "3", "-pix_fmt", "yuv422p10le", "-vendor", "apl0"];
+        }
+
+        if (format == VideoFormat.Hevc10)
+        {
+            // hvc1 is the tag QuickTime, Premiere and Apple devices expect for HEVC in MP4.
+            string[] tag = ["-tag:v", "hvc1"];
+            return encoder switch
+            {
+                VideoEncoder.Nvenc =>
+                    ["-c:v", "hevc_nvenc", "-preset", "p5", "-tune", "hq", "-rc", "vbr", "-cq", Inv($"{Math.Min(51, crf + 2)}"), "-b:v", "0", "-profile:v", "main10", "-pix_fmt", "p010le", .. tag],
+                VideoEncoder.VideoToolbox =>
+                    ["-c:v", "hevc_videotoolbox", "-q:v", Inv($"{VideoToolboxQuality(crf)}"), "-profile:v", "main10", "-pix_fmt", "p010le", .. tag],
+                VideoEncoder.Amf =>
+                    ["-c:v", "hevc_amf", "-quality", "quality", "-rc", "cqp", "-qp_i", Inv($"{Math.Min(51, crf + 1)}"), "-qp_p", Inv($"{Math.Min(51, crf + 1)}"), "-profile:v", "main10", "-pix_fmt", "p010le", .. tag],
+                VideoEncoder.Qsv =>
+                    ["-c:v", "hevc_qsv", "-preset", "slower", "-global_quality", Inv($"{Math.Min(51, crf + 1)}"), "-look_ahead", "0", "-profile:v", "main10", "-pix_fmt", "p010le", .. tag],
+                // x265's CRF reads about two steps "better" than x264's at the same number.
+                _ => ["-c:v", "libx265", "-preset", "medium", "-crf", Inv($"{Math.Max(0, crf - 2)}"), "-pix_fmt", "yuv420p10le", "-x265-params", "log-level=error", .. tag],
+            };
+        }
+
         return encoder switch
         {
             // NVENC's constant-quality scale reads about two steps "worse" than x264 CRF.
@@ -161,6 +265,32 @@ public static class FfmpegCommands
 
             _ => ["-c:v", "libx264", "-preset", "veryfast", "-crf", Inv($"{crf}"), "-pix_fmt", "yuv420p"],
         };
+    }
+
+    /// <summary>
+    /// The source's color tags (primaries, transfer, matrix, range) copied to the output, so editors and
+    /// players read the colors as they were (BT.709 stays 709; HLG/PQ sources keep their transfer).
+    /// </summary>
+    internal static IEnumerable<string> ColorArguments(MediaInfo source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        if (source.Video is not { } video)
+        {
+            yield break;
+        }
+
+        foreach (var (option, value) in new[]
+                 {
+                     ("-color_primaries", video.ColorPrimaries), ("-color_trc", video.ColorTransfer),
+                     ("-colorspace", video.ColorSpace), ("-color_range", video.ColorRange),
+                 })
+        {
+            if (!string.IsNullOrWhiteSpace(value) && value != "unknown" && value != "reserved")
+            {
+                yield return option;
+                yield return value;
+            }
+        }
     }
 
     internal static int VideoToolboxQuality(int crf) => Math.Clamp((int)Math.Round(100 - ((crf - 10) * 3.5), MidpointRounding.AwayFromZero), 1, 100);

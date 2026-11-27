@@ -169,4 +169,15 @@ public sealed class ExportJobsTests(TestMedia media) : IClassFixture<TestMedia>,
             return true;
         }
     }
+
+    [Fact]
+    public void Overlay_scripts_leave_out_fades_only_when_asked_and_keep_the_projects_own()
+    {
+        var project = TwoTrackProject(out var turkish, out _);
+        project.Presentation = project.Presentation with { FadeInMs = 200, FadeOutMs = 200 };
+
+        ExportJobs.OverlayScript(project, turkish, 1920, 1080, null, includeFades: true).ShouldContain(@"\fad(200,200)");
+        ExportJobs.OverlayScript(project, turkish, 1920, 1080, null, includeFades: false).ShouldNotContain(@"\fad(");
+        project.Presentation.FadeInMs.ShouldBe(200);
+    }
 }

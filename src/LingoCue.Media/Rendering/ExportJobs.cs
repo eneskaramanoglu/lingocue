@@ -19,7 +19,8 @@ public static class ExportJobs
 {
     public static async Task<RenderJob> PrepareBurnInAsync(
         Project project, SubtitleTrack track, MediaInfo media, string outputPath,
-        VideoEncoder encoder, int quality, string? projectFontDirectory, string jobsRoot, Core.Fonts.ITextMeasurer? measurer = null, CancellationToken cancellationToken = default)
+        VideoEncoder encoder, int quality, string? projectFontDirectory, string jobsRoot, Core.Fonts.ITextMeasurer? measurer = null,
+        VideoFormat format = VideoFormat.H264, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(track);
@@ -29,8 +30,78 @@ public static class ExportJobs
         await File.WriteAllTextAsync(Path.Combine(work, FfmpegCommands.SubtitleFileName), AssScriptBuilder.Build(project, track, width, height, measurer: measurer), cancellationToken);
         CopyFonts(projectFontDirectory, Path.Combine(work, FfmpegCommands.FontsFolderName));
 
-        var command = FfmpegCommands.BurnIn(new BurnInRequest(media.FilePath, outputPath, media, work, encoder, quality));
+        var command = FfmpegCommands.BurnIn(new BurnInRequest(media.FilePath, outputPath, media, work, encoder, quality, format));
         return new RenderJob($"Gömülü video · {Path.GetFileName(outputPath)}", command, media.Duration, work, Warnings(media));
+    }
+
+    /// <summary>
+    /// A transparent subtitle video for an editor's upper track: the source's size, frame rate and length,
+    /// rendered with the same script as the preview (the subtitle plan and bilingual lines included).
+    /// </summary>
+    public static async Task<RenderJob> PrepareOverlayAsync(
+        Project project, SubtitleTrack track, MediaInfo media, string outputPath, OverlayCodec codec,
+        string? projectFontDirectory, string jobsRoot, Core.Fonts.ITextMeasurer? measurer = null, bool includeFades = true,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        ArgumentNullException.ThrowIfNull(track);
+        ArgumentNullException.ThrowIfNull(media);
+        if (media.Video is not { } video)
+        {
+            throw new ArgumentException("A subtitle overlay needs a video.", nameof(media));
+        }
+
+        var work = CreateWorkDirectory(jobsRoot);
+        await File.WriteAllTextAsync(Path.Combine(work, FfmpegCommands.SubtitleFileName),
+            WithExactColors(OverlayScript(project, track, video.DisplayWidth, video.DisplayHeight, measurer, includeFades)), cancellationToken);
+        CopyFonts(projectFontDirectory, Path.Combine(work, FfmpegCommands.FontsFolderName));
+
+        var command = FfmpegCommands.Overlay(new OverlayRequest(outputPath, video.DisplayWidth, video.DisplayHeight, video.RateForFfmpeg, media.Duration, work, codec));
+        return new RenderJob($"Altyazı katmanı · {Path.GetFileName(outputPath)}", command, media.Duration, work, []);
+    }
+
+    /// <summary>
+    /// The overlay's script, optionally without fades. During a fade every frame differs, so the lossless
+    /// overlay stores each one whole: in 4K, fades made it about ten times larger (79 MB against 8 MB for
+    /// two minutes with a subtitle every 3 s). The editor can add its own transitions instead.
+    /// </summary>
+    internal static string OverlayScript(Project project, SubtitleTrack track, int width, int height, Core.Fonts.ITextMeasurer? measurer, bool includeFades)
+    {
+        var presentation = project.Presentation;
+        if (includeFades || (presentation.FadeInMs == 0 && presentation.FadeOutMs == 0))
+        {
+            return AssScriptBuilder.Build(project, track, width, height, measurer: measurer);
+        }
+
+        // Build is synchronous, so the project's own options are back before anyone else reads them.
+        project.Presentation = presentation with { FadeInMs = 0, FadeOutMs = 0 };
+        try
+        {
+            return AssScriptBuilder.Build(project, track, width, height, measurer: measurer);
+        }
+        finally
+        {
+            project.Presentation = presentation;
+        }
+    }
+
+    /// <summary>
+    /// Marks a script's colors as plain RGB ("YCbCr Matrix: None"). Without it FFmpeg's ass filter treats
+    /// them as TV-range video colors and draws pure white as 235 on an RGB canvas, so overlays came out dimmer.
+    /// </summary>
+    public static string WithExactColors(string script)
+    {
+        ArgumentNullException.ThrowIfNull(script);
+        var lines = script.Split('\n').Where(l => !l.TrimStart().StartsWith("YCbCr Matrix:", StringComparison.OrdinalIgnoreCase));
+        var text = string.Join('\n', lines);
+        var at = text.IndexOf("[Script Info]", StringComparison.Ordinal);
+        if (at < 0)
+        {
+            return text;
+        }
+
+        var lineEnd = text.IndexOf('\n', at);
+        return lineEnd < 0 ? text + "\nYCbCr Matrix: None" : text.Insert(lineEnd + 1, "YCbCr Matrix: None\n");
     }
 
     /// <param name="tracks">In player order; the first one is marked as the default track.</param>
@@ -62,7 +133,8 @@ public static class ExportJobs
             else
             {
                 path = Path.Combine(work, $"track{i + 1}.srt");
-                await SubtitleFile.WriteAsync(path, SubtitleDocument.FromTrack(track), SubtitleFormats.Srt, cancellationToken: cancellationToken);
+                var shown = SubtitlePlans.AppliesTo(project, track) ? SubtitlePlans.Flatten(project, track) : track;
+                await SubtitleFile.WriteAsync(path, SubtitleDocument.FromTrack(shown), SubtitleFormats.Srt, cancellationToken: cancellationToken);
             }
 
             files.Add(new SoftSubTrack(path, LanguageCodes.ToIso6392(track.Language), TrackTitle(track), i == 0));

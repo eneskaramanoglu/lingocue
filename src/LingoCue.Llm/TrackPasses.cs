@@ -121,6 +121,52 @@ public sealed class TrackPassRunner(IChatClient client, ILoggerFactory loggers)
     internal static bool AlreadyInTarget(SubtitleTrack source, Cue cue, string? targetLanguage)
         => targetLanguage is not null && LanguageCodes.Primary(source.LanguageOf(cue)) == LanguageCodes.Primary(targetLanguage);
 
+    /// <summary>
+    /// Writes a pass over some lines into a translation track, adding the lines it does not have yet
+    /// (used to fill the translations a subtitle plan needs). Failed lines are not added, so the plan
+    /// still reports them. Returns how many lines were added or updated and how many failed.
+    /// </summary>
+    public static (int Written, int Failed) MergeOrAdd(SubtitleTrack target, SubtitleTrack source, PipelineResult pipeline)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(pipeline);
+        var sourceCues = source.Cues.ToDictionary(c => c.Id);
+        var existing = target.Cues.Where(c => c.SourceCueId is not null).GroupBy(c => c.SourceCueId!.Value).ToDictionary(g => g.Key, g => g.First());
+        int written = 0, failed = 0;
+        foreach (var line in pipeline.Lines)
+        {
+            if (line.Status == LineStatus.Failed)
+            {
+                failed++;
+                continue;
+            }
+
+            if (!existing.TryGetValue(line.Id, out var cue))
+            {
+                if (!sourceCues.TryGetValue(line.Id, out var from))
+                {
+                    continue;
+                }
+
+                cue = new Cue(target.NextCueId(), from.Start, from.End, line.Text) { SourceCueId = from.Id, Speaker = from.Speaker };
+                target.Cues.Add(cue);
+            }
+
+            cue.Text = line.Text;
+            cue.Marks &= ~(CueMarks.NeedsReview | CueMarks.LlmFailed);
+            if (line.Status == LineStatus.NeedsReview)
+            {
+                cue.Marks |= CueMarks.NeedsReview;
+            }
+
+            written++;
+        }
+
+        target.Sort();
+        return (written, failed);
+    }
+
     internal static SubtitleTrack BuildTrack(SubtitleTrack source, PipelineResult pipeline, TrackPassKind kind, string? targetLanguage)
     {
         var byId = pipeline.Lines.ToDictionary(l => l.Id);

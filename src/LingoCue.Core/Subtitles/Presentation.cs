@@ -59,4 +59,10 @@ public sealed record PresentationOptions
     public KaraokeOptions Karaoke { get; init; } = new();
 
     public BilingualOptions Bilingual { get; init; } = new();
+
+    /// <summary>
+    /// Subtitles per spoken language (mixed-language videos). When enabled it replaces the bilingual
+    /// mode for source and corrected tracks; the second line uses <see cref="BilingualOptions.SecondaryStyle"/>.
+    /// </summary>
+    public SubtitlePlan Plan { get; init; } = new();
 }

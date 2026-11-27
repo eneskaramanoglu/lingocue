@@ -71,6 +71,21 @@ public class MixedLanguagePassTests
     }
 
     [Fact]
+    public void Plan_translations_are_added_to_a_track_that_lacks_them()
+    {
+        var (_, source) = MixedProject();
+        var target = new SubtitleTrack { Kind = TrackKind.Translation, Language = "en", SourceTrackId = source.Id };
+        var pipeline = new PipelineResult(
+            [new LineResult(1, "We are in Istanbul today", LineStatus.Changed), new LineResult(2, "x", LineStatus.Failed)], LlmUsage.Zero, 0);
+
+        var (written, failed) = TrackPassRunner.MergeOrAdd(target, source, pipeline);
+
+        (written, failed).ShouldBe((1, 1));
+        var cue = target.Cues.ShouldHaveSingleItem();
+        (cue.Text, cue.SourceCueId, cue.Start).ShouldBe(("We are in Istanbul today", 1, source.Cues[0].Start));
+    }
+
+    [Fact]
     public void A_one_language_track_sends_no_lang_field()
         => LineJson.Serialize([new LineItem(1, "Merhaba", TimeSpan.FromSeconds(1))]).ShouldNotContain("lang");
 }

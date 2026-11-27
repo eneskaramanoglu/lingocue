@@ -175,4 +175,60 @@ public class FfmpegCommandsTests
         hdr.IsHdr.ShouldBeTrue();
         new VideoStreamInfo(0, "h264", 1920, 1080, 30, 0, "yuv420p", "bt709").IsHdr.ShouldBeFalse();
     }
+
+    [Fact]
+    public void Overlay_draws_with_alpha_on_a_transparent_canvas_at_the_exact_rate()
+    {
+        var command = FfmpegCommands.Overlay(new OverlayRequest("out.mov", 3840, 2160, "30000/1001", TimeSpan.FromMinutes(40), "work"));
+
+        var joined = Joined(command);
+        joined.ShouldContain("color=c=black@0.0:s=3840x2160:r=30000/1001:d=2400,format=rgba");
+        joined.ShouldContain("ass=subtitles.ass:fontsdir=fonts:alpha=1");
+        joined.ShouldContain("-c:v qtrle -pix_fmt argb -g 150");
+        joined.ShouldContain("-an -f mov out.mov");
+        Joined(FfmpegCommands.Overlay(new OverlayRequest("o.mov", 1920, 1080, "25/1", TimeSpan.FromSeconds(5), "w", OverlayCodec.ProRes4444)))
+            .ShouldContain("-c:v prores_ks -profile:v 4444 -pix_fmt yuva444p10le");
+    }
+
+    [Theory]
+    [InlineData("30000/1001", 150)]
+    [InlineData("25/1", 125)]
+    [InlineData("59.94", 300)]
+    [InlineData("0/0", 125)] // unknown: 25 fps
+    public void Overlay_key_frames_come_every_five_seconds(string rate, int frames)
+        => FfmpegCommands.KeyFrameInterval(rate).ShouldBe(frames);
+
+    [Fact]
+    public void Overlay_scripts_mark_their_colors_as_plain_rgb()
+    {
+        var script = ExportJobs.WithExactColors("[Script Info]\nYCbCr Matrix: TV.601\nPlayResX: 1920\n");
+
+        script.ShouldBe("[Script Info]\nYCbCr Matrix: None\nPlayResX: 1920\n");
+    }
+
+    [Fact]
+    public void High_quality_formats_keep_10_bits_and_the_source_colors()
+    {
+        var source = Source() with
+        {
+            Video = new VideoStreamInfo(0, "hevc", 3840, 2160, 29.97, 0, "yuv420p10le", "arib-std-b67", "30000/1001", "bt2020", "bt2020nc", "tv"),
+        };
+
+        var hevc = Joined(FfmpegCommands.BurnIn(new BurnInRequest("in.mp4", "out.mp4", source, "w", VideoEncoder.X264, 19, VideoFormat.Hevc10)));
+        hevc.ShouldContain("-vf format=yuv420p10le,ass=subtitles.ass");
+        hevc.ShouldContain("-c:v libx265 -preset medium -crf 17 -pix_fmt yuv420p10le");
+        hevc.ShouldContain("-tag:v hvc1");
+        hevc.ShouldContain("-color_primaries bt2020 -color_trc arib-std-b67 -colorspace bt2020nc -color_range tv");
+        hevc.ShouldEndWith("-f mp4 out.mp4");
+
+        var prores = Joined(FfmpegCommands.BurnIn(new BurnInRequest("in.mp4", "out.mov", source, "w", VideoEncoder.Nvenc, 19, VideoFormat.ProRes422Hq)));
+        prores.ShouldContain("-vf format=yuv422p10le,ass=");
+        prores.ShouldContain("-c:v prores_ks -profile:v 3 -pix_fmt yuv422p10le");
+        prores.ShouldEndWith("-f mov out.mov");
+        prores.ShouldNotContain("faststart");
+
+        Joined(FfmpegCommands.BurnIn(new BurnInRequest("in.mp4", "out.mp4", source, "w", VideoEncoder.Nvenc, 19, VideoFormat.Hevc10)))
+            .ShouldContain("-c:v hevc_nvenc -preset p5 -tune hq -rc vbr -cq 21 -b:v 0 -profile:v main10 -pix_fmt p010le");
+        Joined(FfmpegCommands.BurnIn(new BurnInRequest("in.mp4", "out.mp4", Source(), "w"))).ShouldNotContain("format=yuv4");
+    }
 }

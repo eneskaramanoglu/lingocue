@@ -80,10 +80,10 @@ internal sealed class FilePickerService : IFilePickerService
 
     public Task<string?> SaveVideoAsync(string suggestedName, string extension)
     {
-        var type = new FilePickerFileType(extension == ".mkv" ? "Matroska video (MKV)" : "MP4 video")
+        var type = new FilePickerFileType(extension switch { ".mkv" => "Matroska video (MKV)", ".mov" => "QuickTime video (MOV)", _ => "MP4 video" })
         {
             Patterns = ["*" + extension],
-            AppleUniformTypeIdentifiers = [extension == ".mkv" ? "public.movie" : "public.mpeg-4"],
+            AppleUniformTypeIdentifiers = [extension switch { ".mkv" => "public.movie", ".mov" => "com.apple.quicktime-movie", _ => "public.mpeg-4" }],
         };
         return SaveAsync("Videoyu dışa aktar", suggestedName, extension, type);
     }

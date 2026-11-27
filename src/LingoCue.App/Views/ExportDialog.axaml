@@ -25,7 +25,7 @@
 
   <!-- Three kinds of export as choice cards; each shows only its own options below. -->
   <StackPanel Margin="20,12,20,18" Spacing="12">
-    <UniformGrid Columns="3" ColumnSpacing="10">
+    <UniformGrid Columns="2" ColumnSpacing="10" RowSpacing="10">
       <RadioButton Classes="choice" GroupName="kind" IsChecked="{Binding IsSubtitleFiles}">
         <StackPanel Spacing="6">
           <TextBlock Text="Altyazı dosyası" FontWeight="SemiBold" />
@@ -35,7 +35,7 @@
       <RadioButton Classes="choice" GroupName="kind" IsChecked="{Binding IsBurnIn}" IsEnabled="{Binding CanBurnIn}">
         <StackPanel Spacing="6">
           <TextBlock Text="Videoya göm" FontWeight="SemiBold" />
-          <TextBlock Text="Altyazı görüntünün parçası olur, önizlemedeki gibi. MP4." Classes="muted small" TextWrapping="Wrap" />
+          <TextBlock Text="Altyazı görüntünün parçası olur, önizlemedeki gibi. MP4 veya MOV." Classes="muted small" TextWrapping="Wrap" />
         </StackPanel>
       </RadioButton>
       <RadioButton Classes="choice" GroupName="kind" IsChecked="{Binding IsSoftSub}" IsEnabled="{Binding HasVideo}">
@@ -44,13 +44,19 @@
           <TextBlock Text="Video yeniden kodlanmaz, hızlıdır. MP4 veya MKV." Classes="muted small" TextWrapping="Wrap" />
         </StackPanel>
       </RadioButton>
+      <RadioButton Classes="choice" GroupName="kind" IsChecked="{Binding IsOverlay}" IsEnabled="{Binding CanBurnIn}">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Altyazı katmanı" FontWeight="SemiBold" />
+          <TextBlock Text="Saydam video, Premiere / Resolve'da üst ize. Görüntü kalitesine dokunmaz. MOV." Classes="muted small" TextWrapping="Wrap" />
+        </StackPanel>
+      </RadioButton>
     </UniformGrid>
 
     <TextBlock Text="{Binding BurnInProblem}" Classes="issues" TextWrapping="Wrap"
                IsVisible="{Binding BurnInProblem, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
     <!-- Track list for subtitle files and soft subtitles -->
-    <StackPanel Spacing="6" IsVisible="{Binding !IsBurnIn}">
+    <StackPanel Spacing="6" IsVisible="{Binding ShowsTrackList}">
       <TextBlock Text="İZLER" Classes="section" />
       <ItemsControl ItemsSource="{Binding Tracks}">
         <ItemsControl.ItemTemplate>
@@ -81,8 +87,18 @@
     </StackPanel>
 
     <!-- Burn-in -->
-    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8" IsVisible="{Binding IsBurnIn}">
+    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8" IsVisible="{Binding IsBurnIn}">
       <TextBlock Text="İz" VerticalAlignment="Center" />
+      <TextBlock Grid.Row="1" Text="Biçim" VerticalAlignment="Center" />
+      <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding VideoFormats}" SelectedItem="{Binding SelectedVideoFormat}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:VideoFormatChoice">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding FormatNote}" Classes="muted" TextWrapping="Wrap"
+                 IsVisible="{Binding FormatNote, Converter={x:Static ObjectConverters.IsNotNull}}" />
       <ComboBox Grid.Column="1" ItemsSource="{Binding AllTracks}" SelectedItem="{Binding BurnTrack}" HorizontalAlignment="Stretch">
         <ComboBox.ItemTemplate>
           <DataTemplate x:DataType="sub:SubtitleTrack">
@@ -94,19 +110,20 @@
         </ComboBox.ItemTemplate>
       </ComboBox>
 
-      <TextBlock Grid.Row="1" Text="Kodlayıcı" VerticalAlignment="Center" />
-      <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Encoders}" SelectedItem="{Binding SelectedEncoder}" HorizontalAlignment="Stretch">
+      <TextBlock Grid.Row="3" Text="Kodlayıcı" VerticalAlignment="Center" IsVisible="{Binding UsesEncoder}" />
+      <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Encoders}" SelectedItem="{Binding SelectedEncoder}" HorizontalAlignment="Stretch"
+                IsVisible="{Binding UsesEncoder}">
         <ComboBox.ItemTemplate>
           <DataTemplate x:DataType="vm:EncoderChoice">
             <TextBlock Text="{Binding Label}" />
           </DataTemplate>
         </ComboBox.ItemTemplate>
       </ComboBox>
-      <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding EncoderNote}" Classes="issues" TextWrapping="Wrap"
+      <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding EncoderNote}" Classes="issues" TextWrapping="Wrap"
                  IsVisible="{Binding EncoderNote, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
-      <TextBlock Grid.Row="3" Text="Kalite" VerticalAlignment="Center" />
-      <DockPanel Grid.Row="3" Grid.Column="1">
+      <TextBlock Grid.Row="5" Text="Kalite" VerticalAlignment="Center" IsVisible="{Binding UsesQuality}" />
+      <DockPanel Grid.Row="5" Grid.Column="1" IsVisible="{Binding UsesQuality}">
         <TextBlock DockPanel.Dock="Right" Text="{Binding QualityText}" VerticalAlignment="Center" Margin="12,0,0,0" MinWidth="200" />
         <!-- Slider runs from small file (left) to high quality (right): CRF is inverted. -->
         <Slider Minimum="-26" Maximum="-16" Value="{Binding Quality, Converter={x:Static vm:NegateConverter.Instance}}"
@@ -114,6 +131,39 @@
       </DockPanel>
     </Grid>
     <TextBlock Text="{Binding BilingualNote}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding IsBurnIn}" />
+
+    <!-- Overlay: one track (with its plan or bilingual partner) drawn on a transparent canvas. -->
+    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8" IsVisible="{Binding IsOverlay}">
+      <!-- Fades make every frame of a fade differ, so the lossless overlay stores them whole (about 10× larger). -->
+      <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Spacing="4" IsVisible="{Binding HasFades}">
+        <CheckBox IsChecked="{Binding OverlayFades}">
+          <TextBlock Text="Yumuşak geçişleri (fade) katmana dahil et" />
+        </CheckBox>
+        <TextBlock Classes="muted small" TextWrapping="Wrap"
+                   Text="Stilde giriş/çıkış geçişi var. Katmana dahil edilirse dosya yaklaşık 10 kat büyür (4K, 40 dakikada ~160 MB yerine ~1,7 GB). Geçişi Premiere'de de ekleyebilirsiniz. Önizleme ve videoya gömme etkilenmez." />
+      </StackPanel>
+      <TextBlock Text="İz" VerticalAlignment="Center" />
+      <ComboBox Grid.Column="1" ItemsSource="{Binding AllTracks}" SelectedItem="{Binding BurnTrack}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="sub:SubtitleTrack">
+            <TextBlock>
+              <Run Text="{Binding Name, Mode=OneWay}" />
+              <Run Text="{Binding Language, StringFormat=' · {0}', Mode=OneWay}" Foreground="{DynamicResource MutedTextBrush}" />
+            </TextBlock>
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Grid.Row="1" Text="Kodek" VerticalAlignment="Center" />
+      <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding OverlayCodecs}" SelectedItem="{Binding SelectedOverlayCodec}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:OverlayCodecChoice">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Classes="muted" TextWrapping="Wrap"
+                 Text="Premiere Pro: MOV'u içe aktarın ve videonun üstündeki V2 izine, 00:00'a koyun. Katman videoyla aynı boyutta, kare hızında ve uzunlukta; arka planı saydam. Son dışa aktarmayı Premiere tek seferde yapar, görüntü yeniden kodlanmaz. Altyazıyı düzeltirseniz yalnızca katmanı yeniden üretin." />
+    </Grid>
 
     <!-- Soft subtitles -->
     <StackPanel Spacing="6" IsVisible="{Binding IsSoftSub}">

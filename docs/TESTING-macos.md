@@ -23,6 +23,11 @@ dotnet run --project src/LingoCue.App
 
 Logs are written to `~/Library/Logs/LingoCue/`.
 
+## v1.3.0 — Subtitle plan, Premiere overlay, master formats
+
+- [ ] Run the separate checklist [TESTING-macos-subtitle-plan-and-premiere.md](TESTING-macos-subtitle-plan-and-premiere.md):
+  the per-language subtitle plan, the transparent overlay in Premiere/Resolve, and HEVC 10 bit / ProRes burn-in.
+
 ## v1.2.0 — Mixed languages
 
 - [ ] Run the separate checklist [TESTING-macos-mixed-languages.md](TESTING-macos-mixed-languages.md):
