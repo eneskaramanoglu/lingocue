@@ -184,19 +184,43 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
     private async Task<IReadOnlyList<(string Language, IReadOnlyList<SpeechRegion> Regions)>> DetectLanguagesAsync(DecodeJob job, IReadOnlyList<string> candidates)
     {
         var detectStopwatch = Stopwatch.StartNew();
-        await using var detector = job.Factory.CreateBuilder().WithLanguage("auto").Build();
+        // A small model detects each region; the recognition model checks only the regions it is unsure of.
+        var smallPath = await _downloader.EnsureAsync(ModelDirectory, WhisperModels.LanguageDetector, cancellationToken: job.Token);
+        using var smallFactory = WhisperFactory.FromPath(smallPath);
+        await using var small = smallFactory.CreateBuilder().WithLanguage("auto").Build();
+        WhisperProcessor? large = null;
         var regions = job.Speech;
         var detectedRegions = new List<DetectedRegion>(regions.Count);
         var candidateArray = candidates.ToArray();
-        for (var i = 0; i < regions.Count; i++)
+        var checkedByLarge = 0;
+        try
         {
-            job.Token.ThrowIfCancellationRequested();
-            var region = regions[i];
-            var slice = Slice(job.Samples, job.SampleRate, region.Start - s_vadPadding, region.End + s_vadPadding, s_detectWindow);
-            var guess = await Task.Run(() => detector.DetectLanguageWithProbability(slice, candidateArray), job.Token);
-            var language = LanguageCodes.Primary(guess.language);
-            detectedRegions.Add(new DetectedRegion(region, candidates.Contains(language) ? language : candidates[0], candidates.Contains(language) ? guess.probability : 0));
-            job.Report(0.32 + (0.1 * (i + 1) / regions.Count), $"Dil algılanıyor ({i + 1}/{regions.Count})");
+            for (var i = 0; i < regions.Count; i++)
+            {
+                job.Token.ThrowIfCancellationRequested();
+                var region = regions[i];
+                var slice = Slice(job.Samples, job.SampleRate, region.Start - s_vadPadding, region.End + s_vadPadding, s_detectWindow);
+                var guess = await Task.Run(() => small.DetectLanguageWithProbability(slice, candidateArray), job.Token);
+                if (guess.probability < LanguageRuns.SureProbability)
+                {
+                    large ??= job.Factory.CreateBuilder().WithLanguage("auto").Build();
+                    var processor = large;
+                    guess = await Task.Run(() => processor.DetectLanguageWithProbability(slice, candidateArray), job.Token);
+                    checkedByLarge++;
+                }
+
+                var language = LanguageCodes.Primary(guess.language);
+                detectedRegions.Add(new DetectedRegion(region, candidates.Contains(language) ? language : candidates[0], candidates.Contains(language) ? guess.probability : 0));
+                LogRegion(region.Start, region.End, language, guess.probability);
+                job.Report(0.32 + (0.1 * (i + 1) / regions.Count), $"Dil algılanıyor ({i + 1}/{regions.Count})");
+            }
+        }
+        finally
+        {
+            if (large is not null)
+            {
+                await large.DisposeAsync();
+            }
         }
 
         var languages = LanguageRuns.Smooth(detectedRegions, candidates[0]);
@@ -204,7 +228,7 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
         job.Candidates = candidates;
         job.Fraction = 0.42;
         var summary = string.Join(", ", passes.Select(p => $"{p.Language}: {p.Regions.Count}"));
-        LogDetected(regions.Count, summary, detectStopwatch.Elapsed);
+        LogDetected(regions.Count, summary, checkedByLarge, detectStopwatch.Elapsed);
         return passes;
     }
 
@@ -470,8 +494,11 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
     [LoggerMessage(Level = LogLevel.Information, Message = "Whisper finished: {Words} words, {Dropped} segments dropped by VAD, {Suspicious} flagged as possible hallucinations, {Elapsed}")]
     private partial void LogFinished(int words, int dropped, int suspicious, TimeSpan elapsed);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Mixed languages: {Regions} regions detected as {Passes} in {Elapsed}")]
-    private partial void LogDetected(int regions, string passes, TimeSpan elapsed);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Region {Start}–{End}: {Language} ({Probability:0.00})")]
+    private partial void LogRegion(TimeSpan start, TimeSpan end, string language, float probability);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Mixed languages: {Regions} regions detected as {Passes} ({Rechecked} rechecked by the recognition model) in {Elapsed}")]
+    private partial void LogDetected(int regions, string passes, int rechecked, TimeSpan elapsed);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Speech regions: {Pieces}, audio {Original} packed to {Packed}")]
     private partial void LogPacked(TimeSpan original, TimeSpan packed, int pieces);

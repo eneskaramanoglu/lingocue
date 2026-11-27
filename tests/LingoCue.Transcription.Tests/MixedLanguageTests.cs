@@ -16,7 +16,7 @@ public class MixedLanguageTests
         DetectedRegion[] regions =
         [
             D(0, 4, "tr"),
-            D(4.5, 5, "en"),            // "okay": too short to trust
+            D(4.5, 5, "en", 0.6f),      // "okay": short and unsure
             D(6, 10, "tr"),
             D(11, 15, "ko", 0.3f),      // uncertain, between tr and en: the closer one (en, 0.5 s away) wins
             D(15.5, 20, "en"),
@@ -24,6 +24,10 @@ public class MixedLanguageTests
 
         LanguageRuns.Smooth(regions, "tr").ShouldBe(["tr", "tr", "tr", "en", "en"]);
     }
+
+    [Fact]
+    public void A_sure_guess_is_kept_even_on_a_short_region()
+        => LanguageRuns.Smooth([D(0, 4, "tr"), D(4.5, 5.3, "en", 0.99f), D(6, 10, "tr")], "tr").ShouldBe(["tr", "en", "tr"]);
 
     [Fact]
     public void Reliable_guesses_are_kept_and_a_lone_unreliable_region_keeps_its_guess()

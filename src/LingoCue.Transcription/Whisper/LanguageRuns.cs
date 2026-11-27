@@ -10,11 +10,14 @@ internal readonly record struct DetectedRegion(SpeechRegion Region, string Langu
 /// </summary>
 internal static class LanguageRuns
 {
-    /// <summary>Regions shorter than this keep a neighbour's language instead of their own guess.</summary>
+    /// <summary>Regions shorter than this keep a neighbour's language unless their own guess is sure.</summary>
     internal static readonly TimeSpan MinReliable = TimeSpan.FromSeconds(1.5);
 
     /// <summary>Below this probability a guess counts as uncertain.</summary>
     internal const float MinProbability = 0.5f;
+
+    /// <summary>A guess this sure is kept even on a short region ("Evet.", "Okay, let's go.").</summary>
+    internal const float SureProbability = 0.8f;
 
     /// <summary>The language of each region (same order) after neighbours settle the unreliable ones.</summary>
     public static IReadOnlyList<string> Smooth(IReadOnlyList<DetectedRegion> regions, string fallback)
@@ -59,7 +62,8 @@ internal static class LanguageRuns
     }
 
     private static bool IsReliable(DetectedRegion region)
-        => region.Region.End - region.Region.Start >= MinReliable && region.Probability >= MinProbability;
+        => region.Probability >= SureProbability ||
+           (region.Region.End - region.Region.Start >= MinReliable && region.Probability >= MinProbability);
 
     private static DetectedRegion? Nearest(IReadOnlyList<DetectedRegion> regions, bool[] reliable, int from, int step)
     {
