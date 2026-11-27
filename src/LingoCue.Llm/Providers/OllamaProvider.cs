@@ -70,10 +70,15 @@ public sealed class OllamaProvider(HttpClient http, Func<string> baseUrl) : ILlm
 /// format is passed as Ollama's <c>format</c>, so small local models still return valid JSON. Models
 /// whose runner has no structured output (Ollama answers 501 "structured output is unavailable", e.g.
 /// gemma4) are asked again without it; the prompts already ask for JSON and the parser strips fences.
+/// Thinking is switched off (<c>think: false</c>): subtitle passes gain nothing from hidden reasoning,
+/// and on gemma4 it made a 3-line translation take 127 s instead of 10 s. Models that reject the
+/// switch are asked again without it.
 /// </summary>
 public sealed class OllamaChatClient(HttpClient http, Uri chatUrl, string model) : IChatClient
 {
+    // Remembered for this client (one model), so later batches skip the call Ollama refused.
     private volatile bool _structuredOutputUnavailable;
+    private volatile bool _thinkSwitchUnsupported;
 
     /// <summary>Context window requested from Ollama; batches with context lines need more than its 2048 default.</summary>
     public int ContextLength { get; init; } = 8192;
@@ -88,14 +93,31 @@ public sealed class OllamaChatClient(HttpClient http, Uri chatUrl, string model)
             ChatResponseFormatJson => JsonSerializer.SerializeToElement("json", OllamaJson.Default.String),
             _ => (JsonElement?)null,
         };
+        bool? think = _thinkSwitchUnsupported ? null : false;
 
-        var response = await PostAsync(dtos, format, options, cancellationToken);
-        if (format is not null && await IsStructuredOutputUnavailableAsync(response, cancellationToken))
+        var response = await PostAsync(dtos, format, think, options, cancellationToken);
+
+        // At most one retry per refused feature.
+        for (var attempt = 0; attempt < 2 && !response.IsSuccessStatusCode; attempt++)
         {
-            // Remembered for this client (one model), so later batches skip the failing call.
-            _structuredOutputUnavailable = true;
+            var error = await response.Content.ReadAsStringAsync(cancellationToken); // buffered; still readable below
+            if (format is not null && error.Contains("structured output", StringComparison.OrdinalIgnoreCase))
+            {
+                _structuredOutputUnavailable = true;
+                format = null;
+            }
+            else if (think is not null && error.Contains("thinking", StringComparison.OrdinalIgnoreCase))
+            {
+                _thinkSwitchUnsupported = true;
+                think = null;
+            }
+            else
+            {
+                break;
+            }
+
             response.Dispose();
-            response = await PostAsync(dtos, format: null, options, cancellationToken);
+            response = await PostAsync(dtos, format, think, options, cancellationToken);
         }
 
         using (response)
@@ -121,13 +143,14 @@ public sealed class OllamaChatClient(HttpClient http, Uri chatUrl, string model)
         }
     }
 
-    private async Task<HttpResponseMessage> PostAsync(List<ChatMessageDto> messages, JsonElement? format, ChatOptions? options, CancellationToken cancellationToken)
+    private async Task<HttpResponseMessage> PostAsync(List<ChatMessageDto> messages, JsonElement? format, bool? think, ChatOptions? options, CancellationToken cancellationToken)
     {
         var request = new ChatRequest
         {
             Model = model,
             Messages = messages,
             Format = format,
+            Think = think,
             Options = new ModelOptions { Temperature = options?.Temperature, ContextLength = ContextLength },
         };
 
@@ -139,18 +162,6 @@ public sealed class OllamaChatClient(HttpClient http, Uri chatUrl, string model)
         {
             throw OllamaProvider.NotRunning(ex);
         }
-    }
-
-    private static async Task<bool> IsStructuredOutputUnavailableAsync(HttpResponseMessage response, CancellationToken cancellationToken)
-    {
-        if (response.IsSuccessStatusCode)
-        {
-            return false;
-        }
-
-        // The body is buffered, so it can still be read for the error message afterwards.
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
-        return body.Contains("structured output", StringComparison.OrdinalIgnoreCase);
     }
 
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
@@ -183,6 +194,10 @@ internal sealed class ChatRequest
     /// <summary>A JSON schema, the string "json", or absent.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JsonElement? Format { get; init; }
+
+    /// <summary>Ollama's reasoning switch; false keeps thinking models (gemma4, qwen3) from writing long hidden reasoning.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Think { get; init; }
 
     public ModelOptions? Options { get; init; }
 }

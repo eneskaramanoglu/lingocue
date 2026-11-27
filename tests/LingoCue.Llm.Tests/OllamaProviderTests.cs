@@ -68,6 +68,7 @@ public class OllamaProviderTests
         sent.RootElement.GetProperty("stream").GetBoolean().ShouldBeFalse();
         sent.RootElement.GetProperty("format").GetProperty("type").GetString().ShouldBe("object");
         sent.RootElement.GetProperty("options").GetProperty("num_ctx").GetInt32().ShouldBe(8192);
+        sent.RootElement.GetProperty("think").GetBoolean().ShouldBeFalse();
         sent.RootElement.GetProperty("messages")[0].GetProperty("role").GetString().ShouldBe("system");
     }
 
@@ -91,6 +92,21 @@ public class OllamaProviderTests
         handler.Requests[0].Body.ShouldContain("\"format\"");
         handler.Requests[1].Body.ShouldNotContain("\"format\"");
         handler.Requests[2].Body.ShouldNotContain("\"format\"");
+    }
+
+    [Fact]
+    public async Task A_model_without_the_think_switch_is_asked_again_without_it()
+    {
+        var (provider, handler) = Create((_, body) => body.Contains("\"think\"", StringComparison.Ordinal)
+            ? (HttpStatusCode.BadRequest, """{"error":"\"gemma3:12b\" does not support thinking"}""")
+            : (HttpStatusCode.OK, """{"message":{"role":"assistant","content":"{}"},"done":true}"""));
+        using var client = provider.CreateChatClient("gemma3:12b");
+        var ct = TestContext.Current.CancellationToken;
+
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "hi")], cancellationToken: ct);
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "again")], cancellationToken: ct);
+
+        handler.Requests.Select(r => r.Body.Contains("\"think\"", StringComparison.Ordinal)).ShouldBe([true, false, false]);
     }
 
     [Fact]
