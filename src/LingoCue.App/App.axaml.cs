@@ -74,6 +74,9 @@ public partial class App : Application
                 }
 
                 desktop.MainWindow = window;
+
+                // Raised before macOS terminates the process (see Program.LogStopped).
+                desktop.Exit += (_, _) => Program.LogStopped();
             }
         }
 

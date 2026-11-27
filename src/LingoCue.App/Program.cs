@@ -1,4 +1,5 @@
-﻿using Avalonia;
+﻿using System.Runtime.InteropServices;
+using Avalonia;
 using HanumanInstitute.LibMpv.Core;
 using LingoCue.Core;
 using LingoCue.Core.Platform;
@@ -23,6 +24,16 @@ internal static class Program
         var platform = new PlatformInfo();
         Log.Logger = LoggingSetup.CreateBootstrapLogger(platform);
 
+        // On macOS, Quit (⌘Q, Dock) ends the process from native code: StartWithClassicDesktopLifetime
+        // never returns and the finally block below does not run. Errors thrown from native callbacks
+        // (e.g. libmpv failing to load while the first window is built) also skip the catch.
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            Log.Fatal(e.ExceptionObject as Exception, "Unhandled exception, shutting down");
+            LogStopped();
+        };
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => LogStopped();
+
         try
         {
             Log.Information("{App} {Version} starting on {Rid}", AppInfo.Name, AppInfo.Version, platform.RuntimeIdentifier);
@@ -37,9 +48,44 @@ internal static class Program
         }
         finally
         {
-            Log.Information("{App} stopped", AppInfo.Name);
-            Log.CloseAndFlush();
+            LogStopped();
         }
+    }
+
+    /// <summary>
+    /// Loads the bundled libmpv once before Avalonia starts, only to log why it fails: the video view
+    /// loads it later from a native render callback, where an error ends the process without a log line.
+    /// </summary>
+    private static void ProbeBundledLibMpv(PlatformInfo platform)
+    {
+        var path = Path.Combine(platform.NativeLibraryDirectory, platform.Platform == OsPlatform.Windows ? "libmpv-2.dll" : "libmpv.2.dylib");
+        if (!File.Exists(path))
+        {
+            return; // Development build: the library comes from the system (e.g. Homebrew).
+        }
+
+        try
+        {
+            NativeLibrary.Free(NativeLibrary.Load(path));
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or BadImageFormatException)
+        {
+            Log.Fatal(ex, "The bundled libmpv at {Path} does not load; video playback will fail", path);
+        }
+    }
+
+    private static int s_stopped;
+
+    /// <summary>Writes the "stopped" line and flushes the log, once, from whichever exit path runs first.</summary>
+    internal static void LogStopped()
+    {
+        if (Interlocked.Exchange(ref s_stopped, 1) != 0)
+        {
+            return;
+        }
+
+        Log.Information("{App} stopped", AppInfo.Name);
+        Log.CloseAndFlush();
     }
 
     internal static IHost CreateHost(string[] args, IPlatformInfo platform)
@@ -65,6 +111,7 @@ internal static class Program
         // libmpv is loaded from here (next to the exe on Windows, Contents/Frameworks in the .app);
         // on macOS the library also searches /opt/homebrew/lib for development builds.
         MpvApi.RootPath = platform.NativeLibraryDirectory;
+        ProbeBundledLibMpv(platform);
 
         var builder = AppBuilder.Configure(() => new App(services))
             .UsePlatformDetect()
