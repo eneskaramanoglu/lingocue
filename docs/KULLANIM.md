@@ -177,8 +177,9 @@ Videoya gömmek her zaman görüntüyü yeniden kodlar. Hiç kayıp istemiyorsan
 ### Premiere Pro iş akışı (4K, uzun videolar)
 
 1. Videonuzu Premiere'den dışa aktarın (ya da LingoCue'da kaynak dosyayla çalışın) ve LingoCue'da altyazıyı hazırlayın.
-2. **Dışa aktar → Altyazı katmanı**, kodek **QuickTime Animation**. 40 dakikalık 4K bir videoda yaklaşık
-   15 dakika sürer ve ~2 GB tutar.
+2. **Dışa aktar → Altyazı katmanı**, kodek **QuickTime Animation**. 40 dakikalık 4K bir videoda üretim
+   yaklaşık 13–15 dakika sürer ve dosya ~160 MB tutar. Stilde yumuşak geçiş (fade) varsa ve katmana dahil
+   edilirse dosya yaklaşık 10 kat büyür (~1,7 GB). Geçişi Premiere'de de ekleyebilirsiniz.
 3. Premiere'de MOV'u içe aktarın ve videonun üstündeki **V2** izine, 00:00'a koyun.
 4. Premiere'in kendi dışa aktarımını yapın. Görüntü yalnızca bir kez kodlanır; 10 bit ve HDR korunur.
 5. Altyazıyı düzeltirseniz yalnızca katmanı yeniden üretip V2'deki dosyayı değiştirin.

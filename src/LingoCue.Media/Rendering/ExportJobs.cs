@@ -40,7 +40,8 @@ public static class ExportJobs
     /// </summary>
     public static async Task<RenderJob> PrepareOverlayAsync(
         Project project, SubtitleTrack track, MediaInfo media, string outputPath, OverlayCodec codec,
-        string? projectFontDirectory, string jobsRoot, Core.Fonts.ITextMeasurer? measurer = null, CancellationToken cancellationToken = default)
+        string? projectFontDirectory, string jobsRoot, Core.Fonts.ITextMeasurer? measurer = null, bool includeFades = true,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(track);
@@ -52,11 +53,36 @@ public static class ExportJobs
 
         var work = CreateWorkDirectory(jobsRoot);
         await File.WriteAllTextAsync(Path.Combine(work, FfmpegCommands.SubtitleFileName),
-            WithExactColors(AssScriptBuilder.Build(project, track, video.DisplayWidth, video.DisplayHeight, measurer: measurer)), cancellationToken);
+            WithExactColors(OverlayScript(project, track, video.DisplayWidth, video.DisplayHeight, measurer, includeFades)), cancellationToken);
         CopyFonts(projectFontDirectory, Path.Combine(work, FfmpegCommands.FontsFolderName));
 
         var command = FfmpegCommands.Overlay(new OverlayRequest(outputPath, video.DisplayWidth, video.DisplayHeight, video.RateForFfmpeg, media.Duration, work, codec));
         return new RenderJob($"Altyazı katmanı · {Path.GetFileName(outputPath)}", command, media.Duration, work, []);
+    }
+
+    /// <summary>
+    /// The overlay's script, optionally without fades. During a fade every frame differs, so the lossless
+    /// overlay stores each one whole: in 4K, fades made it about ten times larger (79 MB against 8 MB for
+    /// two minutes with a subtitle every 3 s). The editor can add its own transitions instead.
+    /// </summary>
+    internal static string OverlayScript(Project project, SubtitleTrack track, int width, int height, Core.Fonts.ITextMeasurer? measurer, bool includeFades)
+    {
+        var presentation = project.Presentation;
+        if (includeFades || (presentation.FadeInMs == 0 && presentation.FadeOutMs == 0))
+        {
+            return AssScriptBuilder.Build(project, track, width, height, measurer: measurer);
+        }
+
+        // Build is synchronous, so the project's own options are back before anyone else reads them.
+        project.Presentation = presentation with { FadeInMs = 0, FadeOutMs = 0 };
+        try
+        {
+            return AssScriptBuilder.Build(project, track, width, height, measurer: measurer);
+        }
+        finally
+        {
+            project.Presentation = presentation;
+        }
     }
 
     /// <summary>

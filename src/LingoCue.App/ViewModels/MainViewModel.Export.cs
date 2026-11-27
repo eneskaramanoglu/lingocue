@@ -176,7 +176,7 @@ public partial class MainViewModel
         var jobsRoot = Path.Combine(Path.GetTempPath(), "LingoCue", "jobs");
         var fonts = FontCatalog.ProjectFontDirectory(ProjectPath);
         var job = overlay
-            ? await ExportJobs.PrepareOverlayAsync(project, choice.Tracks[0], media, output, choice.OverlayCodec, fonts, jobsRoot, Measurer())
+            ? await ExportJobs.PrepareOverlayAsync(project, choice.Tracks[0], media, output, choice.OverlayCodec, fonts, jobsRoot, Measurer(), choice.OverlayFades)
             : burnIn
             ? await ExportJobs.PrepareBurnInAsync(project, choice.Tracks[0], media, output, choice.Encoder, choice.Quality, fonts, jobsRoot, Measurer(), choice.VideoFormat)
             : await ExportJobs.PrepareSoftSubAsync(project, choice.Tracks, media, output, choice.Container, fonts, jobsRoot, Measurer());

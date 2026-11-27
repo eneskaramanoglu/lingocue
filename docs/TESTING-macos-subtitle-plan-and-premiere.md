@@ -57,6 +57,8 @@ translation (Çevir; a paid AI call, a few cents at most).
 ## 4. Overlay for Premiere Pro / Resolve
 
 - [ ] **Animation overlay.** Dışa aktar → **Altyazı katmanı** → QuickTime Animation → `mixed.altyazi-katmani.mov`.
+  With a style that fades (e.g. Belgesel) the "Yumuşak geçişleri katmana dahil et" box appears, unticked;
+  ticking it makes the file about ten times larger.
 - [ ] **ffprobe.** `ffprobe -v error -show_entries stream=codec_name,pix_fmt,width,height,r_frame_rate,duration mixed.altyazi-katmani.mov`
   should show `qtrle` / `argb` at the video's size and frame rate, with the same duration.
 - [ ] **Premiere Pro or DaVinci Resolve** (whichever is installed):

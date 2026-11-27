@@ -133,7 +133,15 @@
     <TextBlock Text="{Binding BilingualNote}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding IsBurnIn}" />
 
     <!-- Overlay: one track (with its plan or bilingual partner) drawn on a transparent canvas. -->
-    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8" IsVisible="{Binding IsOverlay}">
+    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8" IsVisible="{Binding IsOverlay}">
+      <!-- Fades make every frame of a fade differ, so the lossless overlay stores them whole (about 10× larger). -->
+      <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Spacing="4" IsVisible="{Binding HasFades}">
+        <CheckBox IsChecked="{Binding OverlayFades}">
+          <TextBlock Text="Yumuşak geçişleri (fade) katmana dahil et" />
+        </CheckBox>
+        <TextBlock Classes="muted small" TextWrapping="Wrap"
+                   Text="Stilde giriş/çıkış geçişi var. Katmana dahil edilirse dosya yaklaşık 10 kat büyür (4K, 40 dakikada ~160 MB yerine ~1,7 GB). Geçişi Premiere'de de ekleyebilirsiniz. Önizleme ve videoya gömme etkilenmez." />
+      </StackPanel>
       <TextBlock Text="İz" VerticalAlignment="Center" />
       <ComboBox Grid.Column="1" ItemsSource="{Binding AllTracks}" SelectedItem="{Binding BurnTrack}" HorizontalAlignment="Stretch">
         <ComboBox.ItemTemplate>

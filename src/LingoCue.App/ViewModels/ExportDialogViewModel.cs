@@ -49,7 +49,8 @@ public sealed record ExportChoice(
     SoftSubContainer Container,
     bool SplitByLanguage = false,
     OverlayCodec OverlayCodec = OverlayCodec.Animation,
-    VideoFormat VideoFormat = VideoFormat.H264);
+    VideoFormat VideoFormat = VideoFormat.H264,
+    bool OverlayFades = true);
 
 public sealed record OverlayCodecChoice(OverlayCodec Codec, string Label);
 
@@ -84,6 +85,7 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
         ];
         SelectedFormat = Formats[0];
         SelectedOverlayCodec = OverlayCodecs[0];
+        HasFades = project.Presentation.FadeInMs > 0 || project.Presentation.FadeOutMs > 0;
         SelectedVideoFormat = VideoFormats[0];
 
         Encoders = [new(VideoEncoder.X264, "İşlemci (x264) — en iyi kalite/boyut, her yerde çalışır")];
@@ -204,6 +206,16 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
     [ObservableProperty]
     public partial OverlayCodecChoice SelectedOverlayCodec { get; set; }
 
+    /// <summary>The style fades subtitles in or out (Stil → Efektler).</summary>
+    public bool HasFades { get; }
+
+    /// <summary>
+    /// Off by default: during a fade every overlay frame is stored whole, which made a 4K overlay about ten
+    /// times larger. The editor can add its own transitions.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool OverlayFades { get; set; }
+
     // ---- Subtitle files
     public IReadOnlyList<SubtitleFormatChoice> Formats { get; }
 
@@ -308,6 +320,6 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
             ? [BurnTrack!]
             : [.. Tracks.Where(t => t.IsSelected).SelectMany(t => SplitByLanguage && HasMixedTrack ? TrackOperations.SplitByLanguage(t.Track) : [t.Track])];
         return new ExportChoice(Kind, tracks, SelectedFormat.Format, IsSrt && PremiereBom, EffectiveEncoder,
-            (int)Math.Round(Quality), UseMkv ? SoftSubContainer.Mkv : SoftSubContainer.Mp4, SplitByLanguage && HasMixedTrack, SelectedOverlayCodec.Codec, SelectedVideoFormat.Format);
+            (int)Math.Round(Quality), UseMkv ? SoftSubContainer.Mkv : SoftSubContainer.Mp4, SplitByLanguage && HasMixedTrack, SelectedOverlayCodec.Codec, SelectedVideoFormat.Format, OverlayFades);
     }
 }

@@ -22,8 +22,11 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - Put it on the track above the video; the editor does the only encode, so the picture is never
     re-encoded by LingoCue.
   - QuickTime Animation (lossless, small) or ProRes 4444.
-  - Measured on 4K at 29.97 fps with a subtitle every 3 s: Animation took 3.7 min for 10 minutes of video
-    (443 MB), so about 15 min and 1.8 GB for 40 minutes. ProRes 4444 is ~600 MB per minute.
+  - Measured on 4K at 29.97 fps with a subtitle every 3 s: 2 minutes of Animation took 38 s and 8 MB, so about
+    13 min and 160 MB for 40 minutes. ProRes 4444 is ~600 MB per minute.
+  - Fades are left out of the overlay by default (a checkbox includes them). During a fade every frame is
+    stored whole, which made the same overlay about ten times larger (79 MB for 2 minutes). The editor can add
+    its own transitions.
 - **High-quality burn-in formats** (Videoya göm → Biçim).
   - HEVC 10 bit (MP4): uses the graphics card when it can encode 10-bit HEVC, otherwise x265.
   - ProRes 422 HQ (MOV): an editing master, about 2.6 GB per minute in 4K.

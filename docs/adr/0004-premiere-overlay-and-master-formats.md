@@ -26,8 +26,11 @@ Option 3 is the recommended path, with option 2 kept for people who want a finis
   - FFmpeg `color=black@0` canvas, then the `ass` filter, written to MOV.
   - Default codec: QuickTime Animation (`qtrle`, lossless RLE, a key frame every 5 s). ProRes 4444 is
     offered for editors that do not read Animation.
-  - Measured in 4K at 29.97 fps with a subtitle every 3 s: Animation took 220 s for 10 minutes (443 MB);
-    ProRes 4444 took 105 s per minute (600 MB per minute).
+  - Measured in 4K at 29.97 fps with a subtitle every 3 s, using the Belgesel style with 0.2 s fades:
+    Animation took 220 s for 10 minutes (443 MB); ProRes 4444 took 105 s per minute (600 MB per minute).
+  - The size came from the fades: every frame of a fade differs, so the RLE codec stores it whole. Two
+    minutes took 79 MB with fades and 8 MB without; the key frame spacing barely mattered (78–88 MB).
+    The overlay therefore leaves fades out by default (a checkbox keeps them); editors add transitions themselves.
 - **Two FFmpeg traps:**
   - Without `alpha=1` the `ass` filter leaves the alpha channel at 0, so the overlay is invisible.
   - With no `YCbCr Matrix` header the filter draws TV-range colors on an RGB canvas (white becomes 235).
