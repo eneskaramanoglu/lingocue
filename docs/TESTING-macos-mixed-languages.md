@@ -67,7 +67,9 @@ cat "$TMPDIR/lingocue-whisper-mixed.txt"
 - [ ] The report's first line names the device: Apple Metal (GPU), or Neural Engine if it is on.
 - [ ] Note the `elapsed` value and the `Mixed languages: … in …` time.
 
-On the Windows reference (GTX 4 GB, Vulkan) a 37-second Turkish/English clip took 21 s mixed and 12 s single-language.
+On the Windows reference (GTX 4 GB, Vulkan): a 37 s Turkish/English clip took 21 s mixed (12 s single-language); a 47 s Turkish/English/Korean clip took 25 s with every switch right (9/9).
+
+- [ ] No Korean line contains a broken character (�). A split Hangul syllable was fixed in this version.
 
 ## 4. In the app
 

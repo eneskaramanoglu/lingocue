@@ -15,8 +15,11 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
     longer turned into Turkish.
   - Detection uses a small model (60 MB, downloads once); the recognition model rechecks only the
     stretches it is unsure of.
-  - On a 37-second Turkish/English test clip every line got the right language, short ones too
-    ("Okay, let's go.", "Evet."). Recognition took 21 s, against 12 s for a single language.
+  - Test clips, synthesized with the Windows voices:
+    - Turkish/English, 37 s: every line got the right language, short ones too ("Okay, let's go.",
+      "Evet."). Recognition took 21 s, against 12 s for a single language.
+    - Turkish/English/Korean, 47 s: every switch was right (9/9), including a one-syllable "네.".
+      Recognition took 25 s.
   - Gemini gets all chosen languages and its sentences are tagged by their text.
 - **Line languages in the editor.**
   - On a mixed track every row shows a TR / EN / KO badge, and the list can be filtered by language.
@@ -31,6 +34,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `film.en.srt`, `film.ko.srt`), or one subtitle stream per language in a video.
 - Korean in the speech-language lists, with a Korean style prompt for Whisper.
 - macOS test steps for this feature in their own file: `docs/TESTING-macos-mixed-languages.md`.
+
+### Fixed
+- Korean text from Whisper could contain broken characters (�). A Hangul syllable split across two
+  recognition tokens is now restored from the full sentence. This also applies to Korean-only videos.
 
 ### Known limits
 - A language switch inside one sentence ("Bu meeting'i yarın yapalım") is not split: the sentence is written in
