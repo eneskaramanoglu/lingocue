@@ -23,6 +23,11 @@ dotnet run --project src/LingoCue.App
 
 Logs are written to `~/Library/Logs/LingoCue/`.
 
+## v1.2.0 — Mixed languages
+
+- [ ] Run the separate checklist [TESTING-macos-mixed-languages.md](TESTING-macos-mixed-languages.md):
+  a Turkish / English / Korean clip made with the macOS voices, the "Karışık" choice, line badges and export by language.
+
 ## v1.1.0 — Gallery, rounded box, Neural Engine
 
 - [ ] **Neural Engine.**

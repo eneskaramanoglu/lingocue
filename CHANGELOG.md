@@ -6,6 +6,36 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-27
+
+### Added
+- **Mixed-language videos** (Transkribe et → Konuşma dili → Karışık). Tick the languages spoken in the
+  video, up to three (for example Türkçe, İngilizce, Korece).
+  - Every stretch of speech is detected among them and written in its own language, so English is no
+    longer turned into Turkish.
+  - Detection uses a small model (60 MB, downloads once); the recognition model rechecks only the
+    stretches it is unsure of.
+  - On a 37-second Turkish/English test clip every line got the right language, short ones too
+    ("Okay, let's go.", "Evet."). Recognition took 21 s, against 12 s for a single language.
+  - Gemini gets all chosen languages and its sentences are tagged by their text.
+- **Line languages in the editor.**
+  - On a mixed track every row shows a TR / EN / KO badge, and the list can be filtered by language.
+  - Under the editor, Dil buttons change a line's language; Ctrl+Shift+L moves it to the next one.
+  - Reading-speed checks, line breaks and upper case follow each line's own language: English "this"
+    becomes "THIS", not "THİS"; Korean uses the Korean reading scale.
+- **AI passes on mixed tracks.**
+  - Correction keeps every line in its own language and rejects an answer that translated a line.
+  - Translation copies lines already in the target language unchanged, and a mixed track can be
+    translated into its main language too.
+- **Export by language.** A mixed track can be split into one file per language (`film.tr.srt`,
+  `film.en.srt`, `film.ko.srt`), or one subtitle stream per language in a video.
+- Korean in the speech-language lists, with a Korean style prompt for Whisper.
+- macOS test steps for this feature in their own file: `docs/TESTING-macos-mixed-languages.md`.
+
+### Known limits
+- A language switch inside one sentence ("Bu meeting'i yarın yapalım") is not split: the sentence is written in
+  the language of its stretch.
+
 ## [1.1.0] - 2026-11-22
 
 ### Added
