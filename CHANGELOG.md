@@ -36,6 +36,13 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - macOS test steps for this feature in their own file: `docs/TESTING-macos-mixed-languages.md`.
 
 ### Fixed
+- macOS: the status named the Whisper device "Apple CoreML" on every Mac. It now says Apple Metal (GPU), or
+  Apple Neural Engine (CoreML) + Apple Metal (GPU), because the device is read after decoding starts. The
+  expected "failed to load Core ML model" message is no longer logged as a warning when the Neural Engine is off.
+- **macOS: the v1.1.0 app quit right after start, without a window.** The bundled libmpv carried a
+  duplicate library search path (LC_RPATH), which macOS 15 refuses to load; the package now keeps one.
+- macOS: the log records why the app could not start (for example a video library that does not load),
+  and when it stops.
 - Korean text from Whisper could contain broken characters (�). A Hangul syllable split across two
   recognition tokens is now restored from the full sentence. This also applies to Korean-only videos.
 
