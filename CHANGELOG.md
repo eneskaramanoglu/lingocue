@@ -31,6 +31,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - HEVC 10 bit (MP4): uses the graphics card when it can encode 10-bit HEVC, otherwise x265.
   - ProRes 422 HQ (MOV): an editing master, about 2.6 GB per minute in 4K.
   - Both keep 10 bits through the subtitle step and copy the source's color tags (BT.709, BT.2020, HLG/PQ).
+- **Local models: thinking mode** (Tercihler → Dil modeli → Düşünme modu). Off by default; see below.
+
+### Changed
+- **Local models (Ollama) no longer "think" during correction and translation.** Thinking models (gemma4,
+  qwen3) wrote long hidden reasoning. On an M2 with gemma4:12b a 6-line translation went from about 8.5 minutes
+  (6682 output tokens) to about 45 seconds (167 tokens), with the same translations. Models that do not support
+  the switch are asked again without it.
+
+### Fixed
+- **Ollama models without structured output** (for example gemma4 on Ollama 0.40) failed every translation
+  with "structured output is unavailable". The request is now repeated without the JSON schema; the prompts
+  already ask for JSON, so the answers still parse.
 
 ## [1.2.0] - 2026-11-27
 
