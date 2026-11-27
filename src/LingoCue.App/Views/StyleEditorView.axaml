@@ -116,7 +116,7 @@
           <TextBlock Grid.Row="4" Text="Harf aralığı" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="4" Grid.Column="1" Value="{Binding Spacing}" Minimum="-10" Maximum="40" Increment="0.5" FormatString="0.#" />
 
-          <CheckBox Grid.Row="5" Grid.Column="1" Content="BÜYÜK HARF (Türkçe kurallarıyla: i → İ)" IsChecked="{Binding UpperCase}" />
+          <CheckBox Grid.Row="5" Grid.Column="1" Content="BÜYÜK HARF (her satır kendi dilinin kurallarıyla: Türkçede i → İ)" IsChecked="{Binding UpperCase}" />
         </Grid>
       </Expander>
 
