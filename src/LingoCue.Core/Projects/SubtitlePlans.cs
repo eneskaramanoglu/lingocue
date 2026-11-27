@@ -136,6 +136,15 @@ public static class SubtitlePlans
         return result;
     }
 
+    /// <summary>The project's translation of <paramref name="track"/> itself into <paramref name="language"/> (the newest), or null.</summary>
+    public static SubtitleTrack? TranslationTrackFor(Project project, SubtitleTrack track, string language)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        ArgumentNullException.ThrowIfNull(track);
+        var code = LanguageCodes.Primary(language);
+        return project.Tracks.LastOrDefault(t => t.Kind == TrackKind.Translation && t.SourceTrackId == track.Id && LanguageCodes.Primary(t.Language) == code);
+    }
+
     /// <summary>The translations into <paramref name="language"/> of <paramref name="track"/>'s lines, keyed by the line id.</summary>
     private static Dictionary<int, Cue>? TranslationOf(Project project, SubtitleTrack track, string language,
         Dictionary<string, Dictionary<int, Cue>?> cache)

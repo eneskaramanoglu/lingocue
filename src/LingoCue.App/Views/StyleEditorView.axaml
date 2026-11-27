@@ -270,6 +270,33 @@
                      IsVisible="{Binding BilingualInfo, Converter={x:Static ObjectConverters.IsNotNull}}" />
         </Grid>
       </Expander>
+
+      <!-- Subtitle plan: one row per spoken language, a box for the top line and one for the line below.
+           The rows are an ItemsControl so the list follows the languages of the active track. -->
+      <Expander Header="Dile göre altyazı" HorizontalAlignment="Stretch">
+        <StackPanel Spacing="10">
+          <CheckBox Content="Konuşulan dile göre farklı altyazı göster" IsChecked="{Binding PlanEnabled}" />
+          <TextBlock Text="{Binding PlanInfo}" Classes="muted small" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding PlanRows}" IsEnabled="{Binding PlanEnabled}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:PlanRuleRow">
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="6" Margin="0,0,0,12">
+                  <TextBlock Grid.ColumnSpan="2" Text="{Binding Title}" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" />
+                  <TextBlock Grid.Row="1" Text="Üstte" VerticalAlignment="Center" />
+                  <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding TopChoices}" SelectedItem="{Binding Top}" HorizontalAlignment="Stretch" />
+                  <TextBlock Grid.Row="2" Text="Altta" VerticalAlignment="Center" />
+                  <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding BottomChoices}" SelectedItem="{Binding Bottom}" HorizontalAlignment="Stretch" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <StackPanel Spacing="6" IsVisible="{Binding HasPlanMissing}">
+            <TextBlock Text="{Binding PlanMissingText}" Classes="issues" TextWrapping="Wrap" />
+            <Button Content="Eksik çevirileri yap" Command="{Binding FillPlanTranslationsCommand}" HorizontalAlignment="Left"
+                    ToolTip.Tip="Yalnızca eksik satırları yapay zekâya gönderir (ücretli API kullanılabilir)" />
+          </StackPanel>
+        </StackPanel>
+      </Expander>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

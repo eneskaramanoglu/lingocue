@@ -62,7 +62,8 @@ public static class ExportJobs
             else
             {
                 path = Path.Combine(work, $"track{i + 1}.srt");
-                await SubtitleFile.WriteAsync(path, SubtitleDocument.FromTrack(track), SubtitleFormats.Srt, cancellationToken: cancellationToken);
+                var shown = SubtitlePlans.AppliesTo(project, track) ? SubtitlePlans.Flatten(project, track) : track;
+                await SubtitleFile.WriteAsync(path, SubtitleDocument.FromTrack(shown), SubtitleFormats.Srt, cancellationToken: cancellationToken);
             }
 
             files.Add(new SoftSubTrack(path, LanguageCodes.ToIso6392(track.Language), TrackTitle(track), i == 0));

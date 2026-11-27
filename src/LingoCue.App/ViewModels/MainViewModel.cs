@@ -109,6 +109,7 @@ public partial class MainViewModel : ViewModelBase
         _fontCatalog = fontCatalog;
         StyleEditor.FontAdded += (_, _) => UpdateFontsDirectory();
         StyleEditor.GalleryChanged += (_, _) => RefreshGallery();
+        StyleEditor.FillPlanTranslations = FillPlanTranslationsAsync;
         StyleEditor.Changed += (_, _) =>
         {
             MarkDirty("style");

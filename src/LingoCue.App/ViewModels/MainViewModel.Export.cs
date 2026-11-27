@@ -146,7 +146,7 @@ public partial class MainViewModel
             var path = singlePath ?? Path.Combine(folder, SubtitleExportNames.For(ExportBaseName(), choice.Tracks, track) + extension);
             var document = format is AssFormat
                 ? AssScriptBuilder.BuildDocument(project, track, width, height, allowBilingual: choice.Tracks.Count == 1, measurer: Measurer())
-                : SubtitleDocument.FromTrack(track);
+                : SubtitleDocument.FromTrack(SubtitlePlans.AppliesTo(project, track) ? SubtitlePlans.Flatten(project, track) : track);
             await SubtitleFile.WriteAsync(path, document, format, options);
             written.Add(path);
         }
