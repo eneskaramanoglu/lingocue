@@ -384,3 +384,31 @@ The ASS style model is the single source of truth. `AssScriptBuilder` produces t
 the live preview (libmpv/libass) and, from M6, burn-in (FFmpeg `ass` filter with `fontsdir`).
 The script is sized to a 1080-pixel reference following the video aspect (1920×1080 landscape,
 1080×1920 Shorts), so style sizes mean the same thing on every video.
+
+## Mixed-language recordings (v1.2.0)
+
+Decision record: [ADR 0003](adr/0003-mixed-language-recognition.md).
+
+```
+"tr+en+ko" ──► Silero VAD regions ──► whisper base (60 MB) detects each region among the chosen languages
+                                          │  unsure (p < 0.8) → large-v3 rechecks that region
+                                          ▼
+                    LanguageRuns.Smooth (unsure short regions follow neighbours) → Group by language
+                                          │
+                     one decoding pass per language over its regions (SpeechTimeline, own prompt)
+                                          ▼
+                     words tagged Word.Language ──► Segmenter breaks at language switches → Cue.Language
+```
+
+- `LanguageSelection` (Core) stores the choice as one string: `auto`, `tr`, or `tr+en+ko` (at most 3).
+- `Cue.Language` and `Word.Language` are optional. Null means the track's language; use
+  `SubtitleTrack.LanguageOf(cue)`. The track's own language is the first chosen language when it was spoken.
+- `TextLanguageGuess` (Core) picks a line's language among candidates from its script and common words. It
+  flags Whisper segments written in another chosen language and tags Gemini output, which has no per-word
+  language.
+- Per-line language is used by:
+  - reading rules: `SegmentationOptions.RulesFor`, and the editor rows;
+  - upper case: `AssScriptBuilder.CultureOf`;
+  - the LLM passes: `LineItem.Language` is sent as `"lang"`, correction rejects a translated line, and
+    translation locks lines already in the target language;
+  - export: `TrackOperations.SplitByLanguage`.

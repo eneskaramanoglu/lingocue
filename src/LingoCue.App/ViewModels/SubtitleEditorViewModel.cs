@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LingoCue.App.Playback;
 using LingoCue.Core.Subtitles;
+using LingoCue.Core.Text;
 using PropertyChangedEventArgs = System.ComponentModel.PropertyChangedEventArgs;
 
 namespace LingoCue.App.ViewModels;
@@ -42,6 +43,8 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(SetEndToPlayheadCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertToOriginalCommand))]
     [NotifyCanExecuteChangedFor(nameof(MarkReviewedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SetLanguageCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CycleLanguageCommand))]
     [NotifyCanExecuteChangedFor(nameof(NudgeBackCommand), nameof(NudgeForwardCommand), nameof(NudgeStartBackCommand), nameof(NudgeStartForwardCommand))]
     [NotifyCanExecuteChangedFor(nameof(SplitCueCommand), nameof(MergeWithNextCommand))]
     public partial CueViewModel? SelectedCue { get; set; }
@@ -108,13 +111,94 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         : "Yalnızca yapay zekânın değiştirdiği ya da kontrol bekleyen satırları göster";
 
     /// <summary>The grid's rows: the live list, or a snapshot of the interesting lines while filtering.</summary>
-    public IEnumerable<CueViewModel> VisibleCues => ShowChangedOnly ? [.. Cues.Where(c => c.IsOfInterest)] : Cues;
+    public IEnumerable<CueViewModel> VisibleCues => ShowChangedOnly || LanguageFilter is not null
+        ? [.. Cues.Where(c => (!ShowChangedOnly || c.IsOfInterest) && (LanguageFilter is null || LanguageOf(c) == LanguageFilter))]
+        : Cues;
+
+    /// <summary>The track's lines are in more than one language: rows show a language badge and can be filtered by it.</summary>
+    [ObservableProperty]
+    public partial bool IsMixedLanguage { get; private set; }
+
+    /// <summary>Show only lines in this language (primary subtag); null = all.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VisibleCues))]
+    [NotifyCanExecuteChangedFor(nameof(AddCueCommand))]
+    public partial string? LanguageFilter { get; set; }
+
+    /// <summary>Languages a line can be set to: the track's own, then Turkish, English and Korean.</summary>
+    public IReadOnlyList<string> LanguageChoices => [.. (_track?.SpokenLanguages() ?? []).Concat(["tr", "en", "ko"]).Select(LanguageCodes.Primary).Distinct(StringComparer.Ordinal)];
+
+    /// <summary>Sets the selected line's language (from the row menu or the language buttons).</summary>
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void SetLanguage(string? language)
+    {
+        if (SelectedCue is { } vm && !string.IsNullOrWhiteSpace(language))
+        {
+            WithEditKey(null, () => vm.Language = language);
+        }
+    }
+
+    /// <summary>Moves the selected line to the next language of the track (Ctrl+Shift+L).</summary>
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private void CycleLanguage()
+    {
+        if (_track is null || SelectedCue is not { } vm)
+        {
+            return;
+        }
+
+        var choices = LanguageChoices;
+        var index = choices.ToList().IndexOf(LanguageOf(vm));
+        SetLanguage(choices[(index + 1) % choices.Count]);
+    }
+
+    private string LanguageOf(CueViewModel vm) => _track is null ? string.Empty : LanguageCodes.Primary(_track.LanguageOf(vm.Model));
+
+    private CueViewModel NewRow(Cue cue)
+        => new(cue, RulesFor(_track?.LanguageOf(cue) ?? cue.Language)) { ShowLanguage = IsMixedLanguage, TrackLanguage = _track?.Language };
+
+    private void OnCueLanguageChanged(object? sender, EventArgs e)
+    {
+        if (sender is not CueViewModel vm || _track is null)
+        {
+            return;
+        }
+
+        // A line that is now in the track's own language needs no language of its own.
+        vm.SetRules(RulesFor(_track.LanguageOf(vm.Model)));
+        var mixed = _track.IsMixedLanguage();
+        if (mixed != IsMixedLanguage)
+        {
+            IsMixedLanguage = mixed;
+            foreach (var row in Cues)
+            {
+                row.ShowLanguage = mixed;
+            }
+        }
+
+        OnPropertyChanged(nameof(LanguageFilterOptions));
+        OnPropertyChanged(nameof(LanguageChoices));
+    }
+
+    /// <summary>The language filter's entries: all languages, then each language of the track.</summary>
+    public IReadOnlyList<LanguageOption> LanguageFilterOptions =>
+        [new(null, "Tüm diller"), .. (_track?.SpokenLanguages() ?? []).Select(l => new LanguageOption(LanguageCodes.Primary(l), $"{LanguageCodes.Badge(l)} · {LanguageCodes.DisplayName(l)}"))];
+
+    public LanguageOption? SelectedLanguageFilter
+    {
+        get => LanguageFilterOptions.FirstOrDefault(o => o.Code == LanguageFilter);
+        set
+        {
+            LanguageFilter = value?.Code;
+            OnPropertyChanged();
+        }
+    }
 
     public int ChangedCount => Cues.Count(c => c.IsChanged);
 
     public int ReviewCount => Cues.Count(c => c.NeedsReview || c.LlmFailed);
 
-    private bool CanAddCue => HasTrack && !ShowChangedOnly;
+    private bool CanAddCue => HasTrack && !ShowChangedOnly && LanguageFilter is null;
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void RevertToOriginal()
@@ -131,6 +215,8 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
     public void Load(SubtitleTrack? track, SubtitleTrack? sourceTrack = null)
     {
         _rules = RulesFor(track?.Language);
+        IsMixedLanguage = track?.IsMixedLanguage() == true;
+        LanguageFilter = null;
         _sourceTrack = track is { SourceTrackId: { } sourceId } && sourceTrack?.Id == sourceId ? sourceTrack : null;
         HasSourceTrack = _sourceTrack is not null;
         IsTranslation = track?.Kind == TrackKind.Translation;
@@ -150,6 +236,9 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         _current = null;
         _track = track;
         HasTrack = track is not null;
+        OnPropertyChanged(nameof(LanguageFilterOptions));
+        OnPropertyChanged(nameof(SelectedLanguageFilter));
+        OnPropertyChanged(nameof(LanguageChoices));
         if (track is null)
         {
             OnPropertyChanged(nameof(Summary));
@@ -161,7 +250,10 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         foreach (var cue in track.Cues)
         {
             var original = originals is not null && cue.SourceCueId is { } sourceCueId && originals.TryGetValue(sourceCueId, out var text) ? text : null;
-            Cues.Add(Attach(new CueViewModel(cue, _rules) { OriginalText = original, CompareToOriginal = !IsTranslation }));
+            Cues.Add(Attach(new CueViewModel(cue, RulesFor(track.LanguageOf(cue)))
+            {
+                OriginalText = original, CompareToOriginal = !IsTranslation, ShowLanguage = IsMixedLanguage, TrackLanguage = track.Language,
+            }));
         }
 
         Renumber();
@@ -202,7 +294,7 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
         var cue = new Cue(_track.NextCueId(), start, end, string.Empty);
         var index = InsertIndex(start);
         _track.Cues.Insert(index, cue);
-        var vm = Attach(new CueViewModel(cue, _rules));
+        var vm = Attach(NewRow(cue));
         Cues.Insert(index, vm);
         Renumber();
         SelectedCue = vm;
@@ -299,6 +391,7 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
     {
         vm.Changed += OnCueChanged;
         vm.StartChanged += OnCueStartChanged;
+        vm.LanguageChanged += OnCueLanguageChanged;
         return vm;
     }
 
@@ -306,6 +399,7 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
     {
         vm.Changed -= OnCueChanged;
         vm.StartChanged -= OnCueStartChanged;
+        vm.LanguageChanged -= OnCueLanguageChanged;
     }
 
     private void OnCueChanged(object? sender, EventArgs e) => RaiseEdited(_hasKeyOverride ? _keyOverride : "edit");

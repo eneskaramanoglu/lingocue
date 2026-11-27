@@ -14,8 +14,12 @@ public static class Segmenter
     {
         ArgumentNullException.ThrowIfNull(words);
         options ??= SegmentationOptions.Default;
-        var rules = new BreakRules(options.Language);
         var clean = words.Where(w => !string.IsNullOrWhiteSpace(w.Text)).Select(w => w with { Text = w.Text.Trim() }).ToList();
+
+        // Mixed-language recordings tag words with their language; each line gets that language's rules.
+        var breakRules = new Dictionary<string, BreakRules>(StringComparer.Ordinal);
+        BreakRules BreakFor(string language)
+            => breakRules.TryGetValue(language, out var found) ? found : breakRules[language] = new BreakRules(language);
 
         var groups = new List<List<Word>>();
         var current = new List<Word>();
@@ -28,9 +32,11 @@ public static class Segmenter
             }
 
             current.Add(word);
-            while (Exceeds(current, options.Rules))
+            var language = LanguageOf(current[0], options);
+            var reading = options.RulesFor(language);
+            while (Exceeds(current, reading))
             {
-                var split = BestSplit(current, rules, options.Rules);
+                var split = BestSplit(current, BreakFor(language), reading);
                 groups.Add(current[..split]);
                 current = current[split..];
             }
@@ -42,19 +48,27 @@ public static class Segmenter
         }
 
         var cues = new List<Cue>(groups.Count);
+        var rules = new List<ReadingRules>(groups.Count);
         for (var i = 0; i < groups.Count; i++)
         {
             var group = groups[i];
-            cues.Add(new Cue(i + 1, group[0].Start, group[^1].End, WrapLines(group, rules, options.Rules))
+            var language = LanguageOf(group[0], options);
+            var reading = options.RulesFor(language);
+            rules.Add(reading);
+            cues.Add(new Cue(i + 1, group[0].Start, group[^1].End, WrapLines(group, BreakFor(language), reading))
             {
                 Speaker = group[0].Speaker,
+                Language = group[0].Language is null ? null : language,
                 Words = [.. group],
             });
         }
 
-        AdjustTiming(cues, options);
+        AdjustTiming(cues, rules, options);
         return cues;
     }
+
+    private static string LanguageOf(Word word, SegmentationOptions options)
+        => string.IsNullOrWhiteSpace(word.Language) ? options.Language : word.Language;
 
     /// <summary>Joins words into at most <see cref="ReadingRules.MaxLines"/> balanced lines.</summary>
     public static string WrapLines(IReadOnlyList<Word> words, string language = "tr", ReadingRules? readingRules = null)
@@ -63,6 +77,12 @@ public static class Segmenter
     private static bool IsHardBreak(Word previous, Word next, List<Word> current, SegmentationOptions options)
     {
         if (options.SplitOnSpeakerChange && next.Speaker is not null && previous.Speaker is not null && next.Speaker != previous.Speaker)
+        {
+            return true;
+        }
+
+        // A line is in one language: a switch always starts a new cue.
+        if (!string.Equals(LanguageOf(previous, options), LanguageOf(next, options), StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
@@ -147,12 +167,12 @@ public static class Segmenter
                string.Join(' ', words.Skip(bestIndex).Select(w => w.Text));
     }
 
-    private static void AdjustTiming(List<Cue> cues, SegmentationOptions options)
+    private static void AdjustTiming(List<Cue> cues, List<ReadingRules> rulesPerCue, SegmentationOptions options)
     {
-        var rules = options.Rules;
         for (var i = 0; i < cues.Count; i++)
         {
             var cue = cues[i];
+            var rules = rulesPerCue[i];
             var limit = i + 1 < cues.Count ? cues[i + 1].Start - options.MinGap : TimeSpan.MaxValue;
             if (limit < cue.End)
             {

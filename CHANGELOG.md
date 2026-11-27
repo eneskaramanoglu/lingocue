@@ -6,6 +6,50 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-27
+
+### Added
+- **Mixed-language videos** (Transkribe et → Konuşma dili → Karışık). Tick the languages spoken in the
+  video, up to three (for example Türkçe, İngilizce, Korece).
+  - Every stretch of speech is detected among them and written in its own language, so English is no
+    longer turned into Turkish.
+  - Detection uses a small model (60 MB, downloads once); the recognition model rechecks only the
+    stretches it is unsure of.
+  - Test clips, synthesized with the Windows voices:
+    - Turkish/English, 37 s: every line got the right language, short ones too ("Okay, let's go.",
+      "Evet."). Recognition took 21 s, against 12 s for a single language.
+    - Turkish/English/Korean, 47 s: every switch was right (9/9), including a one-syllable "네.".
+      Recognition took 25 s.
+  - Gemini gets all chosen languages and its sentences are tagged by their text.
+- **Line languages in the editor.**
+  - On a mixed track every row shows a TR / EN / KO badge, and the list can be filtered by language.
+  - Under the editor, Dil buttons change a line's language; Ctrl+Shift+L moves it to the next one.
+  - Reading-speed checks, line breaks and upper case follow each line's own language: English "this"
+    becomes "THIS", not "THİS"; Korean uses the Korean reading scale.
+- **AI passes on mixed tracks.**
+  - Correction keeps every line in its own language and rejects an answer that translated a line.
+  - Translation copies lines already in the target language unchanged, and a mixed track can be
+    translated into its main language too.
+- **Export by language.** A mixed track can be split into one file per language (`film.tr.srt`,
+  `film.en.srt`, `film.ko.srt`), or one subtitle stream per language in a video.
+- Korean in the speech-language lists, with a Korean style prompt for Whisper.
+- macOS test steps for this feature in their own file: `docs/TESTING-macos-mixed-languages.md`.
+
+### Fixed
+- macOS: the status named the Whisper device "Apple CoreML" on every Mac. It now says Apple Metal (GPU), or
+  Apple Neural Engine (CoreML) + Apple Metal (GPU), because the device is read after decoding starts. The
+  expected "failed to load Core ML model" message is no longer logged as a warning when the Neural Engine is off.
+- **macOS: the v1.1.0 app quit right after start, without a window.** The bundled libmpv carried a
+  duplicate library search path (LC_RPATH), which macOS 15 refuses to load; the package now keeps one.
+- macOS: the log records why the app could not start (for example a video library that does not load),
+  and when it stops.
+- Korean text from Whisper could contain broken characters (�). A Hangul syllable split across two
+  recognition tokens is now restored from the full sentence. This also applies to Korean-only videos.
+
+### Known limits
+- A language switch inside one sentence ("Bu meeting'i yarın yapalım") is not split: the sentence is written in
+  the language of its stretch.
+
 ## [1.1.0] - 2026-11-22
 
 ### Added

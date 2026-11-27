@@ -49,6 +49,11 @@ internal static class LineJson
                 item["speaker"] = line.Speaker;
             }
 
+            if (!string.IsNullOrWhiteSpace(line.Language))
+            {
+                item["lang"] = line.Language;
+            }
+
             if (!string.IsNullOrWhiteSpace(line.Reference) && !string.Equals(line.Reference.Trim(), line.Text.Trim(), StringComparison.Ordinal))
             {
                 item["original"] = line.Reference;

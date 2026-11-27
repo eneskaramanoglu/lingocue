@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using LingoCue.Core.Security;
 using LingoCue.Core.Subtitles;
+using LingoCue.Core.Text;
 using LingoCue.Media.Audio;
 using Microsoft.Extensions.Logging;
 
@@ -103,14 +104,27 @@ public sealed partial class GeminiTranscribeEngine(
             }
         }
 
+        var mixed = LanguageSelection.Mixed(request.Language);
+        var normalized = WordTimeline.Normalize(words);
+        if (mixed.Count > 1)
+        {
+            // The API does not say which language a word is in; each sentence is read for it.
+            normalized = MixedLanguageTagger.Tag(normalized, mixed);
+        }
+
         progress?.Report(new(TranscriptionStage.Finishing, 1));
         return new TranscriptionResult(
-            WordTimeline.Normalize(words), Id, request.ModelId, request.Language, stopwatch.Elapsed, "Google Cloud", EstimateCost(request.Duration));
+            normalized, Id, request.ModelId, mixed.Count > 1 ? mixed[0] : request.Language, stopwatch.Elapsed, "Google Cloud", EstimateCost(request.Duration));
     }
 
     /// <summary>Gemini expects BCP 47 with region (<c>tr-TR</c>); null/auto = automatic detection.</summary>
     internal static IReadOnlyList<string>? ToGeminiLanguages(string? language)
     {
+        if (LanguageSelection.Mixed(language) is { Count: > 1 } mixed)
+        {
+            return [.. mixed.Select(l => ToGeminiLanguages(l)![0])];
+        }
+
         if (string.IsNullOrWhiteSpace(language) || language.Equals("auto", StringComparison.OrdinalIgnoreCase))
         {
             return null;

@@ -20,7 +20,9 @@ public sealed partial class TrackChoice(SubtitleTrack track, bool selected) : Ob
 {
     public SubtitleTrack Track { get; } = track;
 
-    public string Label => $"{Track.Name} · {Track.Language} · {Track.Cues.Count} satır";
+    public string Label => Track.IsMixedLanguage()
+        ? $"{Track.Name} · karışık ({string.Join(", ", Track.SpokenLanguages())}) · {Track.Cues.Count} satır"
+        : $"{Track.Name} · {Track.Language} · {Track.Cues.Count} satır";
 
     [ObservableProperty]
     public partial bool IsSelected { get; set; } = selected;
@@ -38,7 +40,8 @@ public sealed record ExportChoice(
     bool Utf8Bom,
     VideoEncoder Encoder,
     int Quality,
-    SoftSubContainer Container);
+    SoftSubContainer Container,
+    bool SplitByLanguage = false);
 
 /// <summary>
 /// One dialog for every export: subtitle files (SRT for Premiere Pro, VTT, ASS), a video with the
@@ -56,7 +59,11 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
         BurnTrack = Tracks.FirstOrDefault(t => t.Track == activeTrack)?.Track ?? Tracks.FirstOrDefault()?.Track;
         foreach (var choice in Tracks)
         {
-            choice.PropertyChanged += (_, _) => OnPropertyChanged(nameof(CanStart));
+            choice.PropertyChanged += (_, _) =>
+            {
+                OnPropertyChanged(nameof(CanStart));
+                OnPropertyChanged(nameof(HasMixedTrack));
+            };
         }
 
         Formats =
@@ -206,6 +213,12 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool UseMkv { get; set; }
 
+    /// <summary>A chosen track mixes languages: offer one file (or stream) per language.</summary>
+    public bool HasMixedTrack => Tracks.Any(t => t.IsSelected && t.Track.IsMixedLanguage());
+
+    [ObservableProperty]
+    public partial bool SplitByLanguage { get; set; }
+
     public string StartLabel => Kind == ExportKind.SubtitleFiles ? "Kaydet…" : "Kuyruğa ekle…";
 
     public bool CanStart => Kind switch
@@ -224,8 +237,8 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
 
         IReadOnlyList<SubtitleTrack> tracks = Kind == ExportKind.BurnIn
             ? [BurnTrack!]
-            : [.. Tracks.Where(t => t.IsSelected).Select(t => t.Track)];
+            : [.. Tracks.Where(t => t.IsSelected).SelectMany(t => SplitByLanguage && HasMixedTrack ? TrackOperations.SplitByLanguage(t.Track) : [t.Track])];
         return new ExportChoice(Kind, tracks, SelectedFormat.Format, IsSrt && PremiereBom, SelectedEncoder.Encoder,
-            (int)Math.Round(Quality), UseMkv ? SoftSubContainer.Mkv : SoftSubContainer.Mp4);
+            (int)Math.Round(Quality), UseMkv ? SoftSubContainer.Mkv : SoftSubContainer.Mp4, SplitByLanguage && HasMixedTrack);
     }
 }

@@ -82,6 +82,11 @@ macOS Anahtar Zinciri'nde saklanır; proje dosyalarına yazılmaz.
    - **Gemini Transcribe (bulut):** gürültülü ve çok konuşmacılı videolarda daha iyidir; dakikası yaklaşık 0,005 $.
    - Sonuçta **Kaynak** izi oluşur. Ses tanımanın emin olmadığı satırlar **!** ile işaretlenir; bunları dinleyip kontrol edin.
    - Böyle bir satırda emin olunmayan kelimeler zaman çizelgesinde turuncu çizgiyle gösterilir. Düzenleme kutusunun altındaki kelime düğmeleri, o kelimeyi biraz öncesinden çalar.
+   - **Birden çok dil konuşulan videolar:** Konuşma dili olarak **Karışık (birden çok dil)** seçin ve videoda
+     konuşulan dilleri işaretleyin (en çok 3, ör. Türkçe, İngilizce, Korece). Her konuşma bölümünün dili bu
+     diller arasından algılanır ve kendi dilinde yazılır; satırlar TR, EN, KO gibi dil etiketi alır. İlk
+     kullanımda küçük bir dil algılama modeli (60 MB) bir kez iner. Aynı cümlenin içindeki dil geçişleri
+     ayrılmaz.
 3. **Düzelt.** Yapay zekâ yazım, noktalama ve özel isimleri düzeltir, satırları okunur uzunlukta tutar.
    Sonuç ayrı bir **Düzeltilmiş** izdir; orijinal korunur. Çok değişen satırlar **!** ile işaretlenir.
 4. **Çevir.** Bir ya da birkaç hedef dil seçin (ör. İngilizce ve Korece). Her dil ayrı bir iz olur.
@@ -103,6 +108,11 @@ macOS Anahtar Zinciri'nde saklanır; proje dosyalarına yazılmaz.
   Ses dalgası konuşmanın nerede başladığını gösterir.
 - **Böl (Ctrl+B)** ve **Birleştir (Ctrl+M)**; **Bul ve değiştir (Ctrl+F)**; **Geri al (Ctrl+Z)**.
 - **Kontrol** sekmesi okuma hızı, satır uzunluğu ve çakışma sorunlarını listeler; tıklayınca o satıra gider.
+- **Karışık dilli izlerde** satırların yanında dil etiketi görünür ve listenin üstündeki kutuyla tek bir dili
+  süzebilirsiniz. Düzenleme kutusunun altındaki **Dil** düğmeleri seçili satırın dilini değiştirir
+  (Ctrl+Shift+L sıradaki dile geçer). Okuma hızı ve büyük harf her satırda o satırın diline göre uygulanır.
+  Düzeltme her satırı kendi dilinde tutar; çeviri, zaten hedef dilde olan satırlara dokunmaz. Dışa aktarırken
+  **Karışık dilli izi dile göre ayrı dosyalara böl** ile her dil ayrı bir dosya (ör. `film.en.srt`) olur.
 - Tüm kısayollar: **Yardım → Klavye kısayolları**.
 
 Okuma kuralları (satır başına karakter, saniyedeki karakter) **Tercihler → Altyazı kuralları**'ndadır.

@@ -60,7 +60,7 @@ public static class AssScriptBuilder
             foreach (var cue in cues)
             {
                 // Every cue uses the project style; layer and margins of imported cues are kept.
-                AddEvents(sink, cue, cue.Format with { Style = null }, presentation, main, culture);
+                AddEvents(sink, cue, cue.Format with { Style = null }, presentation, main, CultureOf(cue, culture));
             }
         }
         else
@@ -119,7 +119,7 @@ public static class AssScriptBuilder
                 ? MaxHeight(Overlapping(secondaryCues, cue), secondary, playResX)
                 : 0;
             var marginV = below > 0 ? main.MarginV + below + gap : 0;
-            AddEvents(events, cue, new CueFormatData { Layer = 1, MarginV = marginV }, presentation, main, culture);
+            AddEvents(events, cue, new CueFormatData { Layer = 1, MarginV = marginV }, presentation, main, CultureOf(cue, culture));
         }
 
         foreach (var cue in secondaryCues)
@@ -131,7 +131,7 @@ public static class AssScriptBuilder
                 _ => 0,
             };
             var format = new CueFormatData { Style = SecondaryStyleName, Layer = 0, MarginV = marginV };
-            AddEvents(events, cue, format, plain, secondary, secondaryCulture);
+            AddEvents(events, cue, format, plain, secondary, CultureOf(cue, secondaryCulture));
         }
     }
 
@@ -519,6 +519,10 @@ public static class AssScriptBuilder
             : string.Empty;
 
     /// <summary>Culture for casing a track's text; Turkish rules for <c>tr</c> (i → İ).</summary>
+    /// <summary>A line in its own language (mixed tracks) is cased by that language: "this" stays "THIS", not "THİS".</summary>
+    private static CultureInfo CultureOf(Cue cue, CultureInfo trackCulture)
+        => string.IsNullOrWhiteSpace(cue.Language) ? trackCulture : CultureFor(cue.Language);
+
     internal static CultureInfo CultureFor(string? language)
     {
         if (string.IsNullOrWhiteSpace(language) || language.StartsWith("tr", StringComparison.OrdinalIgnoreCase))

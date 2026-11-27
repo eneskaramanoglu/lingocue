@@ -1,5 +1,6 @@
 using System.Globalization;
 using LingoCue.Core.Subtitles;
+using LingoCue.Core.Text;
 
 namespace LingoCue.Llm.Pipeline;
 
@@ -13,8 +14,12 @@ public sealed class CorrectionTask(bool keepCircumflex = false) : LineTaskBase
 
     public override string SystemPrompt(TaskContext context)
     {
-        var language = LanguageName(context.SourceLanguage);
-        var turkish = context.SourceLanguage.StartsWith("tr", StringComparison.OrdinalIgnoreCase);
+        var language = context.IsMixed
+            ? "multilingual (" + string.Join(", ", context.SourceLanguages!.Select(LanguageName)) + ")"
+            : LanguageName(context.SourceLanguage);
+        var turkish = context.IsMixed
+            ? context.SourceLanguages!.Contains("tr")
+            : context.SourceLanguage.StartsWith("tr", StringComparison.OrdinalIgnoreCase);
         return $"""
             You are a meticulous {language} subtitle proofreader. The lines come from automatic speech
             recognition of a video. Fix ONLY:
@@ -28,6 +33,7 @@ public sealed class CorrectionTask(bool keepCircumflex = false) : LineTaskBase
             - Each line stays the same line: never move words between ids, never merge or split ids.
             - A line may contain a line break ("\n") for two-line subtitles; keep at most 2 lines.
             - If a line is already correct, return it unchanged.
+            {MixedRule(context)}
             {(turkish ? TurkishRules(keepCircumflex) : string.Empty)}
             Video context:
             {ContextBlock(context.Project)}
@@ -47,6 +53,32 @@ public sealed class CorrectionTask(bool keepCircumflex = false) : LineTaskBase
 
     public override bool NeedsReview(LineItem source, string output, PipelineOptions options)
         => TextDistance.ChangeRatio(source.Text, output) > options.ReviewChangeRatio;
+
+    /// <summary>Lines of a mixed-language video each stay in their own language.</summary>
+    internal static string MixedRule(TaskContext context)
+        => context.IsMixed
+            ? """
+              - The video mixes languages. Each line has "lang", the language it is spoken in: correct it with
+                that language's spelling and punctuation, and NEVER translate a line into another language.
+                Language-specific rules below apply only to lines in that language.
+              """
+            : string.Empty;
+
+    public override string? Validate(LineItem source, string output, TaskContext context, PipelineOptions options)
+    {
+        var baseError = base.Validate(source, output, context, options);
+        if (baseError is not null || !context.IsMixed || source.Language is null)
+        {
+            return baseError;
+        }
+
+        // The source reads as its language but the answer as another one: the model translated it.
+        var before = TextLanguageGuess.Guess(source.Text, context.SourceLanguages!);
+        var after = TextLanguageGuess.Guess(output, context.SourceLanguages!);
+        return before == source.Language && after is not null && after != source.Language
+            ? $"Line {source.Id} was translated; keep it in its own language ({source.Language})."
+            : null;
+    }
 
     private static string TurkishRules(bool keepCircumflex) => $"""
         Turkish specifics:
@@ -69,7 +101,9 @@ public sealed class TranslationTask : LineTaskBase
 
     public override string SystemPrompt(TaskContext context)
     {
-        var source = LanguageName(context.SourceLanguage);
+        var source = context.IsMixed
+            ? "several languages (" + string.Join(", ", context.SourceLanguages!.Select(LanguageName)) + "; each line's \"lang\" says which)"
+            : LanguageName(context.SourceLanguage);
         var target = LanguageName(context.TargetLanguage ?? "en");
         return $"""
             You are a professional subtitle translator from {source} to {target}. Translate each line so it

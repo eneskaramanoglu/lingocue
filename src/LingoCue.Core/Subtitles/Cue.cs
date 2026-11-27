@@ -40,6 +40,12 @@ public sealed class Cue
 
     public string? Speaker { get; set; }
 
+    /// <summary>
+    /// Language of this line (BCP 47) when the track mixes languages; null = the track's language
+    /// (see <see cref="SubtitleTrack.LanguageOf"/>).
+    /// </summary>
+    public string? Language { get; set; }
+
     public CueMarks Marks { get; set; }
 
     /// <summary>For translated/corrected tracks: id of the cue in the track it was derived from.</summary>
@@ -76,6 +82,7 @@ public sealed class Cue
     public Cue Clone(int? newId = null) => new(newId ?? Id, Start, End, Text)
     {
         Speaker = Speaker,
+        Language = Language,
         Marks = Marks,
         SourceCueId = SourceCueId,
         Words = [.. Words],
@@ -113,4 +120,5 @@ public sealed record CueFormatData
 }
 
 /// <summary>A recognized word with timing, as produced by the ASR engine.</summary>
-public sealed record Word(string Text, TimeSpan Start, TimeSpan End, double? Confidence = null, string? Speaker = null);
+/// <param name="Language">Spoken language (BCP 47) when the recording mixes languages; null = the run's language.</param>
+public sealed record Word(string Text, TimeSpan Start, TimeSpan End, double? Confidence = null, string? Speaker = null, string? Language = null);

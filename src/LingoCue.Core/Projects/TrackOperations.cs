@@ -58,6 +58,30 @@ public static class TrackOperations
         return copy;
     }
 
+    /// <summary>
+    /// One track per language of a mixed-language track (most lines first), for exporting each language as its
+    /// own file or stream. The tracks are copies outside the project; a one-language track comes back as is.
+    /// </summary>
+    public static IReadOnlyList<SubtitleTrack> SplitByLanguage(SubtitleTrack track)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        var languages = track.SpokenLanguages();
+        if (languages.Count < 2)
+        {
+            return [track];
+        }
+
+        return [.. languages.Select(language => new SubtitleTrack
+        {
+            Name = $"{track.Name} · {language}",
+            Language = language,
+            Kind = track.Kind,
+            SourceTrackId = track.SourceTrackId,
+            Cues = [.. track.Cues.Where(c => string.Equals(track.LanguageOf(c), language, StringComparison.OrdinalIgnoreCase))
+                .Select(c => { var copy = c.Clone(); copy.Language = null; return copy; })],
+        })];
+    }
+
     public static SubtitleTrack AddEmpty(Project project, string name, string language)
     {
         ArgumentNullException.ThrowIfNull(project);

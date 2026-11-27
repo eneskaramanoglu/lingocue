@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using LingoCue.Core.Platform;
 using LingoCue.Core.Subtitles;
+using LingoCue.Core.Text;
 using LingoCue.Media.Audio;
 using LingoCue.Transcription.Models;
 using Microsoft.Extensions.Logging;
@@ -26,6 +27,10 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
 
     /// <summary>Pause left between regions that were further apart, so Whisper still hears a break.</summary>
     private static readonly TimeSpan s_joinGap = TimeSpan.FromMilliseconds(600);
+
+    /// <summary>Audio Whisper hears when detecting a region's language (its model looks at one 30-second window).</summary>
+    private static readonly TimeSpan s_detectWindow = TimeSpan.FromSeconds(30);
+
     private readonly IAudioExtractor _audio;
     private readonly ModelDownloader _downloader;
     private readonly IPlatformInfo _platform;
@@ -126,92 +131,42 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
             });
 
             var factory = GetFactory(modelPath, request.ModelId);
-            var language = ToWhisperLanguage(request.Language);
-
-            // whisper.cpp creates its state, and logs the backend ("using MTL0 backend", "Core ML model
-            // loaded"), only when decoding starts, not in Build(). Name the device on the first progress
-            // report, when those lines are in, instead of falling back to the runtime name.
-            string? device = null;
-            var deviceLock = new object();
-            string ResolveDevice()
-            {
-                lock (deviceLock)
-                {
-                    if (device is null)
-                    {
-                        device = DescribeDevice(nativeLog);
-                        LogStarting(request.ModelId, device, language);
-                    }
-
-                    return device;
-                }
-            }
-
-            var builder = factory.CreateBuilder()
-                .WithLanguage(language)
-                .WithTokenTimestamps()
-                .WithProbabilities()
-                .WithProgressHandler(p => progress?.Report(new(TranscriptionStage.Recognizing, 0.32 + (p / 100.0 * 0.66), ResolveDevice())));
-            if (PromptFor(language, request.Hints) is { } prompt)
-            {
-                builder = builder.WithPrompt(prompt);
-                if (request.Hints is { Count: > 0 })
-                {
-                    // Keep the names in front of every 30-second window, not only the first one.
-                    builder = builder.WithCarryInitialPrompt(true);
-                }
-            }
-
-            if (request.BeamSearch)
-            {
-                builder = builder.WithBeamSearchSamplingStrategy(b => b.WithBeamSize(BeamSize));
-            }
-
-            await using var processor = builder.Build();
-
-            // Only the speech regions are decoded (see SpeechTimeline); times are mapped back afterwards.
             var (samples, sampleRate) = WavSamples.Read(wav);
-            var timeline = speech.Count > 0
-                ? SpeechTimeline.Build(speech, request.Duration > TimeSpan.Zero ? request.Duration : TimeSpan.FromSeconds(samples.Length / (double)sampleRate),
-                    s_vadPadding, s_mergeGap, s_joinGap)
-                : null;
-            var input = timeline?.Pack(samples, sampleRate) ?? samples;
-            var originalLength = TimeSpan.FromSeconds(samples.Length / (double)sampleRate);
-            var packedLength = TimeSpan.FromSeconds(input.Length / (double)sampleRate);
-            LogPacked(originalLength, packedLength, timeline?.Pieces.Count ?? 0);
+            var total = request.Duration > TimeSpan.Zero ? request.Duration : TimeSpan.FromSeconds(samples.Length / (double)sampleRate);
+            var job = new DecodeJob(factory, request, samples, sampleRate, total, speech, nativeLog, progress, cancellationToken);
+
+            // A mixed-language recording: each speech region is detected among the chosen languages, then
+            // every language is decoded in its own pass over just its regions.
+            var mixed = LanguageSelection.Mixed(request.Language);
+            IReadOnlyList<(string Language, IReadOnlyList<SpeechRegion> Regions)> passes;
+            if (mixed.Count > 1 && speech.Count > 0)
+            {
+                passes = await DetectLanguagesAsync(job, mixed);
+            }
+            else
+            {
+                passes = [(ToWhisperLanguage(LanguageSelection.Main(request.Language) ?? request.Language), speech)];
+            }
 
             var words = new List<Word>();
             string? detected = null;
-            string? previous = null;
-            var dropped = 0;
-            var suspicious = 0;
-            await foreach (var segment in processor.ProcessAsync(input, cancellationToken))
+            var decodeStart = job.Fraction;
+            var totalRegions = Math.Max(1, passes.Sum(p => p.Regions.Count));
+            var done = 0;
+            foreach (var (language, regions) in passes)
             {
-                detected ??= segment.Language;
-                var start = timeline?.ToSource(segment.Start) ?? segment.Start;
-                var end = timeline?.ToSource(segment.End) ?? segment.End;
-                if (!WhisperTokenWords.OverlapsSpeech(start, end, speech, s_vadPadding))
-                {
-                    dropped++;
-                    continue;
-                }
-
-                var tokens = segment.Tokens.Select(t => new RawToken(t.Text ?? string.Empty, t.Start, t.End, t.Probability, t.DtwTimestamp));
-                var segmentWords = WhisperTokenWords.ToWords(tokens);
-                var doubtful = WhisperHallucinations.IsSuspicious(segment.Text ?? string.Empty, previous, segment.NoSpeechProbability, segment.Probability);
-                suspicious += doubtful ? 1 : 0;
-                previous = segment.Text;
-                foreach (var word in segmentWords)
-                {
-                    var mapped = timeline is null ? word : word with { Start = timeline.ToSource(word.Start), End = timeline.ToSource(word.End) };
-                    words.Add(doubtful ? mapped with { Confidence = 0 } : mapped);
-                }
+                var share = (0.98 - decodeStart) * Math.Max(1, regions.Count) / totalRegions;
+                var result = await DecodeAsync(job, language, regions, tag: mixed.Count > 1, decodeStart + (done * (0.98 - decodeStart) / totalRegions), share);
+                done += regions.Count;
+                detected ??= result.Detected;
+                words.AddRange(result.Words);
             }
 
-            var usedDevice = ResolveDevice();
+            var usedDevice = ResolveDevice(job, null);
             progress?.Report(new(TranscriptionStage.Finishing, 1, usedDevice));
-            LogFinished(words.Count, dropped, suspicious, stopwatch.Elapsed);
-            return new TranscriptionResult(WordTimeline.Normalize(words), Id, request.ModelId, detected, stopwatch.Elapsed, usedDevice, 0m);
+            LogFinished(words.Count, job.Dropped, job.Suspicious, stopwatch.Elapsed);
+            var reported = mixed.Count > 1 ? (words.Any(w => w.Language == mixed[0]) ? mixed[0] : AsrTracksLanguage(words) ?? mixed[0]) : detected;
+            return new TranscriptionResult(WordTimeline.Normalize(words), Id, request.ModelId, reported, stopwatch.Elapsed, usedDevice, 0m);
         }
         catch (Exception ex) when (WhisperLoadFailure(ex))
         {
@@ -226,6 +181,203 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
             TryDelete(wav);
             _gate.Release();
         }
+    }
+
+    /// <summary>The detection pass: one language per speech region, smoothed, grouped by language.</summary>
+    private async Task<IReadOnlyList<(string Language, IReadOnlyList<SpeechRegion> Regions)>> DetectLanguagesAsync(DecodeJob job, IReadOnlyList<string> candidates)
+    {
+        var detectStopwatch = Stopwatch.StartNew();
+        // A small model detects each region; the recognition model checks only the regions it is unsure of.
+        var smallPath = await _downloader.EnsureAsync(ModelDirectory, WhisperModels.LanguageDetector, cancellationToken: job.Token);
+        using var smallFactory = WhisperFactory.FromPath(smallPath);
+        await using var small = smallFactory.CreateBuilder().WithLanguage("auto").Build();
+        WhisperProcessor? large = null;
+        var regions = job.Speech;
+        var detectedRegions = new List<DetectedRegion>(regions.Count);
+        var candidateArray = candidates.ToArray();
+        var checkedByLarge = 0;
+        try
+        {
+            for (var i = 0; i < regions.Count; i++)
+            {
+                job.Token.ThrowIfCancellationRequested();
+                var region = regions[i];
+                var slice = Slice(job.Samples, job.SampleRate, region.Start - s_vadPadding, region.End + s_vadPadding, s_detectWindow);
+                var guess = await Task.Run(() => small.DetectLanguageWithProbability(slice, candidateArray), job.Token);
+                if (guess.probability < LanguageRuns.SureProbability)
+                {
+                    large ??= job.Factory.CreateBuilder().WithLanguage("auto").Build();
+                    var processor = large;
+                    guess = await Task.Run(() => processor.DetectLanguageWithProbability(slice, candidateArray), job.Token);
+                    checkedByLarge++;
+                }
+
+                var language = LanguageCodes.Primary(guess.language);
+                detectedRegions.Add(new DetectedRegion(region, candidates.Contains(language) ? language : candidates[0], candidates.Contains(language) ? guess.probability : 0));
+                LogRegion(region.Start, region.End, language, guess.probability);
+                job.Report(0.32 + (0.1 * (i + 1) / regions.Count), $"Dil algılanıyor ({i + 1}/{regions.Count})");
+            }
+        }
+        finally
+        {
+            if (large is not null)
+            {
+                await large.DisposeAsync();
+            }
+        }
+
+        var languages = LanguageRuns.Smooth(detectedRegions, candidates[0]);
+        var passes = LanguageRuns.Group(regions, languages);
+        job.Candidates = candidates;
+        job.Fraction = 0.42;
+        var summary = string.Join(", ", passes.Select(p => $"{p.Language}: {p.Regions.Count}"));
+        LogDetected(regions.Count, summary, checkedByLarge, detectStopwatch.Elapsed);
+        return passes;
+    }
+
+    private async Task<(List<Word> Words, string? Detected)> DecodeAsync(
+        DecodeJob job, string language, IReadOnlyList<SpeechRegion> regions, bool tag, double from, double share)
+    {
+        var request = job.Request;
+        var builder = job.Factory.CreateBuilder()
+            .WithLanguage(language)
+            .WithTokenTimestamps()
+            .WithProbabilities()
+            .WithProgressHandler(p => job.Report(from + (p / 100.0 * share), ResolveDevice(job, language)));
+        if (PromptFor(language, request.Hints) is { } prompt)
+        {
+            builder = builder.WithPrompt(prompt);
+            if (request.Hints is { Count: > 0 })
+            {
+                // Keep the names in front of every 30-second window, not only the first one.
+                builder = builder.WithCarryInitialPrompt(true);
+            }
+        }
+
+        if (request.BeamSearch)
+        {
+            builder = builder.WithBeamSearchSamplingStrategy(b => b.WithBeamSize(BeamSize));
+        }
+
+        await using var processor = builder.Build();
+
+        // Only the speech regions are decoded (see SpeechTimeline); times are mapped back afterwards.
+        var timeline = regions.Count > 0 ? SpeechTimeline.Build(regions, job.Total, s_vadPadding, s_mergeGap, s_joinGap) : null;
+        var input = timeline?.Pack(job.Samples, job.SampleRate) ?? job.Samples;
+        var originalLength = TimeSpan.FromSeconds(job.Samples.Length / (double)job.SampleRate);
+        var packedLength = TimeSpan.FromSeconds(input.Length / (double)job.SampleRate);
+        var pieces = timeline?.Pieces.Count ?? 0;
+        LogPacked(originalLength, packedLength, pieces);
+
+        var words = new List<Word>();
+        string? detected = null;
+        string? previous = null;
+        await foreach (var segment in processor.ProcessAsync(input, job.Token))
+        {
+            detected ??= segment.Language;
+            var start = timeline?.ToSource(segment.Start) ?? segment.Start;
+            var end = timeline?.ToSource(segment.End) ?? segment.End;
+            if (!WhisperTokenWords.OverlapsSpeech(start, end, job.Speech, s_vadPadding))
+            {
+                job.Dropped++;
+                continue;
+            }
+
+            var text = segment.Text ?? string.Empty;
+            var tokens = segment.Tokens.Select(t => new RawToken(t.Text ?? string.Empty, t.Start, t.End, t.Probability, t.DtwTimestamp));
+            var segmentWords = WhisperTokenWords.RepairText(WhisperTokenWords.ToWords(tokens), text);
+            var doubtful = WhisperHallucinations.IsSuspicious(text, previous, segment.NoSpeechProbability, segment.Probability) ||
+                           (tag && WrittenInAnotherLanguage(text, language, job.Candidates));
+            job.Suspicious += doubtful ? 1 : 0;
+            previous = segment.Text;
+            foreach (var word in segmentWords)
+            {
+                var mapped = timeline is null ? word : word with { Start = timeline.ToSource(word.Start), End = timeline.ToSource(word.End) };
+                mapped = tag ? mapped with { Language = language } : mapped;
+                words.Add(doubtful ? mapped with { Confidence = 0 } : mapped);
+            }
+        }
+
+        return (words, detected);
+    }
+
+    /// <summary>
+    /// The device whisper.cpp decodes on. whisper.cpp creates its state, and logs the backend ("using MTL0
+    /// backend", "Core ML model loaded"), only when decoding starts, not in Build(), so the device is named
+    /// on the first progress report of the recognition model instead of falling back to the runtime name.
+    /// </summary>
+    private string ResolveDevice(DecodeJob job, string? language)
+    {
+        lock (job)
+        {
+            if (!job.DeviceResolved)
+            {
+                job.Device = DescribeDevice(job.NativeLog);
+                job.DeviceResolved = true;
+                LogStarting(job.Request.ModelId, job.Device, language ?? "?");
+            }
+
+            return job.Device;
+        }
+    }
+
+    /// <summary>
+    /// A stretch decoded as one language whose text reads as another chosen language: the detection was
+    /// probably wrong (Whisper then translates or garbles it), so a person should look at it.
+    /// </summary>
+    internal static bool WrittenInAnotherLanguage(string text, string language, IReadOnlyList<string> candidates)
+        => candidates.Count > 1 && TextLanguageGuess.Guess(text, candidates) is { } guess && guess != language;
+
+    /// <summary>The language with the most words in a mixed result.</summary>
+    private static string? AsrTracksLanguage(List<Word> words)
+        => words.Where(w => w.Language is not null).GroupBy(w => w.Language!).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault();
+
+    /// <summary>Samples between two times, at most <paramref name="max"/> long (Whisper detects on one 30-second window).</summary>
+    private static float[] Slice(float[] samples, int sampleRate, TimeSpan from, TimeSpan to, TimeSpan max)
+    {
+        var start = Math.Clamp((int)(Math.Max(0, from.TotalSeconds) * sampleRate), 0, samples.Length);
+        var end = Math.Clamp((int)(to.TotalSeconds * sampleRate), start, samples.Length);
+        end = Math.Min(end, start + (int)(max.TotalSeconds * sampleRate));
+        return samples[start..end];
+    }
+
+    /// <summary>Shared state of one transcription while its passes run.</summary>
+    private sealed class DecodeJob(
+        WhisperFactory factory, TranscriptionRequest request, float[] samples, int sampleRate, TimeSpan total,
+        IReadOnlyList<SpeechRegion> speech, List<string> nativeLog, IProgress<TranscriptionProgress>? progress, CancellationToken token)
+    {
+        public WhisperFactory Factory { get; } = factory;
+
+        public TranscriptionRequest Request { get; } = request;
+
+        public float[] Samples { get; } = samples;
+
+        public int SampleRate { get; } = sampleRate;
+
+        public TimeSpan Total { get; } = total;
+
+        /// <summary>All speech regions of the recording (segments outside them are dropped).</summary>
+        public IReadOnlyList<SpeechRegion> Speech { get; } = speech;
+
+        public List<string> NativeLog { get; } = nativeLog;
+
+        public CancellationToken Token { get; } = token;
+
+        public IReadOnlyList<string> Candidates { get; set; } = [];
+
+        public string Device { get; set; } = "?";
+
+        /// <summary>The device was read from whisper.cpp's log after decoding started.</summary>
+        public bool DeviceResolved { get; set; }
+
+        /// <summary>Progress reached before decoding starts.</summary>
+        public double Fraction { get; set; } = 0.32;
+
+        public int Dropped { get; set; }
+
+        public int Suspicious { get; set; }
+
+        public void Report(double fraction, string? detail) => progress?.Report(new(TranscriptionStage.Recognizing, fraction, detail ?? Device));
     }
 
     public void Dispose()
@@ -244,6 +396,7 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
         {
             "tr" => "Merhaba, hoş geldiniz. Bugün neler yapacağız? Evet, başlayalım.",
             "en" => "Hello, welcome. What are we doing today? Yes, let's begin.",
+            "ko" => "안녕하세요, 반갑습니다. 오늘은 무엇을 할까요? 네, 시작하겠습니다.",
             _ => null,
         };
 
@@ -360,6 +513,12 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Whisper finished: {Words} words, {Dropped} segments dropped by VAD, {Suspicious} flagged as possible hallucinations, {Elapsed}")]
     private partial void LogFinished(int words, int dropped, int suspicious, TimeSpan elapsed);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Region {Start}–{End}: {Language} ({Probability:0.00})")]
+    private partial void LogRegion(TimeSpan start, TimeSpan end, string language, float probability);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Mixed languages: {Regions} regions detected as {Passes} ({Rechecked} rechecked by the recognition model) in {Elapsed}")]
+    private partial void LogDetected(int regions, string passes, int rechecked, TimeSpan elapsed);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Speech regions: {Pieces}, audio {Original} packed to {Packed}")]
     private partial void LogPacked(TimeSpan original, TimeSpan packed, int pieces);

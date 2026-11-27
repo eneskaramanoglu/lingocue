@@ -60,6 +60,10 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+      <CheckBox IsChecked="{Binding SplitByLanguage}" IsVisible="{Binding HasMixedTrack}"
+                ToolTip.Tip="Örnek: film.tr.srt, film.en.srt, film.ko.srt; video dışa aktarmada her dil ayrı altyazı akışı olur">
+        <TextBlock Text="Karışık dilli izi dile göre ayrı dosyalara böl" />
+      </CheckBox>
     </StackPanel>
 
     <!-- Subtitle files -->

@@ -42,6 +42,14 @@ public static class WhisperModels
         _ => throw new ArgumentOutOfRangeException(nameof(modelId), modelId, "Unknown Whisper model."),
     };
 
+    /// <summary>
+    /// Small multilingual model (base, q5_1) that only detects the language of each speech region of a
+    /// mixed-language recording: about 30 times faster per region than large-v3, which steps in when it is unsure.
+    /// </summary>
+    public static ModelFile LanguageDetector { get; } = new(
+        "ggml-base-q5_1.bin", new Uri(WhisperRepo + "ggml-base-q5_1.bin"), 59_707_625,
+        "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898");
+
     /// <summary>Silero VAD v6.2.0 (ggml), used to drop hallucinations in silent stretches.</summary>
     public static ModelFile SileroVad { get; } = new(
         "ggml-silero-v6.2.0.bin", new Uri(VadRepo + "ggml-silero-v6.2.0.bin"), 885_098,

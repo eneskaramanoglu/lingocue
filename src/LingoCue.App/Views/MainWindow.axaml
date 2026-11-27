@@ -37,6 +37,8 @@
     <KeyBinding Gesture="Meta+Shift+Z" Command="{Binding RedoCommand}" />
     <KeyBinding Gesture="Meta+E" Command="{Binding ExportCommand}" />
     <KeyBinding Gesture="Meta+T" Command="{Binding TranscribeCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+L" Command="{Binding Editor.CycleLanguageCommand}" />
+    <KeyBinding Gesture="Meta+Shift+L" Command="{Binding Editor.CycleLanguageCommand}" />
   </Window.KeyBindings>
 
   <DockPanel>
@@ -470,6 +472,10 @@
               <CheckBox Content="{Binding FilterLabel}" IsChecked="{Binding ShowChangedOnly}" Focusable="False"
                         IsVisible="{Binding HasSourceTrack}" Margin="6,0,0,0"
                         ToolTip.Tip="{Binding FilterTip}" />
+              <!-- Mixed-language track: show only the lines of one language. -->
+              <ComboBox Classes="small" ItemsSource="{Binding LanguageFilterOptions}" SelectedItem="{Binding SelectedLanguageFilter}"
+                        IsVisible="{Binding IsMixedLanguage}" Focusable="False" MinWidth="120"
+                        ToolTip.Tip="Yalnızca bu dildeki satırları göster" />
             </WrapPanel>
           </StackPanel>
 
@@ -532,6 +538,25 @@
                            Text="{Binding SelectedCue.IssuesText, FallbackValue=''}" Classes="issues" TextWrapping="Wrap" />
               </Grid>
 
+              <!-- The line's language: one button per language; Ctrl+Shift+L moves to the next one. -->
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Classes="muted small" VerticalAlignment="Center">
+                  <Run Text="Dil: " /><Run Text="{Binding SelectedCue.LanguageBadge, Mode=OneWay, FallbackValue=''}" FontWeight="SemiBold" />
+                </TextBlock>
+                <ItemsControl ItemsSource="{Binding LanguageChoices}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4" /></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                      <Button Classes="small" Focusable="False" Content="{Binding Converter={x:Static views:Converters.LanguageBadge}}"
+                              Command="{Binding $parent[ItemsControl].((vm:SubtitleEditorViewModel)DataContext).SetLanguageCommand}"
+                              CommandParameter="{Binding}" ToolTip.Tip="Satırın dilini değiştir (Ctrl+Shift+L: sıradaki dil)" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+
               <!-- Words speech recognition was unsure of: each one plays from just before it. -->
               <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding SelectedCue.HasDoubtfulWords, FallbackValue=False}">
                 <TextBlock Classes="muted small" Text="Emin olunmayan kelimeler:" VerticalAlignment="Center" />
@@ -585,6 +610,9 @@
                                Classes.hasError="{Binding HasError}" ToolTip.Tip="{Binding TextTip}" />
                   </StackPanel>
                   <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" Margin="0,0,12,0" VerticalAlignment="Center">
+                    <Border Classes="chip" IsVisible="{Binding ShowLanguage}" MinWidth="30" ToolTip.Tip="Satırın dili">
+                      <TextBlock Text="{Binding LanguageBadge}" />
+                    </Border>
                     <TextBlock Text="{Binding MarkGlyph}" ToolTip.Tip="{Binding MarkTip}" Classes="mark"
                                Classes.review="{Binding NeedsReview}" Classes.failed="{Binding LlmFailed}" />
                     <Border Classes="chip" Classes.ok="{Binding CpsOk}" Classes.warn="{Binding CpsHigh}" Classes.err="{Binding CpsTooHigh}"

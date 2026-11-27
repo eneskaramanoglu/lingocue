@@ -141,7 +141,8 @@ public sealed partial class TranslateDialogViewModel : ViewModelBase
     {
         foreach (var item in Targets)
         {
-            item.IsEnabled = Source is null || !string.Equals(Source.Language, item.Choice.Code, StringComparison.OrdinalIgnoreCase);
+            // A mixed track can be translated into its main language too: only its other-language lines change.
+            item.IsEnabled = Source is null || Source.IsMixedLanguage() || !string.Equals(Source.Language, item.Choice.Code, StringComparison.OrdinalIgnoreCase);
         }
     }
 

@@ -8,7 +8,8 @@ namespace LingoCue.Llm.Pipeline;
 /// What the speech recognizer heard for this line in the original language (may contain recognition
 /// errors). Given to translation as a hint; the edited <paramref name="Text"/> stays authoritative.
 /// </param>
-public sealed record LineItem(int Id, string Text, TimeSpan Duration, string? Speaker = null, bool Locked = false, int? MaxChars = null, string? Reference = null);
+/// <param name="Language">The line's own language in a mixed-language track (sent as "lang"); null = the track's.</param>
+public sealed record LineItem(int Id, string Text, TimeSpan Duration, string? Speaker = null, bool Locked = false, int? MaxChars = null, string? Reference = null, string? Language = null);
 
 public enum LineStatus
 {
@@ -105,4 +106,10 @@ public sealed record TaskContext(
     ProjectContext Project,
     IReadOnlyList<GlossaryEntry> Glossary,
     string SourceLanguage,
-    string? TargetLanguage = null);
+    string? TargetLanguage = null)
+{
+    /// <summary>The source lines are in several languages (each line carries "lang"); null or one entry = one language.</summary>
+    public IReadOnlyList<string>? SourceLanguages { get; init; }
+
+    public bool IsMixed => SourceLanguages is { Count: > 1 };
+}

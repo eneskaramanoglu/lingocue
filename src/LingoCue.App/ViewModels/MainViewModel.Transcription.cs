@@ -51,13 +51,14 @@ public partial class MainViewModel
             return;
         }
 
-        var options = await _dialogs.AskTranscribeOptionsAsync(new TranscribeDialogViewModel(_engines, project, media.Duration, _lastEngineId ?? _settings?.Current.Transcription.DefaultEngine));
+        var options = await _dialogs.AskTranscribeOptionsAsync(new TranscribeDialogViewModel(_engines, project, media.Duration, _lastEngineId ?? _settings?.Current.Transcription.DefaultEngine, _lastLanguage));
         if (options is null)
         {
             return;
         }
 
         _lastEngineId = options.Engine.Id;
+        _lastLanguage = options.Language;
         AsrRun run;
         if (options.CachedRun is { } cached)
         {

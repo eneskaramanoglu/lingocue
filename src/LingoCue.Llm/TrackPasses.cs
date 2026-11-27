@@ -40,10 +40,15 @@ public sealed class TrackPassRunner(IChatClient client, ILoggerFactory loggers)
         var source = request.Source;
         // Translation gets the recognized original speech as a hint next to the edited text.
         var withReference = request.Kind == TrackPassKind.Translation;
+        var targetLanguage = request.Kind == TrackPassKind.Translation ? request.TargetLanguage ?? "en" : null;
+        var spoken = source.SpokenLanguages();
+        var mixed = spoken.Count > 1;
         var lines = source.Cues
             .Where(c => request.OnlySourceCueIds is null || request.OnlySourceCueIds.Contains(c.Id))
-            .Select(c => new LineItem(c.Id, c.Text, c.Duration, c.Speaker, c.Marks.HasFlag(CueMarks.Locked),
-                Reference: withReference ? TrackOperations.OriginalText(project, source, c) : null))
+            .Select(c => new LineItem(c.Id, c.Text, c.Duration, c.Speaker,
+                c.Marks.HasFlag(CueMarks.Locked) || AlreadyInTarget(source, c, targetLanguage),
+                Reference: withReference ? TrackOperations.OriginalText(project, source, c) : null,
+                Language: mixed ? LanguageCodes.Primary(source.LanguageOf(c)) : null))
             .ToList();
 
         var usage = LlmUsage.Zero;
@@ -61,8 +66,10 @@ public sealed class TrackPassRunner(IChatClient client, ILoggerFactory loggers)
             usage = usage.Add(context.Usage);
         }
 
-        var targetLanguage = request.Kind == TrackPassKind.Translation ? request.TargetLanguage ?? "en" : null;
-        var taskContext = new TaskContext(project.Context, [.. project.Glossary.For(targetLanguage)], source.Language, targetLanguage);
+        var taskContext = new TaskContext(project.Context, [.. project.Glossary.For(targetLanguage)], source.Language, targetLanguage)
+        {
+            SourceLanguages = mixed ? [.. spoken.Select(LanguageCodes.Primary)] : null,
+        };
         ILineTask task = request.Kind == TrackPassKind.Correction ? new CorrectionTask(request.KeepCircumflex) : new TranslationTask();
 
         var runner = new LineBatchRunner(client, loggers.CreateLogger<LineBatchRunner>());
@@ -110,6 +117,10 @@ public sealed class TrackPassRunner(IChatClient client, ILoggerFactory loggers)
         return (fixedCount, failed);
     }
 
+    /// <summary>A line of a mixed track already spoken in the target language is kept as it is, not translated.</summary>
+    internal static bool AlreadyInTarget(SubtitleTrack source, Cue cue, string? targetLanguage)
+        => targetLanguage is not null && LanguageCodes.Primary(source.LanguageOf(cue)) == LanguageCodes.Primary(targetLanguage);
+
     internal static SubtitleTrack BuildTrack(SubtitleTrack source, PipelineResult pipeline, TrackPassKind kind, string? targetLanguage)
     {
         var byId = pipeline.Lines.ToDictionary(l => l.Id);
@@ -140,6 +151,7 @@ public sealed class TrackPassRunner(IChatClient client, ILoggerFactory loggers)
             if (kind == TrackPassKind.Translation)
             {
                 copy.Words.Clear(); // source-language word timings do not apply to the translation
+                copy.Language = null; // every line of a translation is in its language
             }
 
             track.Cues.Add(copy);
