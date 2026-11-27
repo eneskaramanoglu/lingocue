@@ -32,4 +32,9 @@ bash "$script_dir/bundle-libmpv.sh" "$app"
 # Ad-hoc signature: required for arm64 binaries to launch at all; not a Developer ID signature.
 codesign --force --deep --sign - "$app"
 
+# The app quits at start-up when libmpv cannot be loaded, and nothing else in the build loads it.
+# dlopen it the way the app does, so a broken bundle (e.g. a duplicate LC_RPATH) fails here.
+python3 -I -c 'import ctypes, sys; ctypes.CDLL(sys.argv[1])' "$app/Contents/Frameworks/libmpv.2.dylib" ||
+  { echo "libmpv.2.dylib in $app does not load" >&2; exit 1; }
+
 echo "Created $app"
