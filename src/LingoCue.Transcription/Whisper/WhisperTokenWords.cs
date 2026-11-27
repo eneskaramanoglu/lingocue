@@ -96,6 +96,30 @@ internal static class WhisperTokenWords
         return words;
     }
 
+    /// <summary>
+    /// Restores characters that a token split in half. whisper.cpp tokens are byte sequences, so a Korean
+    /// (or other multi-byte) character can span two tokens; each token's text then decodes to U+FFFD.
+    /// The segment's text is decoded from all its bytes at once and is right, so when the token words
+    /// contain U+FFFD and the segment has as many space-separated words, the segment's words replace
+    /// their texts (times stay). Otherwise the damaged words are marked for review.
+    /// </summary>
+    public static List<Word> RepairText(List<Word> words, string? segmentText)
+    {
+        ArgumentNullException.ThrowIfNull(words);
+        if (!words.Any(w => w.Text.Contains('�', StringComparison.Ordinal)))
+        {
+            return words;
+        }
+
+        var spoken = (segmentText ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (spoken.Length == words.Count && !spoken.Any(s => s.Contains('�', StringComparison.Ordinal)))
+        {
+            return [.. words.Select((w, i) => w with { Text = spoken[i] })];
+        }
+
+        return [.. words.Select(w => w.Text.Contains('�', StringComparison.Ordinal) ? w with { Confidence = 0 } : w)];
+    }
+
     private const long MaxDtwGapCs = 100;
     private const long DtwTailCs = 40;
 

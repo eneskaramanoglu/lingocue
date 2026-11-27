@@ -288,7 +288,7 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
 
             var text = segment.Text ?? string.Empty;
             var tokens = segment.Tokens.Select(t => new RawToken(t.Text ?? string.Empty, t.Start, t.End, t.Probability, t.DtwTimestamp));
-            var segmentWords = WhisperTokenWords.ToWords(tokens);
+            var segmentWords = WhisperTokenWords.RepairText(WhisperTokenWords.ToWords(tokens), text);
             var doubtful = WhisperHallucinations.IsSuspicious(text, previous, segment.NoSpeechProbability, segment.Probability) ||
                            (tag && WrittenInAnotherLanguage(text, language, job.Candidates));
             job.Suspicious += doubtful ? 1 : 0;

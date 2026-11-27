@@ -1,3 +1,4 @@
+using LingoCue.Core.Subtitles;
 using LingoCue.Transcription.Whisper;
 
 namespace LingoCue.Transcription.Tests;
@@ -92,5 +93,28 @@ public class WhisperTokenWordsTests
             file.Url.AbsoluteUri.ShouldNotContain("/main/");
             file.SizeBytes.ShouldBe(model.SizeBytes!.Value);
         }
+    }
+
+    [Fact]
+    public void Characters_split_between_tokens_are_restored_from_the_segment_text()
+    {
+        // "이스탄불의" came back as two tokens that cut a Hangul syllable in half.
+        RawToken[] tokens = [new(" 오늘은", 0, 50, 0.9f), new(" 이�", 50, 70, 0.8f), new("�탄불의", 70, 100, 0.9f)];
+
+        var words = WhisperTokenWords.RepairText(WhisperTokenWords.ToWords(tokens), " 오늘은 이스탄불의");
+
+        words.Select(w => w.Text).ShouldBe(["오늘은", "이스탄불의"]);
+        words[1].Start.ShouldBe(TimeSpan.FromMilliseconds(500));
+    }
+
+    [Fact]
+    public void Damaged_words_that_cannot_be_matched_are_marked_for_review()
+    {
+        RawToken[] tokens = [new(" 이�", 0, 20, 0.8f), new(" 동�", 20, 40, 0.9f)];
+
+        var words = WhisperTokenWords.RepairText(WhisperTokenWords.ToWords(tokens), "이스탄불의");
+
+        words.ShouldAllBe(w => w.Confidence == 0);
+        WhisperTokenWords.RepairText([new Word("Merhaba", TimeSpan.Zero, TimeSpan.FromSeconds(1), 0.9)], "x")[0].Text.ShouldBe("Merhaba");
     }
 }
