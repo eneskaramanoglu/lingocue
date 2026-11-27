@@ -73,6 +73,22 @@ public class MixedLanguageSegmenterTests
     }
 
     [Fact]
+    public void A_mixed_track_splits_into_one_track_per_language_for_export()
+    {
+        var track = new SubtitleTrack { Name = "Kaynak", Language = "tr" };
+        track.AddCue(TimeSpan.Zero, TimeSpan.FromSeconds(1), "Merhaba");
+        track.AddCue(TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(3), "Hello").Language = "en";
+        track.AddCue(TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(5), "Nasılsın?").Language = "tr";
+
+        var parts = TrackOperations.SplitByLanguage(track);
+
+        parts.Select(p => (p.Language, p.Cues.Count)).ShouldBe([("tr", 2), ("en", 1)]);
+        parts.SelectMany(p => p.Cues).ShouldAllBe(c => c.Language == null);
+        track.Cues[1].Language.ShouldBe("en"); // the original is untouched
+        TrackOperations.SplitByLanguage(new SubtitleTrack()).ShouldHaveSingleItem();
+    }
+
+    [Fact]
     public void Split_cues_keep_their_language()
     {
         var track = new SubtitleTrack { Language = "tr" };
