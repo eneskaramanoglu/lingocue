@@ -37,6 +37,19 @@ public class AssPresentationTests
     }
 
     [Fact]
+    public void Upper_case_follows_each_line_language_in_a_mixed_track()
+    {
+        var (project, track) = Sample("istanbul");
+        track.AddCue(TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(6), "this is it").Language = "en";
+        project.Presentation = new PresentationOptions { UpperCase = true };
+
+        var ass = AssScriptBuilder.Build(project, track);
+
+        ass.ShouldContain(",İSTANBUL");
+        ass.ShouldContain(",THIS IS IT");
+    }
+
+    [Fact]
     public void Fade_is_prepended_to_every_event()
     {
         var (project, track) = Sample("Merhaba");

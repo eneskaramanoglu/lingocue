@@ -157,7 +157,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     public IReadOnlyList<string> WhisperModels { get; } = [.. Transcription.Whisper.WhisperModels.All.Select(m => m.Id)];
 
-    public IReadOnlyList<string> LanguageCodes { get; } = ["tr", "auto", "en", "de", "fr", "es", "ar", "ru"];
+    public IReadOnlyList<string> LanguageCodes { get; } = ["tr", "auto", "en", "de", "fr", "es", "ar", "ru", "ko"];
 
     [ObservableProperty]
     public partial ITranscriptionEngine? SelectedEngine { get; set; }

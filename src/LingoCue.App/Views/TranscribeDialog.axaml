@@ -26,7 +26,7 @@
   </Border>
   <StackPanel Margin="20,12,20,18" Spacing="12">
 
-    <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="10">
+    <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="10">
       <TextBlock Grid.Row="0" Text="Motor" VerticalAlignment="Center" />
       <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
                 ItemsSource="{Binding Engines}" SelectedItem="{Binding SelectedEngine}">
@@ -51,7 +51,22 @@
       <ComboBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch"
                 ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}" />
 
-      <CheckBox Grid.Row="3" Grid.Column="1" Content="Konuşmacıları ayır (bulut)"
+      <!-- Mixed recording: tick the spoken languages (ItemsControl + WrapPanel lays the boxes out in rows). -->
+      <StackPanel Grid.Row="3" Grid.Column="1" Spacing="4" IsVisible="{Binding IsMixed}">
+        <ItemsControl ItemsSource="{Binding MixedChoices}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:MixedLanguageChoice">
+              <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" IsEnabled="{Binding IsEnabled}" Margin="0,0,14,0" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="{Binding MixedHint}" TextWrapping="Wrap" Classes="muted small" />
+      </StackPanel>
+
+      <CheckBox Grid.Row="4" Grid.Column="1" Content="Konuşmacıları ayır (bulut)"
                 IsChecked="{Binding Diarize}" IsEnabled="{Binding CanDiarize}" />
     </Grid>
 

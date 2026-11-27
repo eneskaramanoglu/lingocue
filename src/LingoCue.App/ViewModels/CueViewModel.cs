@@ -2,6 +2,7 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LingoCue.Core.Formats;
 using LingoCue.Core.Subtitles;
+using LingoCue.Core.Text;
 using LingoCue.Core.Time;
 
 namespace LingoCue.App.ViewModels;
@@ -15,6 +16,11 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
 
     /// <summary>Raised when the start time changed, so the list can re-sort.</summary>
     public event EventHandler? StartChanged;
+
+    private ReadingRules _rules = rules;
+
+    /// <summary>Raised when the line's language changed, so the editor can give it that language's rules.</summary>
+    public event EventHandler? LanguageChanged;
 
     public Cue Model => cue;
 
@@ -188,9 +194,46 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
         }
     }
 
-    public string CpsText => rules.Cps(cue).ToString("0.0", s_tr);
+    /// <summary>The track mixes languages, so every row shows its language.</summary>
+    [ObservableProperty]
+    public partial bool ShowLanguage { get; set; }
 
-    public CueIssues Issues => rules.Evaluate(cue);
+    /// <summary>The line's own language; null = the track's.</summary>
+    public string? Language
+    {
+        get => cue.Language;
+        set
+        {
+            var normalized = string.IsNullOrWhiteSpace(value) ? null : LanguageCodes.Primary(value);
+            if (normalized == cue.Language)
+            {
+                return;
+            }
+
+            cue.Language = normalized;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(LanguageBadge));
+            LanguageChanged?.Invoke(this, EventArgs.Empty);
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>Badge text (TR, EN, KO); empty when the line has no language of its own.</summary>
+    public string LanguageBadge => LanguageCodes.Badge(cue.Language ?? TrackLanguage);
+
+    /// <summary>The track's language, shown for lines without one of their own.</summary>
+    public string? TrackLanguage { get; init; }
+
+    /// <summary>Replaces the reading rules (after a language change) and refreshes the checks.</summary>
+    internal void SetRules(ReadingRules value)
+    {
+        _rules = value;
+        OnReadingChanged();
+    }
+
+    public string CpsText => _rules.Cps(cue).ToString("0.0", s_tr);
+
+    public CueIssues Issues => _rules.Evaluate(cue);
 
     public bool HasError => (Issues & (CueIssues.ReadingSpeedTooHigh | CueIssues.TooManyLines | CueIssues.Empty)) != 0;
 
@@ -217,31 +260,31 @@ public sealed partial class CueViewModel(Cue cue, ReadingRules rules) : Observab
 
             if (issues.HasFlag(CueIssues.ReadingSpeedTooHigh))
             {
-                parts.Add($"Okuma hızı çok yüksek ({CpsText} > {rules.MaxCps} CPS)");
+                parts.Add($"Okuma hızı çok yüksek ({CpsText} > {_rules.MaxCps} CPS)");
             }
             else if (issues.HasFlag(CueIssues.ReadingSpeedHigh))
             {
-                parts.Add($"Okuma hızı yüksek ({CpsText} > {rules.TargetCps} CPS)");
+                parts.Add($"Okuma hızı yüksek ({CpsText} > {_rules.TargetCps} CPS)");
             }
 
             if (issues.HasFlag(CueIssues.LineTooLong))
             {
-                parts.Add($"Satır {rules.MaxCharsPerLine} karakterden uzun");
+                parts.Add($"Satır {_rules.MaxCharsPerLine} karakterden uzun");
             }
 
             if (issues.HasFlag(CueIssues.TooManyLines))
             {
-                parts.Add($"{rules.MaxLines} satırdan fazla");
+                parts.Add($"{_rules.MaxLines} satırdan fazla");
             }
 
             if (issues.HasFlag(CueIssues.TooShort))
             {
-                parts.Add($"{rules.MinDuration.TotalSeconds:0.0} sn'den kısa");
+                parts.Add($"{_rules.MinDuration.TotalSeconds:0.0} sn'den kısa");
             }
 
             if (issues.HasFlag(CueIssues.TooLong))
             {
-                parts.Add($"{rules.MaxDuration.TotalSeconds:0} sn'den uzun");
+                parts.Add($"{_rules.MaxDuration.TotalSeconds:0} sn'den uzun");
             }
 
             return string.Join(" · ", parts);

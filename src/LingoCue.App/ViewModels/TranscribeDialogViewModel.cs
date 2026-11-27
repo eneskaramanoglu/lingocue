@@ -1,6 +1,7 @@
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LingoCue.Core.Projects;
+using LingoCue.Core.Text;
 using LingoCue.Transcription;
 using LingoCue.Transcription.Gemini;
 using LingoCue.Transcription.Whisper;
@@ -12,6 +13,20 @@ public sealed record LanguageOption(string? Code, string Name)
     public override string ToString() => Name;
 }
 
+/// <summary>One language box of the "Karışık" choice.</summary>
+public sealed partial class MixedLanguageChoice(string code, string name) : ObservableObject
+{
+    public string Code { get; } = code;
+
+    public string Name { get; } = name;
+
+    [ObservableProperty]
+    public partial bool IsChecked { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsEnabled { get; set; } = true;
+}
+
 public sealed record TranscribeOptions(ITranscriptionEngine Engine, string ModelId, string? Language, bool Diarize, AsrRun? CachedRun);
 
 /// <summary>Choices for a transcription run: engine, model, language, speakers, cache reuse.</summary>
@@ -21,7 +36,11 @@ public sealed partial class TranscribeDialogViewModel : ViewModelBase
     private readonly Project _project;
     private readonly TimeSpan _duration;
 
-    public TranscribeDialogViewModel(IEnumerable<ITranscriptionEngine> engines, Project project, TimeSpan duration, string? lastEngineId = null)
+    /// <summary>Code of the "several languages" entry; the real selection is built from <see cref="MixedChoices"/>.</summary>
+    public const string MixedCode = "mixed";
+
+    /// <param name="lastLanguage">The language selection of the previous run in this session (may be mixed).</param>
+    public TranscribeDialogViewModel(IEnumerable<ITranscriptionEngine> engines, Project project, TimeSpan duration, string? lastEngineId = null, string? lastLanguage = null)
     {
         _project = project;
         _duration = duration;
@@ -36,8 +55,36 @@ public sealed partial class TranscribeDialogViewModel : ViewModelBase
             new("es", "İspanyolca"),
             new("ar", "Arapça"),
             new("ru", "Rusça"),
+            new("ko", "Korece"),
+            new(MixedCode, "Karışık (birden çok dil)"),
         ];
-        SelectedLanguage = Languages.FirstOrDefault(l => l.Code == project.SourceLanguage) ?? Languages[0];
+        MixedChoices = [.. Languages.Where(l => l.Code is not (null or MixedCode)).Select(l => new MixedLanguageChoice(l.Code!, l.Name))];
+        foreach (var choice in MixedChoices)
+        {
+            choice.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(MixedLanguageChoice.IsChecked))
+                {
+                    OnMixedChanged();
+                }
+            };
+        }
+
+        var initial = lastLanguage ?? project.SourceLanguage;
+        var mixed = LanguageSelection.Mixed(initial);
+        if (mixed.Count > 1)
+        {
+            foreach (var choice in MixedChoices)
+            {
+                choice.IsChecked = mixed.Contains(choice.Code);
+            }
+
+            SelectedLanguage = Languages.First(l => l.Code == MixedCode);
+        }
+        else
+        {
+            SelectedLanguage = Languages.FirstOrDefault(l => l.Code == initial) ?? Languages[0];
+        }
         _fallBackWhenUnavailable = lastEngineId is null;
         SelectedEngine = Engines.FirstOrDefault(e => e.Id == (lastEngineId ?? DefaultEngineId)) ?? (Engines.Count > 0 ? Engines[0] : null);
     }
@@ -59,6 +106,20 @@ public sealed partial class TranscribeDialogViewModel : ViewModelBase
     public IReadOnlyList<ITranscriptionEngine> Engines { get; }
 
     public IReadOnlyList<LanguageOption> Languages { get; }
+
+    /// <summary>Languages offered for a mixed recording; at most <see cref="LanguageSelection.MaxMixed"/> can be ticked.</summary>
+    public IReadOnlyList<MixedLanguageChoice> MixedChoices { get; }
+
+    public bool IsMixed => SelectedLanguage.Code == MixedCode;
+
+    /// <summary>The selection sent to the engine: one code, null (detect) or <c>tr+en+ko</c>.</summary>
+    public string? EffectiveLanguage => IsMixed
+        ? LanguageSelection.ForMixed(MixedChoices.Where(c => c.IsChecked).Select(c => c.Code))
+        : SelectedLanguage.Code;
+
+    public string MixedHint => MixedChoices.Count(c => c.IsChecked) < 2
+        ? "Videoda konuşulan dilleri seçin (en az 2, en çok 3)."
+        : "Her konuşma bölümünün dili seçilen diller arasından algılanır ve satırlar dil etiketi alır. Aynı cümle içindeki dil geçişleri ayrılmaz.";
 
     [ObservableProperty]
     public partial ITranscriptionEngine? SelectedEngine { get; set; }
@@ -88,7 +149,7 @@ public sealed partial class TranscribeDialogViewModel : ViewModelBase
 
     public AsrRun? CachedRun => SelectedEngine is null || SelectedModel is null
         ? null
-        : _project.FindAsrRun(SelectedEngine.Id, SelectedModel.Id, SelectedLanguage.Code, Diarize && CanDiarize);
+        : _project.FindAsrRun(SelectedEngine.Id, SelectedModel.Id, EffectiveLanguage, Diarize && CanDiarize);
 
     public bool HasCachedRun => CachedRun is not null;
 
@@ -122,11 +183,12 @@ public sealed partial class TranscribeDialogViewModel : ViewModelBase
         }
     }
 
-    public bool CanStart => SelectedEngine is not null && SelectedModel is not null && (Problem is null || (UseCache && HasCachedRun));
+    public bool CanStart => SelectedEngine is not null && SelectedModel is not null && (!IsMixed || LanguageSelection.IsMixed(EffectiveLanguage)) &&
+                            (Problem is null || (UseCache && HasCachedRun));
 
     public TranscribeOptions? BuildResult()
         => CanStart
-            ? new TranscribeOptions(SelectedEngine!, SelectedModel!.Id, SelectedLanguage.Code, Diarize && CanDiarize, UseCache ? CachedRun : null)
+            ? new TranscribeOptions(SelectedEngine!, SelectedModel!.Id, EffectiveLanguage, Diarize && CanDiarize, UseCache ? CachedRun : null)
             : null;
 
     partial void OnSelectedEngineChanged(ITranscriptionEngine? value)
@@ -140,7 +202,17 @@ public sealed partial class TranscribeDialogViewModel : ViewModelBase
 
     partial void OnSelectedModelChanged(TranscriptionModel? value) => Refresh();
 
-    partial void OnSelectedLanguageChanged(LanguageOption value) => Refresh();
+    partial void OnSelectedLanguageChanged(LanguageOption value)
+    {
+        // Start a mixed choice from the project's language, the one spoken most often.
+        if (value.Code == MixedCode && !MixedChoices.Any(c => c.IsChecked) &&
+            MixedChoices.FirstOrDefault(c => c.Code == LanguageCodes.Primary(_project.SourceLanguage)) is { } main)
+        {
+            main.IsChecked = true;
+        }
+
+        Refresh();
+    }
 
     partial void OnDiarizeChanged(bool value) => Refresh();
 
@@ -177,8 +249,22 @@ public sealed partial class TranscribeDialogViewModel : ViewModelBase
         Refresh();
     }
 
+    private void OnMixedChanged()
+    {
+        var full = MixedChoices.Count(c => c.IsChecked) >= LanguageSelection.MaxMixed;
+        foreach (var choice in MixedChoices)
+        {
+            choice.IsEnabled = choice.IsChecked || !full;
+        }
+
+        OnPropertyChanged(nameof(MixedHint));
+        Refresh();
+    }
+
     private void Refresh()
     {
+        OnPropertyChanged(nameof(IsMixed));
+        OnPropertyChanged(nameof(EffectiveLanguage));
         OnPropertyChanged(nameof(ModelInfo));
         OnPropertyChanged(nameof(CachedRun));
         OnPropertyChanged(nameof(HasCachedRun));

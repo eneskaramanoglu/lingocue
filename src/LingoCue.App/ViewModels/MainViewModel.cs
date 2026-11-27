@@ -50,6 +50,9 @@ public partial class MainViewModel : ViewModelBase
     private readonly IHardwareInfoProvider? _hardware;
     private string? _lastEngineId;
 
+    /// <summary>Language selection of the last transcription in this session (may be a mixed one, e.g. tr+en+ko).</summary>
+    private string? _lastLanguage;
+
     public MainViewModel(
         IThemeService themeService,
         IFilePickerService files,
