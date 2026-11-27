@@ -412,3 +412,26 @@ Decision record: [ADR 0003](adr/0003-mixed-language-recognition.md).
   - the LLM passes: `LineItem.Language` is sent as `"lang"`, correction rejects a translated line, and
     translation locks lines already in the target language;
   - export: `TrackOperations.SplitByLanguage`.
+
+## Subtitle plan and Premiere overlay (v1.3.0)
+
+Decision record: [ADR 0004](adr/0004-premiere-overlay-and-master-formats.md).
+
+- `SubtitlePlan` (Core, in `PresentationOptions.Plan`) holds one `LanguageRule` per spoken language. Each rule
+  has a top and a bottom `PlanLine`: None, Original, or Translation(language).
+- `SubtitlePlans.Resolve` turns the shown track into top and bottom cue lists:
+  - Translations come from the project's translation tracks, matched by `SourceCueId`.
+  - Missing translations are reported as `MissingTranslation`.
+  - `AssScriptBuilder` feeds the two lists into the existing bilingual layout.
+  - `Flatten` writes both lines into one cue for SRT/VTT/MP4.
+- `TrackPassRunner.MergeOrAdd` fills the missing translations: it sends only those lines and adds or updates
+  them in the translation track.
+- Overlay:
+  - `FfmpegCommands.Overlay` draws onto a transparent canvas: `color=black@0`, then `ass … :alpha=1`, then
+    qtrle or ProRes 4444 in a MOV.
+  - The canvas uses the source's exact frame rate (`VideoStreamInfo.RateForFfmpeg`).
+  - `ExportJobs.WithExactColors` adds `YCbCr Matrix: None` so the colors are drawn as RGB.
+- Burn-in `VideoFormat`:
+  - H.264, HEVC Main10 (hardware when `HardwareEncoderStatus.Hevc10`, else x265), or ProRes 422 HQ.
+  - 10-bit formats insert `format=…10le` before `ass`.
+  - `ColorArguments` copies the source's color tags.

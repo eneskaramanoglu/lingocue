@@ -6,6 +6,29 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-27
+
+### Added
+- **Subtitles per spoken language** (Stil → Dile göre altyazı). Each language spoken in the track gets its
+  own rule for the line on top and the one below: nothing, the original or a translation. Example: Turkish
+  speech without subtitles, English speech with Turkish, Korean speech with Turkish on top and English below.
+  - The plan is used by the preview, burn-in, the overlay, ASS, and SRT/VTT/MP4 subtitles. In SRT/VTT/MP4
+    the two lines are written into one subtitle.
+  - Translations the plan lacks are listed, and "Eksik çevirileri yap" sends only those lines (for
+    example only the Korean lines, to English).
+  - The plan is saved with the project and in style templates.
+- **Subtitle overlay for Premiere Pro and DaVinci Resolve** (Dışa aktar → Altyazı katmanı). A
+  transparent MOV with only the subtitles, matching the video's size, exact frame rate and length.
+  - Put it on the track above the video; the editor does the only encode, so the picture is never
+    re-encoded by LingoCue.
+  - QuickTime Animation (lossless, small) or ProRes 4444.
+  - Measured on 4K at 29.97 fps with a subtitle every 3 s: Animation took 3.7 min for 10 minutes of video
+    (443 MB), so about 15 min and 1.8 GB for 40 minutes. ProRes 4444 is ~600 MB per minute.
+- **High-quality burn-in formats** (Videoya göm → Biçim).
+  - HEVC 10 bit (MP4): uses the graphics card when it can encode 10-bit HEVC, otherwise x265.
+  - ProRes 422 HQ (MOV): an editing master, about 2.6 GB per minute in 4K.
+  - Both keep 10 bits through the subtitle step and copy the source's color tags (BT.709, BT.2020, HLG/PQ).
+
 ## [1.2.0] - 2026-11-27
 
 ### Added

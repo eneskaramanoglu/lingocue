@@ -139,6 +139,18 @@ birebir aynıdır.
 - **Konum:** dokuz hizalama ve kenar boşlukları. **Güvenli alan** kılavuzları önizlemede gösterilir.
 - **Karaoke:** kelimeler konuşuldukça renklenir (Shorts tarzı). Kelime zamanı olan izlerde çalışır.
 - **İki dilli mod:** ikinci bir izi (ör. İngilizce çeviri) ana altyazının altında gösterir.
+- **Dile göre altyazı:** karışık dilli videolarda her konuşma dili için **Üstte** ve **Altta** ne gösterileceğini
+  seçin: Gösterme / Orijinal / bir dile çeviri. Örnek:
+
+  | Konuşulan | Üstte | Altta |
+  |---|---|---|
+  | Türkçe | Gösterme | Yok |
+  | İngilizce | Türkçe çeviri | Yok |
+  | Korece | Türkçe çeviri | İngilizce çeviri |
+
+  Alt satır, iki dilli moddaki ikinci stili kullanır. Planın ihtiyaç duyduğu bir çeviri yoksa kartta
+  yazar. **Eksik çevirileri yap** yalnızca o satırları yapay zekâya gönderir. Plan; önizlemede, videoya
+  gömmede, altyazı katmanında ve dosyalarda uygulanır. SRT'de iki satır tek altyazıda alt alta yazılır.
 
 ## Dışa aktarma
 
@@ -149,6 +161,30 @@ birebir aynıdır.
 - **Ayrı altyazı izi (MKV/MP4):** Video yeniden kodlanmaz; altyazı açılıp kapatılabilir.
   MKV stilleri korur, MP4 yalnızca düz metni.
 - **Yalnızca altyazı dosyası:** SRT (en yaygın), WebVTT (web) ya da ASS (stil, karaoke ve kutular dahil).
+- **Altyazı katmanı (Premiere Pro / DaVinci Resolve):** Yalnızca altyazılardan oluşan, arka planı saydam
+  bir MOV. Videoyla aynı boyutta, kare hızında ve uzunlukta. Ayrıntılar aşağıda.
+
+Videoya gömerken **Biçim** seçilebilir:
+
+| Biçim | Ne için | Not |
+|---|---|---|
+| H.264 · MP4 | Paylaşım (YouTube, sosyal medya) | 8 bit, her yerde açılır |
+| HEVC 10 bit · MP4 | 4K ve 10 bit kaynaklarda yüksek kalite | Ekran kartı destekliyorsa hızlı, yoksa işlemciyle (x265) yavaş |
+| ProRes 422 HQ · MOV | Kurgu için ana kopya | 4K'da dakikası ~2,6 GB |
+
+Videoya gömmek her zaman görüntüyü yeniden kodlar. Hiç kayıp istemiyorsanız altyazı katmanını kullanın.
+
+### Premiere Pro iş akışı (4K, uzun videolar)
+
+1. Videonuzu Premiere'den dışa aktarın (ya da LingoCue'da kaynak dosyayla çalışın) ve LingoCue'da altyazıyı hazırlayın.
+2. **Dışa aktar → Altyazı katmanı**, kodek **QuickTime Animation**. 40 dakikalık 4K bir videoda yaklaşık
+   15 dakika sürer ve ~2 GB tutar.
+3. Premiere'de MOV'u içe aktarın ve videonun üstündeki **V2** izine, 00:00'a koyun.
+4. Premiere'in kendi dışa aktarımını yapın. Görüntü yalnızca bir kez kodlanır; 10 bit ve HDR korunur.
+5. Altyazıyı düzeltirseniz yalnızca katmanı yeniden üretip V2'deki dosyayı değiştirin.
+
+Premiere'in SRT ile çalışmasını tercih ederseniz SRT dışa aktarın. Ancak kutular, iki dilli düzen ve
+renkler Premiere'de yeniden ayarlanmalıdır.
 
 Dışa aktarma işleri arka planda sürer; ilerlemeyi sağ alttaki **İşler**'den izleyebilirsiniz.
 
