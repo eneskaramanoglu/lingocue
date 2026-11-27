@@ -27,6 +27,17 @@ dylibbundler -of -b \
   -p "@loader_path/" \
   -s "$brew_prefix/lib"
 
+# dylibbundler adds an LC_RPATH for -p even when the file already has one, and Homebrew's libmpv
+# already carries @loader_path/. dyld (macOS 15) refuses to load a file with a duplicate LC_RPATH,
+# so keep one copy of each rpath.
+rpaths() { otool -l "$1" | awk '/cmd LC_RPATH/ { getline; getline; print $2 }'; }
+for lib in "$frameworks"/*.dylib; do
+  # -delete_rpath removes one copy per call, so repeat until no path is listed twice.
+  while duplicate="$(rpaths "$lib" | sort | uniq -d | sed -n 1p)" && [ -n "$duplicate" ]; do
+    install_name_tool -delete_rpath "$duplicate" "$lib" 2>/dev/null
+  done
+done
+
 # Fail loudly if anything still points into Homebrew.
 leftover=0
 for lib in "$frameworks"/*.dylib; do

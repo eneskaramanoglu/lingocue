@@ -121,7 +121,10 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
                     nativeLog.Add(message);
                 }
 
-                if (level is WhisperLogLevel.Error or WhisperLogLevel.Warning)
+                // With the Neural Engine off the encoder folder is renamed on purpose, so the CoreML
+                // runtime's "failed to load Core ML model" is expected and only misleads in the log.
+                var expected = !request.UseNeuralEngine && message.Contains("failed to load Core ML model", StringComparison.Ordinal);
+                if (level is WhisperLogLevel.Error or WhisperLogLevel.Warning && !expected)
                 {
                     LogNative(level.ToString(), message.TrimEnd());
                 }
@@ -138,7 +141,6 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
             IReadOnlyList<(string Language, IReadOnlyList<SpeechRegion> Regions)> passes;
             if (mixed.Count > 1 && speech.Count > 0)
             {
-                job.Device = DescribeDevice(nativeLog);
                 passes = await DetectLanguagesAsync(job, mixed);
             }
             else
@@ -160,10 +162,11 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
                 words.AddRange(result.Words);
             }
 
-            progress?.Report(new(TranscriptionStage.Finishing, 1, job.Device));
+            var usedDevice = ResolveDevice(job, null);
+            progress?.Report(new(TranscriptionStage.Finishing, 1, usedDevice));
             LogFinished(words.Count, job.Dropped, job.Suspicious, stopwatch.Elapsed);
             var reported = mixed.Count > 1 ? (words.Any(w => w.Language == mixed[0]) ? mixed[0] : AsrTracksLanguage(words) ?? mixed[0]) : detected;
-            return new TranscriptionResult(WordTimeline.Normalize(words), Id, request.ModelId, reported, stopwatch.Elapsed, job.Device, 0m);
+            return new TranscriptionResult(WordTimeline.Normalize(words), Id, request.ModelId, reported, stopwatch.Elapsed, usedDevice, 0m);
         }
         catch (Exception ex) when (WhisperLoadFailure(ex))
         {
@@ -240,7 +243,7 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
             .WithLanguage(language)
             .WithTokenTimestamps()
             .WithProbabilities()
-            .WithProgressHandler(p => job.Report(from + (p / 100.0 * share), null));
+            .WithProgressHandler(p => job.Report(from + (p / 100.0 * share), ResolveDevice(job, language)));
         if (PromptFor(language, request.Hints) is { } prompt)
         {
             builder = builder.WithPrompt(prompt);
@@ -257,12 +260,6 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
         }
 
         await using var processor = builder.Build();
-        if (job.Device == "?")
-        {
-            job.Device = DescribeDevice(job.NativeLog);
-        }
-
-        LogStarting(request.ModelId, job.Device, language);
 
         // Only the speech regions are decoded (see SpeechTimeline); times are mapped back afterwards.
         var timeline = regions.Count > 0 ? SpeechTimeline.Build(regions, job.Total, s_vadPadding, s_mergeGap, s_joinGap) : null;
@@ -302,6 +299,26 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
         }
 
         return (words, detected);
+    }
+
+    /// <summary>
+    /// The device whisper.cpp decodes on. whisper.cpp creates its state, and logs the backend ("using MTL0
+    /// backend", "Core ML model loaded"), only when decoding starts, not in Build(), so the device is named
+    /// on the first progress report of the recognition model instead of falling back to the runtime name.
+    /// </summary>
+    private string ResolveDevice(DecodeJob job, string? language)
+    {
+        lock (job)
+        {
+            if (!job.DeviceResolved)
+            {
+                job.Device = DescribeDevice(job.NativeLog);
+                job.DeviceResolved = true;
+                LogStarting(job.Request.ModelId, job.Device, language ?? "?");
+            }
+
+            return job.Device;
+        }
     }
 
     /// <summary>
@@ -349,6 +366,9 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
         public IReadOnlyList<string> Candidates { get; set; } = [];
 
         public string Device { get; set; } = "?";
+
+        /// <summary>The device was read from whisper.cpp's log after decoding started.</summary>
+        public bool DeviceResolved { get; set; }
 
         /// <summary>Progress reached before decoding starts.</summary>
         public double Fraction { get; set; } = 0.32;
