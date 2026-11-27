@@ -162,7 +162,7 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
 
             progress?.Report(new(TranscriptionStage.Finishing, 1, job.Device));
             LogFinished(words.Count, job.Dropped, job.Suspicious, stopwatch.Elapsed);
-            var reported = mixed.Count > 1 ? AsrTracksLanguage(words) ?? mixed[0] : detected;
+            var reported = mixed.Count > 1 ? (words.Any(w => w.Language == mixed[0]) ? mixed[0] : AsrTracksLanguage(words) ?? mixed[0]) : detected;
             return new TranscriptionResult(WordTimeline.Normalize(words), Id, request.ModelId, reported, stopwatch.Elapsed, job.Device, 0m);
         }
         catch (Exception ex) when (WhisperLoadFailure(ex))

@@ -16,8 +16,11 @@ public static class AsrTracks
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(run);
         ArgumentNullException.ThrowIfNull(engineName);
-        // A mixed-language run tags its words; the track's language is the one spoken most.
-        var language = MostSpoken(run.Words) ?? LanguageSelection.Main(run.Language) ?? run.DetectedLanguage ?? project.SourceLanguage;
+        // A mixed-language run tags its words. The track's language is the first chosen one (the dialog starts
+        // the choice from the project's language) when it was spoken, else the one spoken most.
+        var mixed = LanguageSelection.Mixed(run.Language);
+        var main = mixed.Count > 0 && run.Words.Any(w => w.Language == mixed[0]) ? mixed[0] : null;
+        var language = main ?? MostSpoken(run.Words) ?? LanguageSelection.Main(run.Language) ?? run.DetectedLanguage ?? project.SourceLanguage;
         var cues = Segmenter.Segment(run.Words, new SegmentationOptions { Language = language });
         var doubtful = AsrReview.FlagDoubtful(cues);
         var track = new SubtitleTrack

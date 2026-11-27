@@ -43,6 +43,8 @@ public sealed partial class SubtitleEditorViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(SetEndToPlayheadCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertToOriginalCommand))]
     [NotifyCanExecuteChangedFor(nameof(MarkReviewedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SetLanguageCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CycleLanguageCommand))]
     [NotifyCanExecuteChangedFor(nameof(NudgeBackCommand), nameof(NudgeForwardCommand), nameof(NudgeStartBackCommand), nameof(NudgeStartForwardCommand))]
     [NotifyCanExecuteChangedFor(nameof(SplitCueCommand), nameof(MergeWithNextCommand))]
     public partial CueViewModel? SelectedCue { get; set; }

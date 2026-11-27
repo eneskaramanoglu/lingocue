@@ -73,6 +73,20 @@ public class MixedLanguageSegmenterTests
     }
 
     [Fact]
+    public void The_first_chosen_language_is_the_tracks_language_even_when_another_has_more_words()
+    {
+        var run = new AsrRun
+        {
+            Engine = "whisper",
+            Model = "large-v3",
+            Language = "tr+en",
+            Words = [.. Words("Merhaba.", 0, "tr"), .. Words("Thank you so much for watching this video today.", 2, "en")],
+        };
+
+        AsrTracks.Add(new Project(), run, "Whisper").Track.Language.ShouldBe("tr");
+    }
+
+    [Fact]
     public void A_mixed_track_splits_into_one_track_per_language_for_export()
     {
         var track = new SubtitleTrack { Name = "Kaynak", Language = "tr" };
