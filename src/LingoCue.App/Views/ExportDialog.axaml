@@ -25,7 +25,7 @@
 
   <!-- Three kinds of export as choice cards; each shows only its own options below. -->
   <StackPanel Margin="20,12,20,18" Spacing="12">
-    <UniformGrid Columns="3" ColumnSpacing="10">
+    <UniformGrid Columns="2" ColumnSpacing="10" RowSpacing="10">
       <RadioButton Classes="choice" GroupName="kind" IsChecked="{Binding IsSubtitleFiles}">
         <StackPanel Spacing="6">
           <TextBlock Text="Altyazı dosyası" FontWeight="SemiBold" />
@@ -44,13 +44,19 @@
           <TextBlock Text="Video yeniden kodlanmaz, hızlıdır. MP4 veya MKV." Classes="muted small" TextWrapping="Wrap" />
         </StackPanel>
       </RadioButton>
+      <RadioButton Classes="choice" GroupName="kind" IsChecked="{Binding IsOverlay}" IsEnabled="{Binding CanBurnIn}">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Altyazı katmanı" FontWeight="SemiBold" />
+          <TextBlock Text="Saydam video, Premiere / Resolve'da üst ize. Görüntü kalitesine dokunmaz. MOV." Classes="muted small" TextWrapping="Wrap" />
+        </StackPanel>
+      </RadioButton>
     </UniformGrid>
 
     <TextBlock Text="{Binding BurnInProblem}" Classes="issues" TextWrapping="Wrap"
                IsVisible="{Binding BurnInProblem, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
     <!-- Track list for subtitle files and soft subtitles -->
-    <StackPanel Spacing="6" IsVisible="{Binding !IsBurnIn}">
+    <StackPanel Spacing="6" IsVisible="{Binding ShowsTrackList}">
       <TextBlock Text="İZLER" Classes="section" />
       <ItemsControl ItemsSource="{Binding Tracks}">
         <ItemsControl.ItemTemplate>
@@ -114,6 +120,31 @@
       </DockPanel>
     </Grid>
     <TextBlock Text="{Binding BilingualNote}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding IsBurnIn}" />
+
+    <!-- Overlay: one track (with its plan or bilingual partner) drawn on a transparent canvas. -->
+    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8" IsVisible="{Binding IsOverlay}">
+      <TextBlock Text="İz" VerticalAlignment="Center" />
+      <ComboBox Grid.Column="1" ItemsSource="{Binding AllTracks}" SelectedItem="{Binding BurnTrack}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="sub:SubtitleTrack">
+            <TextBlock>
+              <Run Text="{Binding Name, Mode=OneWay}" />
+              <Run Text="{Binding Language, StringFormat=' · {0}', Mode=OneWay}" Foreground="{DynamicResource MutedTextBrush}" />
+            </TextBlock>
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Grid.Row="1" Text="Kodek" VerticalAlignment="Center" />
+      <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding OverlayCodecs}" SelectedItem="{Binding SelectedOverlayCodec}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:OverlayCodecChoice">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Classes="muted" TextWrapping="Wrap"
+                 Text="Premiere Pro: MOV'u içe aktarın ve videonun üstündeki V2 izine, 00:00'a koyun. Katman videoyla aynı boyutta, kare hızında ve uzunlukta; arka planı saydam. Son dışa aktarmayı Premiere tek seferde yapar, görüntü yeniden kodlanmaz. Altyazıyı düzeltirseniz yalnızca katmanı yeniden üretin." />
+    </Grid>
 
     <!-- Soft subtitles -->
     <StackPanel Spacing="6" IsVisible="{Binding IsSoftSub}">

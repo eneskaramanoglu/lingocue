@@ -164,8 +164,9 @@ public partial class MainViewModel
         }
 
         var burnIn = choice.Kind == ExportKind.BurnIn;
-        var extension = burnIn || choice.Container == SoftSubContainer.Mp4 ? ".mp4" : ".mkv";
-        var suffix = burnIn ? "altyazili" : "altyazi-izli";
+        var overlay = choice.Kind == ExportKind.Overlay;
+        var extension = overlay ? ".mov" : burnIn || choice.Container == SoftSubContainer.Mp4 ? ".mp4" : ".mkv";
+        var suffix = overlay ? "altyazi-katmani" : burnIn ? "altyazili" : "altyazi-izli";
         if (await _files!.SaveVideoAsync($"{ExportBaseName()}.{suffix}", extension) is not { } output)
         {
             return;
@@ -173,7 +174,9 @@ public partial class MainViewModel
 
         var jobsRoot = Path.Combine(Path.GetTempPath(), "LingoCue", "jobs");
         var fonts = FontCatalog.ProjectFontDirectory(ProjectPath);
-        var job = burnIn
+        var job = overlay
+            ? await ExportJobs.PrepareOverlayAsync(project, choice.Tracks[0], media, output, choice.OverlayCodec, fonts, jobsRoot, Measurer())
+            : burnIn
             ? await ExportJobs.PrepareBurnInAsync(project, choice.Tracks[0], media, output, choice.Encoder, choice.Quality, fonts, jobsRoot, Measurer())
             : await ExportJobs.PrepareSoftSubAsync(project, choice.Tracks, media, output, choice.Container, fonts, jobsRoot, Measurer());
         RenderQueue.Enqueue(job);

@@ -14,6 +14,9 @@ public enum ExportKind
     SubtitleFiles,
     BurnIn,
     SoftSub,
+
+    /// <summary>A transparent video of the subtitles for an editor's upper track (Premiere Pro, Resolve).</summary>
+    Overlay,
 }
 
 public sealed partial class TrackChoice(SubtitleTrack track, bool selected) : ObservableObject
@@ -41,7 +44,10 @@ public sealed record ExportChoice(
     VideoEncoder Encoder,
     int Quality,
     SoftSubContainer Container,
-    bool SplitByLanguage = false);
+    bool SplitByLanguage = false,
+    OverlayCodec OverlayCodec = OverlayCodec.Animation);
+
+public sealed record OverlayCodecChoice(OverlayCodec Codec, string Label);
 
 /// <summary>
 /// One dialog for every export: subtitle files (SRT for Premiere Pro, VTT, ASS), a video with the
@@ -73,6 +79,7 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
             new(SubtitleFormats.Ass, "ASS — stil, karaoke ve iki dilli düzen dahil"),
         ];
         SelectedFormat = Formats[0];
+        SelectedOverlayCodec = OverlayCodecs[0];
 
         Encoders = [new(VideoEncoder.X264, "İşlemci (x264) — en iyi kalite/boyut, her yerde çalışır")];
         foreach (var status in hardware.Where(h => h.Available))
@@ -128,7 +135,7 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
     public IReadOnlyList<SubtitleTrack> AllTracks => [.. Tracks.Select(t => t.Track)];
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSubtitleFiles), nameof(IsBurnIn), nameof(IsSoftSub), nameof(CanStart), nameof(StartLabel))]
+    [NotifyPropertyChangedFor(nameof(IsSubtitleFiles), nameof(IsBurnIn), nameof(IsSoftSub), nameof(IsOverlay), nameof(ShowsTrackList), nameof(CanStart), nameof(StartLabel))]
     public partial ExportKind Kind { get; set; }
 
     public bool IsSubtitleFiles
@@ -166,6 +173,31 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
             }
         }
     }
+
+    public bool IsOverlay
+    {
+        get => Kind == ExportKind.Overlay;
+        set
+        {
+            if (value)
+            {
+                Kind = ExportKind.Overlay;
+            }
+        }
+    }
+
+    /// <summary>Burn-in and the overlay draw one track (with its plan or bilingual partner); the other kinds pick tracks.</summary>
+    public bool ShowsTrackList => Kind is ExportKind.SubtitleFiles or ExportKind.SoftSub;
+
+    // ---- Overlay
+    public IReadOnlyList<OverlayCodecChoice> OverlayCodecs { get; } =
+    [
+        new(OverlayCodec.Animation, "QuickTime Animation — kayıpsız, çok küçük dosya"),
+        new(OverlayCodec.ProRes4444, "Apple ProRes 4444 — en geniş uyum, büyük dosya"),
+    ];
+
+    [ObservableProperty]
+    public partial OverlayCodecChoice SelectedOverlayCodec { get; set; }
 
     // ---- Subtitle files
     public IReadOnlyList<SubtitleFormatChoice> Formats { get; }
@@ -224,7 +256,7 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
     public bool CanStart => Kind switch
     {
         ExportKind.SubtitleFiles => Tracks.Any(t => t.IsSelected),
-        ExportKind.BurnIn => CanBurnIn && BurnTrack is not null,
+        ExportKind.BurnIn or ExportKind.Overlay => CanBurnIn && BurnTrack is not null,
         _ => HasVideo && Tracks.Any(t => t.IsSelected),
     };
 
@@ -235,10 +267,10 @@ public sealed partial class ExportDialogViewModel : ViewModelBase
             return null;
         }
 
-        IReadOnlyList<SubtitleTrack> tracks = Kind == ExportKind.BurnIn
+        IReadOnlyList<SubtitleTrack> tracks = Kind is ExportKind.BurnIn or ExportKind.Overlay
             ? [BurnTrack!]
             : [.. Tracks.Where(t => t.IsSelected).SelectMany(t => SplitByLanguage && HasMixedTrack ? TrackOperations.SplitByLanguage(t.Track) : [t.Track])];
         return new ExportChoice(Kind, tracks, SelectedFormat.Format, IsSrt && PremiereBom, SelectedEncoder.Encoder,
-            (int)Math.Round(Quality), UseMkv ? SoftSubContainer.Mkv : SoftSubContainer.Mp4, SplitByLanguage && HasMixedTrack);
+            (int)Math.Round(Quality), UseMkv ? SoftSubContainer.Mkv : SoftSubContainer.Mp4, SplitByLanguage && HasMixedTrack, SelectedOverlayCodec.Codec);
     }
 }

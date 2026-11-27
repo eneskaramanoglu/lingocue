@@ -33,6 +33,50 @@ public static class ExportJobs
         return new RenderJob($"Gömülü video · {Path.GetFileName(outputPath)}", command, media.Duration, work, Warnings(media));
     }
 
+    /// <summary>
+    /// A transparent subtitle video for an editor's upper track: the source's size, frame rate and length,
+    /// rendered with the same script as the preview (the subtitle plan and bilingual lines included).
+    /// </summary>
+    public static async Task<RenderJob> PrepareOverlayAsync(
+        Project project, SubtitleTrack track, MediaInfo media, string outputPath, OverlayCodec codec,
+        string? projectFontDirectory, string jobsRoot, Core.Fonts.ITextMeasurer? measurer = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        ArgumentNullException.ThrowIfNull(track);
+        ArgumentNullException.ThrowIfNull(media);
+        if (media.Video is not { } video)
+        {
+            throw new ArgumentException("A subtitle overlay needs a video.", nameof(media));
+        }
+
+        var work = CreateWorkDirectory(jobsRoot);
+        await File.WriteAllTextAsync(Path.Combine(work, FfmpegCommands.SubtitleFileName),
+            WithExactColors(AssScriptBuilder.Build(project, track, video.DisplayWidth, video.DisplayHeight, measurer: measurer)), cancellationToken);
+        CopyFonts(projectFontDirectory, Path.Combine(work, FfmpegCommands.FontsFolderName));
+
+        var command = FfmpegCommands.Overlay(new OverlayRequest(outputPath, video.DisplayWidth, video.DisplayHeight, video.RateForFfmpeg, media.Duration, work, codec));
+        return new RenderJob($"Altyazı katmanı · {Path.GetFileName(outputPath)}", command, media.Duration, work, []);
+    }
+
+    /// <summary>
+    /// Marks a script's colors as plain RGB ("YCbCr Matrix: None"). Without it FFmpeg's ass filter treats
+    /// them as TV-range video colors and draws pure white as 235 on an RGB canvas, so overlays came out dimmer.
+    /// </summary>
+    public static string WithExactColors(string script)
+    {
+        ArgumentNullException.ThrowIfNull(script);
+        var lines = script.Split('\n').Where(l => !l.TrimStart().StartsWith("YCbCr Matrix:", StringComparison.OrdinalIgnoreCase));
+        var text = string.Join('\n', lines);
+        var at = text.IndexOf("[Script Info]", StringComparison.Ordinal);
+        if (at < 0)
+        {
+            return text;
+        }
+
+        var lineEnd = text.IndexOf('\n', at);
+        return lineEnd < 0 ? text + "\nYCbCr Matrix: None" : text.Insert(lineEnd + 1, "YCbCr Matrix: None\n");
+    }
+
     /// <param name="tracks">In player order; the first one is marked as the default track.</param>
     public static async Task<RenderJob> PrepareSoftSubAsync(
         Project project, IReadOnlyList<SubtitleTrack> tracks, MediaInfo media, string outputPath,

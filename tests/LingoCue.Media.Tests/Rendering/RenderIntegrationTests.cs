@@ -99,6 +99,51 @@ public sealed class RenderIntegrationTests(TestMedia media) : IClassFixture<Test
         Directory.GetFiles(Path.GetDirectoryName(output)!).ShouldBe([output]); // no partial file left
     }
 
+    [Theory]
+    [InlineData(OverlayCodec.Animation, "qtrle")]
+    [InlineData(OverlayCodec.ProRes4444, "prores")]
+    public async Task Overlay_is_transparent_except_the_subtitles_and_matches_the_source(OverlayCodec codec, string expectedCodec)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (renderer, probe, runner, tools) = Create();
+        var source = await probe.ProbeAsync(media.LandscapeClip, ct);
+        var video = source.Video!;
+        var output = Path.Combine(OutputDir(), $"Altyazı katmanı {codec}.mov");
+
+        await renderer.RenderAsync(FfmpegCommands.Overlay(new OverlayRequest(output, video.DisplayWidth, video.DisplayHeight, video.RateForFfmpeg,
+            source.Duration, ExactColors(WorkFolderWithRedSquare()), codec)), source.Duration, cancellationToken: ct);
+
+        var result = await probe.ProbeAsync(output, ct);
+        result.Video!.Codec.ShouldBe(expectedCodec);
+        (result.Video.Width, result.Video.Height).ShouldBe((video.Width, video.Height));
+        result.Video.FrameRate.ShouldBe(video.FrameRate, tolerance: 0.01);
+        result.Duration.TotalSeconds.ShouldBe(source.Duration.TotalSeconds, tolerance: 0.1);
+        result.AudioStreams.ShouldBeEmpty();
+
+        var inside = await RgbaAsync(runner, tools, output, 100, 100);
+        (inside[0], inside[3]).ShouldBe(((byte)255, (byte)255)); // opaque red
+        inside[1].ShouldBeLessThan((byte)20);
+        var outside = await RgbaAsync(runner, tools, output, 600, 400);
+        outside[3].ShouldBe((byte)0); // transparent: the editor's picture shows through untouched
+    }
+
+    private static string ExactColors(string work)
+    {
+        var script = Path.Combine(work, FfmpegCommands.SubtitleFileName);
+        File.WriteAllText(script, ExportJobs.WithExactColors(File.ReadAllText(script)));
+        return work;
+    }
+
+    private async Task<byte[]> RgbaAsync(ProcessRunner runner, MediaTools tools, string video, int x, int y)
+    {
+        var raw = Path.Combine(_dir, "pixel.rgba");
+        var result = await runner.RunAsync(tools.FfmpegPath,
+            ["-v", "error", "-y", "-ss", "1.5", "-i", video, "-frames:v", "1", "-vf", $"crop=1:1:{x}:{y},format=rgba", "-f", "rawvideo", raw],
+            cancellationToken: TestContext.Current.CancellationToken);
+        result.ExitCode.ShouldBe(0, result.StandardError);
+        return await File.ReadAllBytesAsync(raw, TestContext.Current.CancellationToken);
+    }
+
     [Fact]
     public async Task Failed_render_leaves_no_file_and_reports_ffmpegs_error()
     {
