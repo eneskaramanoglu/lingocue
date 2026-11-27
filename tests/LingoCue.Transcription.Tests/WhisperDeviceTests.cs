@@ -30,6 +30,26 @@ public class WhisperDeviceTests
     }
 
     [Theory]
+    [InlineData("failed to load Core ML model from '~/models/ggml-large-v3-encoder.mlmodelc'", "Apple Metal (GPU)")]
+    [InlineData("Core ML model loaded", "Apple Neural Engine (CoreML) + Apple Metal (GPU)")]
+    public void Reads_the_lines_whisper_net_1_9_logs_on_an_m2_when_decoding_starts(string coreMlResult, string expected)
+    {
+        // Captured on an M2 (macOS 15) with the CoreML runtime; these come with the first decode, not Build().
+        string[] log =
+        [
+            "whisper_init_with_params_no_state: use gpu    = 1",
+            "ggml_metal_device_init: GPU name:   MTL0 (Apple M2)",
+            "whisper_backend_init_gpu: found GPU device 0: MTL0 (type: 1, cnt: 0)",
+            "whisper_backend_init_gpu: using MTL0 backend",
+            "whisper_backend_init: using BLAS backend",
+            "whisper_init_state: loading Core ML model from '~/models/ggml-large-v3-encoder.mlmodelc'",
+            "whisper_init_state: " + coreMlResult,
+        ];
+
+        WhisperDevice.Describe("CoreML", log).ShouldBe(expected);
+    }
+
+    [Theory]
     [InlineData("Cuda", "NVIDIA CUDA (GPU)")]
     [InlineData("Vulkan", "Vulkan (GPU)")]
     [InlineData("Cpu", "CPU")]

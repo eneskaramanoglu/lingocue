@@ -116,21 +116,42 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
                     nativeLog.Add(message);
                 }
 
-                if (level is WhisperLogLevel.Error or WhisperLogLevel.Warning)
+                // With the Neural Engine off the encoder folder is renamed on purpose, so the CoreML
+                // runtime's "failed to load Core ML model" is expected and only misleads in the log.
+                var expected = !request.UseNeuralEngine && message.Contains("failed to load Core ML model", StringComparison.Ordinal);
+                if (level is WhisperLogLevel.Error or WhisperLogLevel.Warning && !expected)
                 {
                     LogNative(level.ToString(), message.TrimEnd());
                 }
             });
 
             var factory = GetFactory(modelPath, request.ModelId);
-            var device = "?";
             var language = ToWhisperLanguage(request.Language);
+
+            // whisper.cpp creates its state, and logs the backend ("using MTL0 backend", "Core ML model
+            // loaded"), only when decoding starts, not in Build(). Name the device on the first progress
+            // report, when those lines are in, instead of falling back to the runtime name.
+            string? device = null;
+            var deviceLock = new object();
+            string ResolveDevice()
+            {
+                lock (deviceLock)
+                {
+                    if (device is null)
+                    {
+                        device = DescribeDevice(nativeLog);
+                        LogStarting(request.ModelId, device, language);
+                    }
+
+                    return device;
+                }
+            }
 
             var builder = factory.CreateBuilder()
                 .WithLanguage(language)
                 .WithTokenTimestamps()
                 .WithProbabilities()
-                .WithProgressHandler(p => progress?.Report(new(TranscriptionStage.Recognizing, 0.32 + (p / 100.0 * 0.66), device)));
+                .WithProgressHandler(p => progress?.Report(new(TranscriptionStage.Recognizing, 0.32 + (p / 100.0 * 0.66), ResolveDevice())));
             if (PromptFor(language, request.Hints) is { } prompt)
             {
                 builder = builder.WithPrompt(prompt);
@@ -147,8 +168,6 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
             }
 
             await using var processor = builder.Build();
-            device = DescribeDevice(nativeLog);
-            LogStarting(request.ModelId, device, language);
 
             // Only the speech regions are decoded (see SpeechTimeline); times are mapped back afterwards.
             var (samples, sampleRate) = WavSamples.Read(wav);
@@ -189,9 +208,10 @@ public sealed partial class WhisperNetEngine : ITranscriptionEngine, IDisposable
                 }
             }
 
-            progress?.Report(new(TranscriptionStage.Finishing, 1, device));
+            var usedDevice = ResolveDevice();
+            progress?.Report(new(TranscriptionStage.Finishing, 1, usedDevice));
             LogFinished(words.Count, dropped, suspicious, stopwatch.Elapsed);
-            return new TranscriptionResult(WordTimeline.Normalize(words), Id, request.ModelId, detected, stopwatch.Elapsed, device, 0m);
+            return new TranscriptionResult(WordTimeline.Normalize(words), Id, request.ModelId, detected, stopwatch.Elapsed, usedDevice, 0m);
         }
         catch (Exception ex) when (WhisperLoadFailure(ex))
         {
