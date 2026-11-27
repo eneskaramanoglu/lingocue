@@ -1,5 +1,6 @@
 using LingoCue.Core.Projects;
 using LingoCue.Core.Subtitles;
+using LingoCue.Core.Text;
 
 namespace LingoCue.Core.Segmentation;
 
@@ -15,7 +16,8 @@ public static class AsrTracks
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(run);
         ArgumentNullException.ThrowIfNull(engineName);
-        var language = run.Language ?? run.DetectedLanguage ?? project.SourceLanguage;
+        // A mixed-language run tags its words; the track's language is the one spoken most.
+        var language = MostSpoken(run.Words) ?? LanguageSelection.Main(run.Language) ?? run.DetectedLanguage ?? project.SourceLanguage;
         var cues = Segmenter.Segment(run.Words, new SegmentationOptions { Language = language });
         var doubtful = AsrReview.FlagDoubtful(cues);
         var track = new SubtitleTrack
@@ -35,4 +37,11 @@ public static class AsrTracks
         project.ActiveTrackId = track.Id;
         return (track, doubtful);
     }
+
+    /// <summary>The language with the most words, when the words carry languages.</summary>
+    internal static string? MostSpoken(IReadOnlyList<Word> words)
+        => words.Where(w => !string.IsNullOrWhiteSpace(w.Language))
+            .GroupBy(w => w.Language!, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => g.Key).FirstOrDefault();
 }

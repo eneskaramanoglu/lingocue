@@ -29,6 +29,27 @@ public sealed class SubtitleTrack
 
     public List<Cue> Cues { get; init; } = [];
 
+    /// <summary>The language a cue is written in: its own when the track mixes languages, else the track's.</summary>
+    public string LanguageOf(Cue cue)
+    {
+        ArgumentNullException.ThrowIfNull(cue);
+        return string.IsNullOrWhiteSpace(cue.Language) ? Language : cue.Language;
+    }
+
+    /// <summary>Languages used by the cues, most lines first (just <see cref="Language"/> for a one-language track).</summary>
+    public IReadOnlyList<string> SpokenLanguages()
+    {
+        var languages = Cues.GroupBy(LanguageOf, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Count())
+            .ThenByDescending(g => string.Equals(g.Key, Language, StringComparison.OrdinalIgnoreCase))
+            .ThenBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => g.Key).ToList();
+        return languages.Count == 0 ? [Language] : languages;
+    }
+
+    /// <summary>The cues are in more than one language.</summary>
+    public bool IsMixedLanguage() => SpokenLanguages().Count > 1;
+
     public int NextCueId() => Cues.Count == 0 ? 1 : Cues.Max(c => c.Id) + 1;
 
     public Cue AddCue(TimeSpan start, TimeSpan end, string text)

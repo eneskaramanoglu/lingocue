@@ -12,6 +12,13 @@ public static class LanguageCodes
         ["ja"] = "jpn", ["ko"] = "kor", ["el"] = "gre", ["az"] = "aze", ["ku"] = "kur", ["uk"] = "ukr",
     };
 
+    /// <summary>The primary subtag in lower case: <c>en-US</c> → <c>en</c>; empty for null or blank.</summary>
+    public static string Primary(string? language)
+        => string.IsNullOrWhiteSpace(language) ? string.Empty : language.Trim().Split('-', '_')[0].ToLowerInvariant();
+
+    /// <summary>Short badge for a language in lists: <c>TR</c>, <c>EN</c>, <c>KO</c>.</summary>
+    public static string Badge(string? language) => Primary(language).ToUpperInvariant();
+
     /// <summary>
     /// BCP 47 tag (<c>tr</c>, <c>en-US</c>) → ISO 639-2 code for container metadata; <c>und</c> when unknown.
     /// </summary>

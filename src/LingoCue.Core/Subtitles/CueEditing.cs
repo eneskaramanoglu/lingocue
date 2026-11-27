@@ -33,6 +33,7 @@ public static class CueEditing
         var next = new Cue(track.NextCueId(), cut, cue.End, second)
         {
             Speaker = cue.Speaker,
+            Language = cue.Language,
             Marks = cue.Marks,
             SourceCueId = cue.SourceCueId,
             Format = cue.Format,
