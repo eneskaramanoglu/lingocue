@@ -40,6 +40,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         AutoCheckUpdates = s.Updates.AutoCheck;
         LocalBatchSize = s.Llm.LocalBatchSize;
         LocalParallelism = s.Llm.LocalParallelism;
+        LocalThinking = s.Llm.LocalThinking;
         if (hardware is not null)
         {
             var info = hardware.Read();
@@ -123,6 +124,10 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial decimal LocalParallelism { get; set; }
+
+    /// <summary>Let thinking models reason before answering; off by default (much slower).</summary>
+    [ObservableProperty]
+    public partial bool LocalThinking { get; set; }
 
     [ObservableProperty]
     public partial string? AdviceStatus { get; private set; }
@@ -331,6 +336,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
                 RequestsPerMinute = (int)Math.Clamp(RequestsPerMinute, 1, 60),
                 LocalBatchSize = (int)Math.Clamp(LocalBatchSize, 5, 40),
                 LocalParallelism = (int)Math.Clamp(LocalParallelism, 1, 4),
+                LocalThinking = LocalThinking,
             },
             Updates = current.Updates with { AutoCheck = AutoCheckUpdates },
             Reading = current.Reading with

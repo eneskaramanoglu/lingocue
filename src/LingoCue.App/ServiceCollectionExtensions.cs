@@ -73,7 +73,9 @@ internal static class ServiceCollectionExtensions
         services.AddSingleton<IFontCatalog, FontCatalog>();
         services.AddSingleton<ILlmProvider>(sp => new GeminiProvider(sp.GetRequiredService<ApiKeyProvider>().GetGeminiKey));
         // Local models: the per-request timeout of the pipeline applies; the client itself never gives up first.
-        services.AddSingleton<ILlmProvider>(sp => new OllamaProvider(http, () => sp.GetRequiredService<ISettingsStore>().Current.Llm.OllamaUrl));
+        services.AddSingleton<ILlmProvider>(sp => new OllamaProvider(http,
+            () => sp.GetRequiredService<ISettingsStore>().Current.Llm.OllamaUrl,
+            () => sp.GetRequiredService<ISettingsStore>().Current.Llm.LocalThinking));
         services.AddSingleton(sp => new ModelResolver(sp.GetServices<ILlmProvider>(), () => sp.GetRequiredService<ISettingsStore>().Current.Llm));
 
         // Playback

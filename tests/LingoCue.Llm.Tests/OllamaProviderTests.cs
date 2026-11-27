@@ -94,6 +94,21 @@ public class OllamaProviderTests
         handler.Requests[2].Body.ShouldNotContain("\"format\"");
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task The_thinking_setting_is_sent_as_think(bool thinking)
+    {
+        var handler = new FakeOllama((_, _) => (HttpStatusCode.OK, """{"message":{"role":"assistant","content":"{}"},"done":true}"""));
+        var provider = new OllamaProvider(new HttpClient(handler), () => "http://localhost:11434", () => thinking);
+        using var client = provider.CreateChatClient("gemma4:12b");
+
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken);
+
+        using var sent = JsonDocument.Parse(handler.Requests.ShouldHaveSingleItem().Body);
+        sent.RootElement.GetProperty("think").GetBoolean().ShouldBe(thinking);
+    }
+
     [Fact]
     public async Task A_model_without_the_think_switch_is_asked_again_without_it()
     {

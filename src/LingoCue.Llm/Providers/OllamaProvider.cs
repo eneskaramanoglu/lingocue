@@ -11,7 +11,10 @@ namespace LingoCue.Llm.Providers;
 /// and there are no rate limits. The model list is whatever the user has pulled (<c>ollama pull …</c>).
 /// Talks to Ollama's own HTTP API directly, so no extra package is needed.
 /// </summary>
-public sealed class OllamaProvider(HttpClient http, Func<string> baseUrl) : ILlmProvider
+/// <param name="http">Client for Ollama's HTTP API.</param>
+/// <param name="baseUrl">Server address, read on every call so a settings change applies at once.</param>
+/// <param name="thinking">Whether thinking models may reason before answering (settings: <c>LocalThinking</c>); off when null.</param>
+public sealed class OllamaProvider(HttpClient http, Func<string> baseUrl, Func<bool>? thinking = null) : ILlmProvider
 {
     public const string ProviderId = "ollama";
 
@@ -42,7 +45,8 @@ public sealed class OllamaProvider(HttpClient http, Func<string> baseUrl) : ILlm
             .OrderBy(m => m.Id, StringComparer.OrdinalIgnoreCase)];
     }
 
-    public IChatClient CreateChatClient(string modelId) => new OllamaChatClient(http, Url("api/chat"), modelId);
+    public IChatClient CreateChatClient(string modelId)
+        => new OllamaChatClient(http, Url("api/chat"), modelId) { Thinking = thinking?.Invoke() ?? false };
 
     /// <summary>Local runs cost nothing.</summary>
     public LlmPrice? PriceFor(string modelId) => new(0, 0, HasFreeTier: true);
@@ -70,9 +74,9 @@ public sealed class OllamaProvider(HttpClient http, Func<string> baseUrl) : ILlm
 /// format is passed as Ollama's <c>format</c>, so small local models still return valid JSON. Models
 /// whose runner has no structured output (Ollama answers 501 "structured output is unavailable", e.g.
 /// gemma4) are asked again without it; the prompts already ask for JSON and the parser strips fences.
-/// Thinking is switched off (<c>think: false</c>): subtitle passes gain nothing from hidden reasoning,
-/// and on gemma4 it made a 3-line translation take 127 s instead of 10 s. Models that reject the
-/// switch are asked again without it.
+/// Thinking is off unless <see cref="Thinking"/> is set (<c>think: false</c>): on gemma4 it made a 3-line
+/// translation take 127 s instead of 10 s with the same result. Models that reject the switch are asked
+/// again without it.
 /// </summary>
 public sealed class OllamaChatClient(HttpClient http, Uri chatUrl, string model) : IChatClient
 {
@@ -82,6 +86,9 @@ public sealed class OllamaChatClient(HttpClient http, Uri chatUrl, string model)
 
     /// <summary>Context window requested from Ollama; batches with context lines need more than its 2048 default.</summary>
     public int ContextLength { get; init; } = 8192;
+
+    /// <summary>Sent as Ollama's <c>think</c>: true lets thinking models reason before answering (much slower).</summary>
+    public bool Thinking { get; init; }
 
     public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -93,7 +100,7 @@ public sealed class OllamaChatClient(HttpClient http, Uri chatUrl, string model)
             ChatResponseFormatJson => JsonSerializer.SerializeToElement("json", OllamaJson.Default.String),
             _ => (JsonElement?)null,
         };
-        bool? think = _thinkSwitchUnsupported ? null : false;
+        bool? think = _thinkSwitchUnsupported ? null : Thinking;
 
         var response = await PostAsync(dtos, format, think, options, cancellationToken);
 
